@@ -35,3 +35,31 @@ export function mulberry32(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+/**
+ * Fit a long body (camel, horse) to the ground: samples under its front/back
+ * and left/right and returns the height plus pitch/roll for an Euler in 'YXZ'
+ * order (yaw, then pitch about local X, then roll about local Z).
+ */
+export function fitGround(
+  groundAt: (x: number, z: number) => number,
+  x: number,
+  z: number,
+  yaw: number,
+  halfLen: number,
+  halfWidth: number,
+): { y: number; pitch: number; roll: number } {
+  const fx = Math.sin(yaw);
+  const fz = Math.cos(yaw);
+  const lx = fz; // model's left (+X local) in world space
+  const lz = -fx;
+  const hf = groundAt(x + fx * halfLen, z + fz * halfLen);
+  const hb = groundAt(x - fx * halfLen, z - fz * halfLen);
+  const hl = groundAt(x + lx * halfWidth, z + lz * halfWidth);
+  const hr = groundAt(x - lx * halfWidth, z - lz * halfWidth);
+  return {
+    y: Math.max(groundAt(x, z), (hf + hb) / 2, (hl + hr) / 2),
+    pitch: -Math.atan2(hf - hb, 2 * halfLen),
+    roll: Math.atan2(hl - hr, 2 * halfWidth),
+  };
+}

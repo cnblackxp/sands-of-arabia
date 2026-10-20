@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { HeightField, Obstacles, type LevelData } from './level';
+import { NavGrid } from './nav';
 import { Physics } from './physics';
 
 export interface LoadedAssets {
@@ -56,14 +57,16 @@ export async function loadAssets(onProgress: (f: number, label: string) => void)
   };
 }
 
-const SUN_MIN_ELEVATION_DEG = 24;
-
 export class World {
   readonly scene = new THREE.Scene();
   readonly sun: THREE.DirectionalLight;
   readonly sunDir: THREE.Vector3;
   readonly fog: THREE.Fog;
+  readonly hemi: THREE.HemisphereLight;
+  /** Lamp/fire brightness multiplier from the time of day. */
+  lampFactor = 1;
   readonly obstacles: Obstacles;
+  readonly nav: NavGrid;
   private lamps: THREE.PointLight[] = [];
   private lampSpots: THREE.Vector3[] = [];
   private fire: THREE.PointLight | null = null;
@@ -73,36 +76,23 @@ export class World {
   private shadowHalf = 30;
 
   constructor(
-    renderer: THREE.WebGLRenderer,
     readonly assets: LoadedAssets,
     readonly physics: Physics,
   ) {
     const { level, scene } = { level: assets.level, scene: this.scene };
 
-    // Sky: tone-mapped JPG as background, linear HDR through PMREM for lighting.
+    // Sky dome, environment map and the light keyframes are driven by DayCycle (sky.ts).
     assets.bg.mapping = THREE.EquirectangularReflectionMapping;
     assets.bg.colorSpace = THREE.SRGBColorSpace;
-    scene.background = assets.bg;
     assets.envHdr.mapping = THREE.EquirectangularReflectionMapping;
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromEquirectangular(assets.envHdr).texture;
-    scene.environmentIntensity = 1.0;
-    pmrem.dispose();
-    assets.envHdr.dispose();
 
     this.fog = new THREE.Fog(new THREE.Color(level.fog.color), level.fog.near, level.fog.far);
     scene.fog = this.fog;
 
-    // Sun: azimuth and colour from level.json. The authored 8° elevation puts the
-    // whole market in one dune shadow with almost no direct light, so the light
-    // is lifted to a playable minimum elevation (shadows stay long and warm).
+    // Sun: level.json gives the authored sunset direction and colour; DayCycle
+    // moves it through the day.
     const d = level.sun.direction_to_sun;
     this.sunDir = new THREE.Vector3(d[0], d[1], d[2]).normalize();
-    const minElev = THREE.MathUtils.degToRad(SUN_MIN_ELEVATION_DEG);
-    if (Math.asin(this.sunDir.y) < minElev) {
-      const flat = Math.hypot(this.sunDir.x, this.sunDir.z);
-      this.sunDir.set((this.sunDir.x / flat) * Math.cos(minElev), Math.sin(minElev), (this.sunDir.z / flat) * Math.cos(minElev));
-    }
     this.sun = new THREE.DirectionalLight(new THREE.Color(level.sun.color), 3.2);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
@@ -112,7 +102,8 @@ export class World {
     sc.near = 1;
     sc.far = 600;
     scene.add(this.sun, this.sun.target);
-    scene.add(new THREE.HemisphereLight(0xffd2a8, 0x6a4a3a, 0.35));
+    this.hemi = new THREE.HemisphereLight(0xffd2a8, 0x6a4a3a, 0.35);
+    scene.add(this.hemi);
 
     // Static level.
     const shadowy = (root: THREE.Object3D, cast: boolean) =>
@@ -153,13 +144,14 @@ export class World {
     physics.bounds = { x: [level.bounds.x[0] + 1, level.bounds.x[1] - 1], z: [level.bounds.z[0] + 1, level.bounds.z[1] - 1] };
     physics.groundAt = (x, z) => assets.heights.height(x, z);
     this.obstacles = new Obstacles(level.colliders);
+    this.nav = new NavGrid(level.colliders, level.bounds.x[0], level.bounds.z[0], level.bounds.x[1], level.bounds.z[1]);
 
     // Lamps: a fixed pool of point lights moved to the lamps nearest the player
     // (keeps the shader light count constant).
     for (const l of level.lights) {
       const p = new THREE.Vector3(...l.pos);
       if (l.type === 'fire') {
-        this.fire = new THREE.PointLight(0xff8a3a, 30, 16, 1.6);
+        this.fire = new THREE.PointLight(0xff8a3a, 16, 14, 1.6);
         this.fire.position.copy(p).y += 0.6;
         scene.add(this.fire);
       } else {
@@ -233,9 +225,13 @@ export class World {
       });
     }
     const flick = 1 + 0.12 * Math.sin(this.t * 13.1) + 0.08 * Math.sin(this.t * 7.3 + 1.7);
-    for (const l of this.lamps) l.intensity = 6 * flick;
-    if (this.fire) this.fire.intensity = 30 * (1 + 0.2 * Math.sin(this.t * 9.7) + 0.1 * Math.sin(this.t * 23.1));
-    for (const m of this.flameMats) m.emissiveIntensity = 2.5 * flick;
+    const lf = this.lampFactor;
+    for (const l of this.lamps) {
+      l.intensity = 6 * flick * lf;
+      l.distance = 7 + 5 * Math.max(0, lf - 1);
+    }
+    if (this.fire) this.fire.intensity = 16 * Math.min(1.3, Math.max(0.4, lf)) * (1 + 0.2 * Math.sin(this.t * 9.7) + 0.1 * Math.sin(this.t * 23.1));
+    for (const m of this.flameMats) m.emissiveIntensity = 2.5 * flick * Math.max(0.5, lf);
   }
 
   setFogOffset(depth: number): void {

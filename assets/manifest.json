@@ -64,9 +64,17 @@
      "frames": 48,
      "loop": true
     },
+    "Jump": {
+     "frames": 14,
+     "loop": false
+    },
     "Ride": {
      "frames": 12,
      "loop": true
+    },
+    "Roll": {
+     "frames": 14,
+     "loop": false
     },
     "Run": {
      "frames": 16,
@@ -661,7 +669,7 @@
    ],
    "materials": [
     "FarRock",
-    "Rock.001",
+    "Rock",
     "RockBand0",
     "RockBand1",
     "RockBand2",

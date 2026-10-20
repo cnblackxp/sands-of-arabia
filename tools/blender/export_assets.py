@@ -581,8 +581,9 @@ def export_level():
         sp("sitter", x, y, r)
     for (x, y, r) in [(-18, -8, -2.2), (-13, -14, -2.6), (-21, -4, -1.9)]:
         sp("water_carrier", x, y, r)
-    sp("guard", -2.2, 20.0, 0.0)
-    sp("guard", 2.2, 20.0, 0.0)
+    # clear of the gate towers (tower front faces sit at y = 20)
+    sp("guard", -2.6, 18.6, 0.0)
+    sp("guard", 2.6, 18.6, 0.0)
     sp("priest", 6.0, 47.0, 0.0)
     for (x, y, r, sit) in [(-5, -34, 0.9, False), (-11, -36, -1.2, True), (12, -33, 2.4, False),
                            (-12, -31, 1.6, True), (13, 14, 0.3, False), (-24, -16, 2.8, False),
@@ -591,6 +592,16 @@ def export_level():
         sp("camel", x, y, r, sitting=sit)
     for (x, y, r) in [(6.0, -46.0, 0.3), (9.0, -44.0, 0.6), (-24.0, -26.0, 1.2)]:
         sp("horse", x, y, r)
+    # hostile raider camps out in the dunes: kind = raider | brute | skirmisher
+    raider_camps = {
+        "tomb": [(64, 90, "raider"), (76, 91, "brute"), (70, 84, "skirmisher"), (82, 86, "raider")],
+        "south_dunes": [(-40, -96, "raider"), (-31, -102, "skirmisher"), (-46, -106, "raider"), (-37, -110, "brute")],
+        "crest": [(-92, 98, "skirmisher"), (-84, 104, "raider"), (-98, 106, "raider")],
+        "east_flats": [(110, -20, "raider"), (118, -12, "brute"), (104, -8, "skirmisher")],
+    }
+    for camp, members in raider_camps.items():
+        for (x, y, kind) in members:
+            sp("enemy", x, y, random.uniform(-math.pi, math.pi), kind=kind, camp=camp)
     # caravan path along the big dune crest (patrol waypoints)
     crest = [L.crest_point(u) for u in range(-90, 30, 10)]
     level = {

@@ -2457,18 +2457,18 @@
   {
    "role": "guard",
    "pos": [
-    -2.2,
-    2.0195,
-    -20.0
+    -2.6,
+    1.3903,
+    -18.6
    ],
    "yaw": 0.0
   },
   {
    "role": "guard",
    "pos": [
-    2.2,
-    2.0095,
-    -20.0
+    2.6,
+    1.3977,
+    -18.6
    ],
    "yaw": 0.0
   },
@@ -2617,6 +2617,160 @@
     26.0
    ],
    "yaw": 1.2
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    64,
+    5.7721,
+    -90
+   ],
+   "yaw": -2.0561,
+   "kind": "raider",
+   "camp": "tomb"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    76,
+    7.9533,
+    -91
+   ],
+   "yaw": 2.8056,
+   "kind": "brute",
+   "camp": "tomb"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    70,
+    6.7817,
+    -84
+   ],
+   "yaw": 3.0547,
+   "kind": "skirmisher",
+   "camp": "tomb"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    82,
+    9.4273,
+    -86
+   ],
+   "yaw": 0.6695,
+   "kind": "raider",
+   "camp": "tomb"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -40,
+    8.1534,
+    96
+   ],
+   "yaw": -3.067,
+   "kind": "raider",
+   "camp": "south_dunes"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -31,
+    9.0045,
+    102
+   ],
+   "yaw": -2.7589,
+   "kind": "skirmisher",
+   "camp": "south_dunes"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -46,
+    12.7688,
+    106
+   ],
+   "yaw": -1.8309,
+   "kind": "raider",
+   "camp": "south_dunes"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -37,
+    13.1248,
+    110
+   ],
+   "yaw": -0.6982,
+   "kind": "brute",
+   "camp": "south_dunes"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -92,
+    25.1448,
+    -98
+   ],
+   "yaw": 0.7009,
+   "kind": "skirmisher",
+   "camp": "crest"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -84,
+    27.3423,
+    -104
+   ],
+   "yaw": 2.9307,
+   "kind": "raider",
+   "camp": "crest"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -98,
+    29.5246,
+    -106
+   ],
+   "yaw": -0.914,
+   "kind": "raider",
+   "camp": "crest"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    110,
+    14.6634,
+    20
+   ],
+   "yaw": -2.2579,
+   "kind": "raider",
+   "camp": "east_flats"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    118,
+    9.1038,
+    12
+   ],
+   "yaw": 0.3891,
+   "kind": "brute",
+   "camp": "east_flats"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    104,
+    7.438,
+    8
+   ],
+   "yaw": -2.2789,
+   "kind": "skirmisher",
+   "camp": "east_flats"
   }
  ],
  "lights": [

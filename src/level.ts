@@ -19,13 +19,17 @@ export type SpawnRole =
   | 'guard'
   | 'priest'
   | 'camel'
-  | 'horse';
+  | 'horse'
+  | 'enemy';
 
 export interface Spawn {
   role: SpawnRole;
   pos: Vec3;
   yaw: number;
   sitting?: boolean;
+  /** Enemy spawns: raider | brute | skirmisher, grouped by camp. */
+  kind?: string;
+  camp?: string;
 }
 
 export interface LevelData {

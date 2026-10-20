@@ -99,16 +99,20 @@ export class Animator {
   }
 
   /** Cross-fade to a base clip. Re-calling with the same name only updates speed. */
-  setBase(name: string, timeScale = 1, fade = 0.2): void {
+  setBase(name: string, timeScale = 1, fade = 0.2, restart = false): void {
     const layer = this.layers.get(name);
     if (!layer) return;
+    if (restart && name === this.baseName) {
+      layer.lower.reset().play();
+      layer.upper?.reset().play();
+    }
     if (name !== this.baseName) {
       const rate = fade > 0 ? 1 / fade : 1000;
       for (const [n, l] of this.layers) {
         l.target = n === name ? 1 : 0;
         l.rate = rate;
       }
-      if (!layer.playing || layer.w < 0.01) {
+      if (!layer.playing || layer.w < 0.01 || restart) {
         layer.lower.reset().play();
         layer.upper?.reset().play();
         layer.playing = true;
@@ -135,6 +139,17 @@ export class Animator {
     this.ovTarget = 1;
     this.ovRate = 1 / Math.max(opts.fade ?? 0.1, 0.001);
     this.ovFadeOut = 0.15;
+  }
+
+  /** Change the current overlay's playback speed (0 holds the pose). */
+  setOverlayTimeScale(ts: number): void {
+    if (this.ov) this.ov.timeScale = ts;
+  }
+
+  /** Seconds into the current base clip. */
+  baseTime(): number {
+    const l = this.layers.get(this.baseName);
+    return l ? l.lower.time : 0;
   }
 
   stopOverlay(fade = 0.2): void {

@@ -46,7 +46,7 @@ export class Mover {
    * terrain out of the sweep means slopes can never push the character sideways,
    * so on open ground the step is exactly the requested direction.
    */
-  move(dx: number, dz: number, exclude?: RAPIER.Collider): { x: number; z: number } {
+  move(dx: number, dz: number, lift = 0, exclude?: RAPIER.Collider): { x: number; z: number } {
     const ctl = this.phys.controller;
     ctl.computeColliderMovement(
       this.collider,
@@ -61,8 +61,8 @@ export class Mover {
     const nx = THREE.MathUtils.clamp(t.x + m.x, b.x[0], b.x[1]);
     const nz = THREE.MathUtils.clamp(t.z + m.z, b.z[0], b.z[1]);
     const gy = this.phys.groundAt(nx, nz);
-    this.body.setTranslation({ x: nx, y: gy + this.centerOffset, z: nz }, true);
-    this.feet.set(nx, gy, nz);
+    this.body.setTranslation({ x: nx, y: gy + lift + this.centerOffset, z: nz }, true);
+    this.feet.set(nx, gy + lift, nz);
     return { x: nx - t.x, z: nz - t.z };
   }
 

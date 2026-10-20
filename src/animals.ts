@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CharacterFactory, CLIP_SPEED, PAL, pick, type Rig } from './characters';
 import type { Spawn } from './level';
 import { GROUP_ACTOR, GROUP_PLAYER, Mover, type Physics } from './physics';
-import { turnToward } from './util';
+import { fitGround, turnToward } from './util';
 
 export const HORSE_WALK = 2.8;
 export const HORSE_GALLOP = 10.5;
@@ -14,7 +14,10 @@ export class Horse {
   yaw: number;
   speed = 0;
   ridden = false;
+  pitch = 0;
+  roll = 0;
   private mount: THREE.Bone;
+  private groundAt: (x: number, z: number) => number;
 
   constructor(factory: CharacterFactory, physics: Physics, spawn: Spawn, rnd: () => number) {
     this.rig = factory.createHorse(
@@ -24,6 +27,7 @@ export class Horse {
     const feet = new THREE.Vector3(...spawn.pos);
     feet.y = physics.groundAt(feet.x, feet.z);
     this.mover = new Mover(physics, 0.7, 0.35, feet);
+    this.groundAt = physics.groundAt;
     this.mover.collider.setCollisionGroups(GROUP_ACTOR);
     this.yaw = spawn.yaw;
     this.mount = this.rig.bones.get('mount')!;
@@ -87,8 +91,13 @@ export class Horse {
   }
 
   private sync(): void {
-    this.rig.root.position.copy(this.mover.feet);
-    this.rig.root.rotation.y = this.yaw;
+    // Lean with the dunes so hooves stay on the sand.
+    const f = this.mover.feet;
+    const t = fitGround(this.groundAt, f.x, f.z, this.yaw, 1.1, 0.35);
+    this.pitch += (t.pitch - this.pitch) * 0.25;
+    this.roll += (t.roll * 0.6 - this.roll) * 0.25;
+    this.rig.root.position.set(f.x, t.y, f.z);
+    this.rig.root.rotation.set(this.pitch, this.yaw, this.roll, 'YXZ');
     this.rig.root.updateMatrixWorld(true);
   }
 
@@ -104,9 +113,11 @@ export class Camel {
     const cargo = rnd() < 0.6;
     this.rig = factory.createCamel({}, true, cargo);
     const p = new THREE.Vector3(...spawn.pos);
-    p.y = physics.groundAt(p.x, p.z);
+    // Fit the body to the slope so a lying camel doesn't sink into the sand.
+    const t = fitGround(physics.groundAt, p.x, p.z, spawn.yaw, spawn.sitting ? 1.3 : 1.0, spawn.sitting ? 0.6 : 0.3);
+    p.y = t.y;
     this.rig.root.position.copy(p);
-    this.rig.root.rotation.y = spawn.yaw;
+    this.rig.root.rotation.set(t.pitch, spawn.yaw, t.roll, 'YXZ');
     this.rig.anim.setBase(spawn.sitting ? 'Sit' : 'Idle', 0.8 + rnd() * 0.4, 0);
     // A short capsule at the body; camels are ~3 m long so use two.
     const fx = Math.sin(spawn.yaw);

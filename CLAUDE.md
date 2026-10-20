@@ -102,13 +102,20 @@ Run `npm install` and then `npm run dev` (port 5173; `.claude/launch.json` entry
 
 | File | Purpose |
 |---|---|
-| `main.ts` | Bootstrap, game loop, interaction (talk, mount), HUD wiring. `window.__game` exposes the game for debugging. |
-| `world.ts` | Asset loading, sky, sun, fog, lamp light pool, level physics. |
+| `main.ts` | Bootstrap, game loop, contextual interact (talk, mount), game-feel events, HUD and minimap wiring. `window.__game` exposes the game for debugging. |
+| `world.ts` | Asset loading, sun, fog, lamp light pool, level physics, nav grid. |
+| `sky.ts` | Time of day: sky dome shader (sunset photo/HDR around 18:12), keyframed lights, environment map regenerated from the dome, night colour grade. |
+| `nav.ts` | 1 m nav grid rasterised from the level boxes; A* path finding and a path follower. |
+| `combat.ts` | Shared hit and player-view types. |
+| `enemy.ts` | Raider enemies (raider, skirmisher, brute): telegraphed windup, committed strike, recovery, poise, combos, leashing. |
+| `fx.ts` | Hitstop, slow motion, voxel particles, hit and tell flashes, telegraph glints, synthesised WebAudio sounds. |
+| `menu.ts` | Pause menu (time of day, character look, robe colour, camera, minimap, volume, controls). |
+| `minimap.ts` | Corner minimap rotated to the camera. |
 | `physics.ts` | Rapier world and `Mover`, a kinematic capsule. |
 | `level.ts` | level.json types, `HeightField` sampler, `Obstacles` (2D OBB checks for NPC paths). |
 | `characters.ts` | Rig factory: clone, accessories, recolour, and merging each rig into one vertex-coloured SkinnedMesh. |
 | `animator.ts` | Layered animation: base clips split into lower and upper halves; upper-body overlays fade out the base's upper half. |
-| `player.ts` | Movement, facing, sword combo, HP, mount and dismount. |
+| `player.ts` | Movement, facing, stamina, dodge roll, jump, sword combo, HP, mount and dismount. |
 | `npc.ts` | NPC roles and state machine, hit arc, alarms. |
 | `animals.ts` | Horse (ridden through its own `Mover`) and camels. |
 | `camera.ts` | Orthographic follow camera with a perspective toggle. |
@@ -120,14 +127,10 @@ Decisions worth knowing:
 - **Ground.** Ground height comes from the heightfield, and the Rapier controller only resolves horizontal collisions against the level boxes and actor capsules. If the terrain were part of the controller sweep, the slope-slide would push the character sideways (the `movement_facing_bug.png` drift).
 - **Sun.** The sun's azimuth and colour come from level.json, but the light is lifted to at least 24° elevation (`SUN_MIN_ELEVATION_DEG` in `world.ts`). At the authored 8°, one dune shadow covers the whole market.
 - **Draw calls.** Characters are merged at spawn into one mesh with two draw groups (matte, metal). Accessories are chosen before the merge and can't be toggled afterwards.
-- **Gamepad (standard mapping).**
-  - Left stick: analog movement.
-  - LT, LB or L3: run.
-  - X or RT: attack.
-  - A: talk, or the next dialogue line.
-  - Y: mount.
-  - B: leave dialogue.
-  - Right stick: rotate the camera and zoom.
-  - D-pad: zoom and rotate.
-  - View: perspective toggle.
+- **Controls** follow Elden Ring's layout. The HUD glyphs follow the last device used.
+  - Keyboard: WASD move, Shift sprint, LMB or J attack, Space roll, F jump, E interact (talk, mount, dismount), M minimap, Esc pause, Q and R rotate, wheel zoom.
+  - Gamepad (standard mapping): left stick move (analog), B tap roll, B hold or LT or L3 sprint, RB, X or RT attack, A jump and confirm, Y interact, Start pause, View minimap, right stick camera, D-pad zoom, rotate and menu navigation.
+- **Stamina.** Attacks, rolls, jumps and sprinting cost stamina, and regen pauses briefly after each action. Rolls have i-frames from 0.06 to 0.42 s.
+- **Enemies.** Enemy spawns live in level.json as `role: "enemy"` with a `kind` and a `camp` (from `export_assets.py`). Enemy windups use the Attack and Attack2 overlays, slowed to the raise and then held. There's no separate windup clip.
+- **Clips added for the game.** The `Roll` and `Jump` clips are in `rigs.py` and play as one-shot base clips.
 - **Debug.** The backquote key toggles wireframes of the level.json colliders.

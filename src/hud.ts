@@ -1,20 +1,77 @@
 import type { Device } from './input';
 
-const HINTS: Record<Device, string> = {
-  keyboard:
-    '<b>WASD</b> move · <b>Shift</b> run · <b>LMB / Space</b> attack · <b>E</b> talk · <b>F</b> mount · <b>Wheel</b> zoom · <b>Q / R</b> rotate · <b>P</b> perspective',
-  gamepad:
-    '<b>L-stick</b> move · <b>LT / LB / L3</b> run · <b>X / RT</b> attack · <b>A</b> talk · <b>Y</b> mount · <b>R-stick</b> camera · <b>View</b> perspective',
+export type Action =
+  | 'move'
+  | 'run'
+  | 'attack'
+  | 'dodge'
+  | 'talk'
+  | 'mount'
+  | 'jump'
+  | 'pause'
+  | 'map'
+  | 'camera'
+  | 'zoom'
+  | 'next'
+  | 'leave'
+  | 'confirm'
+  | 'back'
+  | 'adjust';
+
+/** Button glyphs per device. Gamepad uses Xbox-style labels on a standard pad. */
+const GLYPH: Record<Device, Record<Action, string>> = {
+  keyboard: {
+    move: '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>',
+    run: '<kbd>Shift</kbd>',
+    attack: '<kbd>LMB</kbd>',
+    dodge: '<kbd>Space</kbd>',
+    talk: '<kbd>E</kbd>',
+    mount: '<kbd>E</kbd>',
+    jump: '<kbd>F</kbd>',
+    pause: '<kbd>Esc</kbd>',
+    map: '<kbd>M</kbd>',
+    camera: '<kbd>Q</kbd><kbd>R</kbd>',
+    zoom: '<kbd>Wheel</kbd>',
+    next: '<kbd>E</kbd>',
+    leave: '<kbd>Esc</kbd>',
+    confirm: '<kbd>Enter</kbd>',
+    back: '<kbd>Esc</kbd>',
+    adjust: '<kbd>A</kbd><kbd>D</kbd>',
+  },
+  gamepad: {
+    move: '<span class="pad stick">L</span>',
+    run: '<span class="pad b">B</span><small>hold</small>',
+    attack: '<span class="pad bumper">RB</span>',
+    dodge: '<span class="pad b">B</span>',
+    talk: '<span class="pad y">Y</span>',
+    mount: '<span class="pad y">Y</span>',
+    jump: '<span class="pad a">A</span>',
+    pause: '<span class="pad menu">☰</span>',
+    map: '<span class="pad menu">⧉</span>',
+    camera: '<span class="pad stick">R</span>',
+    zoom: '<span class="pad dpad">✚</span>',
+    next: '<span class="pad a">A</span>',
+    leave: '<span class="pad b">B</span>',
+    confirm: '<span class="pad a">A</span>',
+    back: '<span class="pad b">B</span>',
+    adjust: '<span class="pad dpad">◀▶</span>',
+  },
 };
 
-const KEY: Record<Device, { talk: string; mount: string; next: string; close: string }> = {
-  keyboard: { talk: 'E', mount: 'F', next: 'E', close: 'Esc' },
-  gamepad: { talk: 'A', mount: 'Y', next: 'A', close: 'B' },
-};
+export interface EnemyBar {
+  x: number;
+  y: number;
+  frac: number;
+  name: string;
+  dmg: number;
+  tell: boolean;
+}
 
 export class Hud {
   private hpFill: HTMLDivElement;
-  private hpText: HTMLDivElement;
+  private hpLag: HTMLDivElement;
+  private stFill: HTMLDivElement;
+  private stBar: HTMLDivElement;
   private prompt: HTMLDivElement;
   private dlg: HTMLDivElement;
   private dlgName: HTMLDivElement;
@@ -24,23 +81,37 @@ export class Hud {
   private toast: HTMLDivElement;
   private fps: HTMLDivElement;
   private vignette: HTMLDivElement;
+  private lowHp: HTMLDivElement;
+  private bars: HTMLDivElement;
+  private barPool: HTMLDivElement[] = [];
   private toastTimer = 0;
   private flash = 0;
-  private device: Device | null = null;
-  key = KEY.keyboard;
+  private hpLagValue = 1;
+  private hpLagHold = 0;
+  private lastHp = 1;
+  device: Device = 'keyboard';
+  private hintKey = '';
+  private promptKey = '';
 
   constructor(root: HTMLElement) {
     root.innerHTML = `
-      <div class="hp"><div class="hp-label">HP</div><div class="hp-bar"><div class="hp-fill"></div></div><div class="hp-text"></div></div>
+      <div class="bars-top">
+        <div class="hp-bar"><div class="hp-lag"></div><div class="hp-fill"></div></div>
+        <div class="st-bar"><div class="st-fill"></div></div>
+      </div>
       <div class="fps"></div>
+      <div class="enemy-bars"></div>
       <div class="prompt hidden"></div>
       <div class="toast hidden"></div>
       <div class="dialogue hidden"><div class="dlg-name"></div><div class="dlg-text"></div><div class="dlg-more"></div></div>
       <div class="hint"></div>
-      <div class="vignette"></div>`;
+      <div class="vignette"></div>
+      <div class="lowhp"></div>`;
     const q = <T extends HTMLElement>(s: string) => root.querySelector(s) as T;
     this.hpFill = q('.hp-fill');
-    this.hpText = q('.hp-text');
+    this.hpLag = q('.hp-lag');
+    this.stFill = q('.st-fill');
+    this.stBar = q('.st-bar');
     this.prompt = q('.prompt');
     this.dlg = q('.dialogue');
     this.dlgName = q('.dlg-name');
@@ -50,33 +121,62 @@ export class Hud {
     this.toast = q('.toast');
     this.fps = q('.fps');
     this.vignette = q('.vignette');
-    this.setDevice('keyboard');
+    this.lowHp = q('.lowhp');
+    this.bars = q('.enemy-bars');
+  }
+
+  /** HTML glyph for an action on the current device. */
+  key(a: Action): string {
+    return GLYPH[this.device][a];
   }
 
   setDevice(d: Device): void {
-    if (d === this.device) return;
     this.device = d;
-    this.key = KEY[d];
-    this.hint.innerHTML = HINTS[d];
   }
 
-  setHp(hp: number, max: number): void {
-    const f = Math.max(0, hp / max);
+  /** Bottom help bar: a list of [action, label] for the current context. */
+  setHints(items: [Action, string][]): void {
+    const key = this.device + items.map((i) => i.join(':')).join('|');
+    if (key === this.hintKey) return;
+    this.hintKey = key;
+    this.hint.innerHTML = items.map(([a, l]) => `<span class="hint-item">${this.key(a)} ${l}</span>`).join('');
+  }
+
+  setVitals(hp: number, maxHp: number, st: number, maxSt: number, exhausted: boolean, dt: number): void {
+    const f = Math.max(0, hp / maxHp);
+    if (f < this.lastHp) this.hpLagHold = 0.6;
+    this.lastHp = f;
+    // Souls-style trailing damage chunk.
+    if (this.hpLagHold > 0) this.hpLagHold -= dt;
+    else this.hpLagValue = Math.max(f, this.hpLagValue - dt * 0.6);
+    if (this.hpLagValue < f) this.hpLagValue = f;
     this.hpFill.style.width = `${f * 100}%`;
-    this.hpFill.classList.toggle('low', f < 0.3);
-    this.hpText.textContent = `${Math.ceil(hp)} / ${max}`;
+    this.hpLag.style.width = `${this.hpLagValue * 100}%`;
+    this.stFill.style.width = `${Math.max(0, st / maxSt) * 100}%`;
+    this.stBar.classList.toggle('exhausted', exhausted);
+    this.lowHp.style.opacity = f < 0.3 ? String(0.35 + 0.25 * Math.sin(performance.now() / 180)) : '0';
   }
 
-  setPrompt(text: string | null): void {
-    this.prompt.classList.toggle('hidden', !text);
-    if (text && this.prompt.innerHTML !== text) this.prompt.innerHTML = text;
+  /** Flash the stamina bar when an action is refused. */
+  staminaDenied(): void {
+    this.stBar.classList.remove('denied');
+    void this.stBar.offsetWidth;
+    this.stBar.classList.add('denied');
+  }
+
+  setPrompt(html: string | null): void {
+    const key = (html ?? '') + this.device;
+    if (key === this.promptKey) return;
+    this.promptKey = key;
+    this.prompt.classList.toggle('hidden', !html);
+    if (html) this.prompt.innerHTML = html;
   }
 
   showDialogue(name: string, text: string, last: boolean): void {
     this.dlg.classList.remove('hidden');
     this.dlgName.textContent = name;
     this.dlgText.textContent = text;
-    this.dlgMore.textContent = last ? `${this.key.next} — farewell` : `${this.key.next} — continue   ·   ${this.key.close} — leave`;
+    this.dlgMore.innerHTML = last ? `${this.key('next')} farewell` : `${this.key('next')} continue &nbsp;·&nbsp; ${this.key('leave')} leave`;
   }
 
   hideDialogue(): void {
@@ -89,8 +189,31 @@ export class Hud {
     this.toastTimer = secs;
   }
 
-  hurtFlash(): void {
-    this.flash = 1;
+  hurtFlash(strength = 1): void {
+    this.flash = Math.max(this.flash, strength);
+  }
+
+  setEnemyBars(list: EnemyBar[]): void {
+    while (this.barPool.length < list.length) {
+      const el = document.createElement('div');
+      el.className = 'ebar';
+      el.innerHTML = '<div class="ebar-name"></div><div class="ebar-track"><div class="ebar-fill"></div></div><div class="ebar-dmg"></div>';
+      this.bars.appendChild(el);
+      this.barPool.push(el);
+    }
+    this.barPool.forEach((el, i) => {
+      const b = list[i];
+      if (!b) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = '';
+      el.style.transform = `translate(${b.x.toFixed(0)}px, ${b.y.toFixed(0)}px) translate(-50%, -100%)`;
+      (el.children[0] as HTMLElement).textContent = b.name;
+      (el.children[1].firstChild as HTMLElement).style.width = `${b.frac * 100}%`;
+      (el.children[2] as HTMLElement).textContent = b.dmg > 0 ? String(Math.round(b.dmg)) : '';
+      el.classList.toggle('tell', b.tell);
+    });
   }
 
   update(dt: number, fps: number): void {

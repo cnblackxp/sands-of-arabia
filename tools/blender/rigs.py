@@ -323,6 +323,54 @@ def person_clips(arm):
         "arm_R": {"rot": (-42, 0, -8)},
         "spine": {"rot": (6 + 3 * S(t, 0.25), 0, 0)},
     }))
+    # Roll: forward dodge roll (full body, plays in place; the game moves the root).
+    # The root tumbles 360 deg about a pivot at hip height, with limbs tucked.
+    def roll_pose(u):
+        # u: 0..1 through the tumble
+        th = 360.0 * u
+        h = 0.5                                  # pivot height above the feet
+        hop = 0.12 * math.sin(math.pi * u)
+        r = R(th)
+        tuck = math.sin(math.pi * min(1.0, u * 1.15))
+        return {
+            # loc = p - R p for a pivot p = (0, h, 0) in root space (y up, z forward)
+            "root": {"rot": (th, 0, 0), "loc": (0, h * (1 - math.cos(r)) + hop, -h * math.sin(r))},
+            "hips": {"loc": (0, -0.3 * tuck, 0)},
+            "spine": {"rot": (40 * tuck, 0, 0)},
+            "head": {"rot": (30 * tuck, 0, 0)},
+            "leg_L": {"rot": (-105 * tuck, 0, -6)},
+            "leg_R": {"rot": (-105 * tuck, 0, 6)},
+            "arm_L": {"rot": (-70 * tuck, 0, -12)},
+            "arm_R": {"rot": (-70 * tuck, 0, 12)},
+        }
+    roll = {1: {"hips": {"loc": (0, -0.12, 0)}, "spine": {"rot": (18, 0, 0)},
+                "leg_L": {"rot": (-30, 0, 0)}, "leg_R": {"rot": (-20, 0, 0)}}}
+    for i in range(11):                          # frames 2..12, 36 deg per frame
+        roll[2 + i] = roll_pose(i / 10)
+    roll[13] = {"hips": {"loc": (0, -0.1, 0)}, "spine": {"rot": (12, 0, 0)},
+                "leg_L": {"rot": (-24, 0, 0)}, "leg_R": {"rot": (-10, 0, 0)}}
+    roll[15] = rest
+    clip(arm, "Roll", 14, roll, loop=False)
+    # Jump: crouch, push off, tuck in the air, land (full body, in place; the game
+    # moves the root up and down). 14 frames = 0.58 s, matching the game's arc.
+    clip(arm, "Jump", 14, {
+        1: {"hips": {"loc": (0, -0.14, 0)}, "spine": {"rot": (14, 0, 0)},
+            "leg_L": {"rot": (-34, 0, 0)}, "leg_R": {"rot": (-34, 0, 0)},
+            "arm_L": {"rot": (30, 0, -10)}, "arm_R": {"rot": (30, 0, 10)}},
+        3: {"spine": {"rot": (-6, 0, 0)}, "head": {"rot": (-8, 0, 0)},
+            "leg_L": {"rot": (8, 0, 0)}, "leg_R": {"rot": (14, 0, 0)},
+            "arm_L": {"rot": (-150, 0, -14)}, "arm_R": {"rot": (-150, 0, 14)}},
+        6: {"hips": {"loc": (0, 0.05, 0)}, "spine": {"rot": (6, 0, 0)},
+            "leg_L": {"rot": (-62, 0, -4)}, "leg_R": {"rot": (-30, 0, 4)},
+            "arm_L": {"rot": (-110, 0, -26)}, "arm_R": {"rot": (-110, 0, 26)}},
+        10: {"hips": {"loc": (0, 0.03, 0)}, "spine": {"rot": (4, 0, 0)},
+             "leg_L": {"rot": (-40, 0, -4)}, "leg_R": {"rot": (-20, 0, 4)},
+             "arm_L": {"rot": (-70, 0, -30)}, "arm_R": {"rot": (-70, 0, 30)}},
+        13: {"hips": {"loc": (0, -0.16, 0)}, "spine": {"rot": (16, 0, 0)},
+             "leg_L": {"rot": (-36, 0, 0)}, "leg_R": {"rot": (-30, 0, 0)},
+             "arm_L": {"rot": (-20, 0, -16)}, "arm_R": {"rot": (-20, 0, 16)}},
+        15: rest,
+    }, loop=False)
     # Sit: cross-legged on the ground
     clip(arm, "Sit", 48, cyc(48, 12, lambda t: {
         "hips": {"loc": (0, -0.62, 0)},

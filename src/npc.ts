@@ -2,9 +2,12 @@ import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { CharacterFactory, CLIP_SPEED, PAL, pick, type Accessory, type Rig } from './characters';
 import { conversation, randomName, ROLE_TITLE, type NpcRole } from './dialogue';
+import type { HitResult, PlayerView } from './combat';
+import { Flash, type Sfx } from './fx';
 import type { Spawn, Vec3 } from './level';
+import { PathFollower } from './nav';
 import type { World } from './world';
-import { angleTo, dampAngle, mulberry32 } from './util';
+import { angleTo, dampAngle, mulberry32, turnToward } from './util';
 
 type State = 'idle' | 'walk' | 'sit' | 'talk' | 'stagger' | 'flee' | 'return' | 'chase' | 'strike' | 'dead';
 
@@ -12,13 +15,6 @@ const WALK = 1.4;
 const RUN = 4.6;
 const RADIUS = 0.3;
 const HALF = 0.55;
-
-export interface PlayerView {
-  pos: THREE.Vector3;
-  dead: boolean;
-  mounted: boolean;
-  hurt(dmg: number, from: THREE.Vector3): void;
-}
 
 export class Npc {
   readonly pos = new THREE.Vector3();
@@ -39,6 +35,10 @@ export class Npc {
   private frame = Math.floor(Math.random() * 4);
   private leg = 0; // water carrier: 0 → to pool, 1 → to market
   private danger = new THREE.Vector3();
+  private knock = new THREE.Vector3();
+  private follow: PathFollower;
+  private told = false;
+  readonly flash = new Flash();
 
   constructor(
     readonly role: NpcRole,
@@ -53,6 +53,8 @@ export class Npc {
     this.home = this.pos.clone();
     this.homeYaw = spawn.yaw;
     this.name = sys.uniqueName(female);
+    this.follow = new PathFollower(sys.world.nav);
+    this.flash.attach(rig.root);
     this.title = ROLE_TITLE[role];
     this.timer = sys.rnd() * 4;
     this.overlayTimer = 2 + sys.rnd() * 8;
@@ -113,15 +115,19 @@ export class Npc {
     this.enter(this.resume);
   }
 
-  damage(dmg: number, from: THREE.Vector3): void {
-    if (this.dead) return;
+  damage(dmg: number, from: THREE.Vector3): HitResult {
+    const res: HitResult = { pos: this.pos.clone().setY(this.pos.y + 1.2), killed: false, staggered: true };
+    if (this.dead) return res;
     this.hp -= dmg;
+    this.flash.hit();
+    this.knock.copy(this.pos).sub(from).setY(0).normalize().multiplyScalar(this.hp <= 0 ? 3 : 2.6);
     if (this.hp <= 0) {
       this.hp = 0;
       this.enter('dead');
       this.collider.setEnabled(false);
       this.sys.onDeath(this);
-      return;
+      res.killed = true;
+      return res;
     }
     this.rig.anim.playOverlay('Hit', { fade: 0.05 });
     if (this.role === 'guard') this.hostile = true;
@@ -131,6 +137,7 @@ export class Npc {
     this.yaw = angleTo(this.pos, from);
     this.enter('stagger');
     this.sys.alarm(this.pos, from, this);
+    return res;
   }
 
   flee(from: THREE.Vector3): void {
@@ -197,7 +204,7 @@ export class Npc {
           this.timer = 0.8 + rnd();
           break;
         }
-        moving = this.step(dx / d, dz / d, Math.min(WALK * dt, d), dt);
+        moving = this.state === 'return' ? this.pathTo(this.target.x, this.target.z, WALK, dt) : this.step(dx / d, dz / d, Math.min(WALK * dt, d), dt);
         if (!moving) {
           this.enter('idle');
           this.timer = 0.5 + rnd();
@@ -224,29 +231,47 @@ export class Npc {
           this.goHome();
           break;
         }
-        const reach = player.mounted ? 2.4 : 1.6;
+        const reach = player.mounted ? 2.4 : 1.7;
         if (toPlayer < reach) {
+          // Telegraphed swing: raise slowly, hold, flash, strike.
           this.enter('strike');
-          this.rig.anim.playOverlay(rnd() < 0.5 ? 'Attack' : 'Attack2');
+          this.rig.anim.playOverlay(rnd() < 0.5 ? 'Attack' : 'Attack2', { timeScale: 0.55, fade: 0.08 });
           this.struck = false;
-          this.timer = 1.3;
+          this.told = false;
+          this.timer = 0.6;
           break;
         }
-        const a = angleTo(this.pos, player.pos);
-        moving = this.step(Math.sin(a), Math.cos(a), RUN * dt, dt, true);
+        moving = this.pathTo(player.pos.x, player.pos.z, RUN, dt);
         break;
       }
       case 'strike': {
         this.timer -= dt;
         const a = angleTo(this.pos, player.pos);
-        this.yaw = dampAngle(this.yaw, a, 8, dt);
-        const t = this.rig.anim.overlayTime();
-        if (!this.struck && t >= 0.4) {
-          this.struck = true;
-          const facing = Math.cos(a - this.yaw) > 0.4;
-          if (facing && toPlayer < (player.mounted ? 2.8 : 2.1) && !player.dead) player.hurt(12, this.pos);
+        const anim = this.rig.anim;
+        const t = anim.overlayTime();
+        if (this.timer > 0) {
+          // Windup: track the player, hold at the top of the swing.
+          this.yaw = turnToward(this.yaw, a, 3, dt);
+          if (t >= 0.2) anim.setOverlayTimeScale(0);
+          if (!this.told && this.timer < 0.18) {
+            this.told = true;
+            this.flash.tell(0.16);
+            this.sys.sfx.tell();
+            this.sys.onTell(this);
+          }
+        } else if (!this.struck) {
+          anim.setOverlayTimeScale(1.6);
+          if (t < 0 || t >= 0.38) {
+            this.struck = true;
+            this.sys.sfx.swing();
+            const facing = Math.cos(a - this.yaw) > 0.45;
+            if (facing && toPlayer < (player.mounted ? 2.8 : 2.1) && !player.dead) player.hurt(14, this.pos, 1.8);
+            anim.setOverlayTimeScale(1);
+            this.timer = -0.0001;
+          }
+        } else if (this.timer < -0.9) {
+          this.enter(this.hostile ? 'chase' : 'idle');
         }
-        if (this.timer <= 0) this.enter(this.hostile ? 'chase' : 'idle');
         break;
       }
       case 'talk': {
@@ -258,7 +283,19 @@ export class Npc {
         break;
     }
 
-    if (moving) this.syncCollider();
+    this.flash.update(dt);
+    // Knockback slide.
+    if (this.knock.lengthSq() > 1e-4) {
+      const k = this.knock;
+      const nx = this.pos.x + k.x * dt;
+      const nz = this.pos.z + k.z * dt;
+      if (!this.sys.world.nav.isBlocked(nx, nz)) {
+        this.pos.set(nx, this.sys.world.ground(nx, nz), nz);
+        moving = true;
+      }
+      k.multiplyScalar(Math.max(0, 1 - dt * 7));
+    }
+    if (moving && !this.dead) this.syncCollider();
     this.syncTransform();
 
     // Animation LOD: far NPCs tick less often.
@@ -278,7 +315,26 @@ export class Npc {
       return;
     }
     this.target.copy(this.home);
+    this.follow.clear();
     this.enter('return');
+  }
+
+  /** Route around walls with the nav grid; straight line when visible. */
+  private pathTo(x: number, z: number, speed: number, dt: number): boolean {
+    const nav = this.sys.world.nav;
+    const dx = x - this.pos.x;
+    const dz = z - this.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.05) return false;
+    const dir = nav.lineClear(this.pos.x, this.pos.z, x, z) ? ([dx / d, dz / d] as [number, number]) : this.follow.steer(this.pos.x, this.pos.z, x, z, dt);
+    if (!dir) return false;
+    const step = Math.min(speed * dt, d);
+    const nx = this.pos.x + dir[0] * step;
+    const nz = this.pos.z + dir[1] * step;
+    if (nav.isBlocked(nx, nz)) return this.step(dir[0], dir[1], step, dt, true);
+    this.pos.set(nx, this.sys.world.ground(nx, nz), nz);
+    this.yaw = dampAngle(this.yaw, Math.atan2(dir[0], dir[1]), 12, dt);
+    return true;
   }
 
   /** Move along (dx, dz); tries detours around obstacles. Returns false if stuck. */
@@ -353,11 +409,13 @@ export class NpcSystem {
   readonly pool: Vec3;
   private lane: THREE.Vector3[];
   onDeathCb: (n: Npc) => void = () => {};
+  onTell: (n: Npc) => void = () => {};
 
   constructor(
     readonly world: World,
     factory: CharacterFactory,
     scene: THREE.Scene,
+    readonly sfx: Sfx,
   ) {
     const level = world.assets.level;
     this.pool = level.landmarks.pool;
@@ -449,8 +507,8 @@ export class NpcSystem {
   }
 
   /** Sword sweep: NPCs within `range` and `halfAngle` of the facing direction. */
-  hitArc(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number): Npc[] {
-    const hits: Npc[] = [];
+  hitArc(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number): HitResult[] {
+    const hits: HitResult[] = [];
     const cosMax = Math.cos(halfAngle);
     const fx = Math.sin(yaw);
     const fz = Math.cos(yaw);
@@ -461,8 +519,7 @@ export class NpcSystem {
       const d = Math.hypot(dx, dz);
       if (d > range + RADIUS || Math.abs(n.pos.y - origin.y) > 2.5) continue;
       if (d > 0.4 && (dx * fx + dz * fz) / d < cosMax) continue;
-      n.damage(dmg, origin);
-      hits.push(n);
+      hits.push(n.damage(dmg, origin));
     }
     return hits;
   }

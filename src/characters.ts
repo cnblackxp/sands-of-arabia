@@ -118,7 +118,7 @@ export class CharacterFactory {
     private horse: GLTF,
     private camel: GLTF,
   ) {
-    this.personLib = new ClipLibrary(person.animations, ['Attack', 'Attack2', 'Talk', 'Hit'], PERSON_LOWER, ['Death']);
+    this.personLib = new ClipLibrary(person.animations, ['Attack', 'Attack2', 'Talk', 'Hit'], PERSON_LOWER, ['Death', 'Roll', 'Jump']);
     this.horseLib = new ClipLibrary(horse.animations, [], null, ['Rear']);
     this.camelLib = new ClipLibrary(camel.animations, [], null, []);
   }
@@ -146,8 +146,10 @@ export class CharacterFactory {
     return { root, anim: new Animator(root, lib), bones };
   }
 
-  createPerson(accessories: Iterable<Accessory>, colours: Record<string, number>): Rig {
-    return this.build(this.person, this.personLib, colours, PERSON_ACCESSORIES, new Set(accessories), new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 1.7));
+  createPerson(accessories: Iterable<Accessory>, colours: Record<string, number>, scale = 1): Rig {
+    const rig = this.build(this.person, this.personLib, colours, PERSON_ACCESSORIES, new Set(accessories), new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 1.7));
+    if (scale !== 1) rig.root.scale.setScalar(scale);
+    return rig;
   }
 
   createHorse(colours: Record<string, number>, saddle: boolean): Rig {
@@ -161,6 +163,23 @@ export class CharacterFactory {
     return this.build(this.camel, this.camelLib, colours, ['Saddle', 'Cargo'], show, new THREE.Sphere(new THREE.Vector3(0, 1.4, 0), 2.6));
   }
 }
+
+// --- Player looks ------------------------------------------------------------
+
+export interface Look {
+  name: string;
+  acc: Accessory[];
+  colours: Record<string, number>;
+}
+
+export const PLAYER_LOOKS: Look[] = [
+  { name: 'Wanderer', acc: ['Keffiyeh', 'Beard', 'Sword'], colours: { P_Robe: 0xf1ece0, P_Sash: 0xb3312b, P_Wrap: 0xf3eee2, P_Skin: 0xb17a50, P_Pants: 0x5a3f2c } },
+  { name: 'Desert Guard', acc: ['Turban', 'Beard', 'Sword'], colours: { P_Robe: 0x2c3e73, P_Sash: 0xd6a531, P_Wrap: 0xb3312b, P_Skin: 0x9a6440, P_Pants: 0x3d3128 } },
+  { name: 'Huntress', acc: ['Veil', 'Sword'], colours: { P_Robe: 0x5b2d6e, P_Sash: 0xd6a531, P_Wrap: 0x2b2622, P_Skin: 0xc98e62, P_Pants: 0x2f2a26 } },
+  { name: 'Young Poet', acc: ['Hair', 'Sword'], colours: { P_Robe: 0xc9902e, P_Sash: 0x2f6d4f, P_Hair: 0x1d1612, P_Skin: 0xd9a57a, P_Pants: 0x7a6450 } },
+  { name: 'Priest of the Stone', acc: ['Turban', 'Beard', 'Sword'], colours: { P_Robe: 0xf4f0e6, P_Sash: 0x8a5a2b, P_Wrap: 0xf4f0e6, P_Skin: 0xb17a50, P_Hair: 0x8f8a82, P_Pants: 0xa08a6b } },
+  { name: 'Black Rider', acc: ['Keffiyeh', 'Beard', 'Sword'], colours: { P_Robe: 0x2b2622, P_Sash: 0x7b2a24, P_Wrap: 0x2b2622, P_Skin: 0x7d4f31, P_Pants: 0x2f2a26 } },
+];
 
 // --- Palettes -------------------------------------------------------------
 
