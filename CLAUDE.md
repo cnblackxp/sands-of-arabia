@@ -165,7 +165,7 @@ Decisions worth knowing:
 - **Sun.** The sun's azimuth and colour come from level.json, but the light is lifted to at least 24° elevation (`SUN_MIN_ELEVATION_DEG` in `world.ts`). At the authored 8°, one dune shadow covers the whole market.
 - **Draw calls.** Characters are merged at spawn into one mesh with two draw groups (matte, metal). Accessories are chosen before the merge and can't be toggled afterwards.
 - **Controls** follow Elden Ring's layout. The HUD glyphs follow the last device used.
-  - Keyboard: WASD move, Shift sprint, LMB or J attack, RMB block (hold), Space roll, F jump (hold for height), R drink a healing waterskin, E interact (talk, trade, rest, take, travel, mount), Tab menu, M map, Esc menu, Z and C rotate, wheel zoom. In menus: arrows or WASD, Enter, Esc; Tab, Shift+Tab, `[` and `]` switch tabs.
+  - Keyboard: WASD move, Shift sprint, LMB or J attack, RMB block (hold), Space roll, F jump (hold for height), R drink a healing waterskin, E interact (talk, trade, rest, take, travel, mount), Tab menu, M map, Esc menu, middle-mouse drag or Z and C to rotate, wheel zoom. In menus: arrows or WASD, Enter, Esc; Tab, Shift+Tab, `[` and `]` switch tabs.
   - Gamepad (standard mapping): left stick move (analog), B tap roll, B hold or LT or L3 sprint, RB or RT attack, LB block (hold), X heal, A jump (hold) and confirm, Y interact, Start menu, View map, right stick camera, D-pad zoom and rotate. In menus: D-pad or stick, A choose, B close, LB and RB switch tabs.
 - **Progression** (`progress.ts`, saved to localStorage):
   - **Gold** drops from enemies. On death your gold stays where you fell (`lostGold`); die again before picking it up and it's gone.
@@ -188,4 +188,10 @@ Decisions worth knowing:
   - brute: HeavyAttack and hyper-armour.
   - chief: a spawn with `title: "chief"`.
   - Heavy blows knock the player down (Knockdown, then GetUp). The player can't be hit while down.
+- **Audio.**
+  - `fx.ts` (`Sfx`) synthesises every effect: combat, footsteps (sand or stone), hooves, wing beats synced to Flap, animals, chests and coins.
+  - `audio.ts` has `Ambience` (wind, crowd, water, fire crackle, birds by day, crickets at night, all levels driven by the surroundings) and `Music`.
+  - `Music` plays tracks listed in `assets/audio/music/music.json`, by mood: explore, town, night, combat, stronghold.
+  - The tracks are Kevin MacLeod's, CC BY 4.0. Keep the credits in the README and in `music.json`.
+- **Z-fighting.** The joined town and dressing meshes have faces that share a plane across materials. `World` lifts each material layer by a few millimetres; keep it until the Blender kit stops emitting coplanar faces.
 - **Debug.** The backquote key toggles wireframes of the level.json colliders.

@@ -34,7 +34,7 @@ It runs in any modern desktop browser with WebGL 2, using keyboard and mouse or 
 | Dodge roll | Space | Tap B |
 | Jump | F | A |
 | Talk, mount, dismount | E | Y |
-| Camera rotate and zoom | Q / R, mouse wheel | Right stick, D-pad |
+| Camera rotate and zoom | Middle-mouse drag or Z / C, mouse wheel | Right stick, D-pad |
 | Minimap size | M | View |
 | Pause menu | Esc | Start |
 
@@ -48,6 +48,10 @@ npm run build      # typecheck + production build into dist/
 ```
 
 Every push to `main` builds the game and deploys it to GitHub Pages (`.github/workflows/pages.yml`).
+
+## Credits
+- **Music:** Kevin MacLeod ([incompetech.com](https://incompetech.com)): "Tabuk", "Old Road", "Desert City", "Mystery Bazaar", "Nu Flute", "Ibn Al-Noor" and "Curse of the Scarab". Licensed under [Creative Commons: By Attribution 4.0](http://creativecommons.org/licenses/by/4.0/) and re-encoded at 96 kbps. See `assets/audio/music/CREDITS.txt`.
+- **Sound effects and ambience:** synthesised in the browser with WebAudio. There are no sample files.
 
 ## Tech
 - three.js + TypeScript + Vite, with Rapier (`@dimforge/rapier3d-compat`) for collision.

@@ -1,0 +1,15 @@
+{
+  "tracks": [
+    { "file": "Tabuk.mp3", "title": "Tabuk — Kevin MacLeod", "moods": ["explore"] },
+    { "file": "Old Road.mp3", "title": "Old Road — Kevin MacLeod", "moods": ["explore"] },
+    { "file": "Desert City.mp3", "title": "Desert City — Kevin MacLeod", "moods": ["town"] },
+    { "file": "Mystery Bazaar.mp3", "title": "Mystery Bazaar — Kevin MacLeod", "moods": ["town", "night"] },
+    { "file": "Nu Flute.mp3", "title": "Nu Flute — Kevin MacLeod", "moods": ["night"] },
+    { "file": "Ibn Al-Noor.mp3", "title": "Ibn Al-Noor — Kevin MacLeod", "moods": ["combat"] },
+    { "file": "Curse of the Scarab.mp3", "title": "Curse of the Scarab — Kevin MacLeod", "moods": ["stronghold", "combat"] }
+  ],
+  "credits": [
+    "Music: Kevin MacLeod (incompetech.com) — Licensed under Creative Commons: By Attribution 4.0 (creativecommons.org/licenses/by/4.0/)",
+    "Tracks: Tabuk, Old Road, Desert City, Mystery Bazaar, Nu Flute, Ibn Al-Noor, Curse of the Scarab"
+  ]
+}
