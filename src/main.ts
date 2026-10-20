@@ -35,6 +35,27 @@ const FLOW: { label: string; on: boolean; speed: number }[] = [
   { label: 'Fast (1 h / 10 s)', on: true, speed: 1 / 10 },
 ];
 
+function nameHash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0) / 4294967296;
+}
+
+/** Speaking pitch (Hz) for an NPC's babble: stable per name, women higher, guards and priests lower. */
+function voiceOf(npc: Npc): number {
+  const base = npc.female ? 290 : npc.role === 'guard' || npc.role === 'priest' ? 150 : 185;
+  return base * (0.88 + nameHash(npc.name) * 0.24);
+}
+
+const FILLERS = ['Hmm…', 'Ah.', 'Mm.', 'Well…', 'Eh.', 'Oh!', 'Hm, hm.'];
+
+/** Small talk sometimes opens with an "um" or "ah", seeded by name and time. */
+function withFiller(lines: string[], name: string): string[] {
+  if (lines.length === 0 || Math.random() > 0.4) return lines;
+  const f = FILLERS[Math.floor(nameHash(name + Date.now()) * FILLERS.length)];
+  return [`${f} ${lines[0]}`, ...lines.slice(1)];
+}
+
 interface Arrival {
   pos: Vec3;
   yaw: number;
@@ -81,7 +102,7 @@ class Game {
   pickups: Pickup[] = [];
   lostPile: GoldPile | null = null;
   private icons = new Map<Npc, Icon>();
-  dialogue: { npc: Npc; lines: string[]; i: number; onDone?: () => void } | null = null;
+  dialogue: { npc: Npc; lines: string[]; i: number; onDone?: () => void; voice: number } | null = null;
   private last = performance.now();
   private fpsAcc = 0;
   private fpsFrames = 0;
@@ -105,7 +126,12 @@ class Game {
     this.quests = new QuestSystem(this.progress, {
       toast: (t) => this.hud.showToast(t, 3.5),
       reward: (q) => this.questReward(q),
+      sound: (k) => (k === 'accept' ? this.sfx.questAccept() : this.sfx.pickup()),
     });
+    // Animal Crossing-style babble: each typed letter is voiced in the speaker's pitch.
+    this.hud.onVoice = (ch) => {
+      if (this.dialogue) this.sfx.voice(this.dialogue.voice, ch);
+    };
     window.addEventListener('resize', () => this.resize());
   }
 
@@ -159,6 +185,7 @@ class Game {
     if (this.travelling) return;
     this.closeDialogue(false);
     if (this.menu.isOpen) this.menu.close();
+    this.sfx.travel();
     await this.enterMap(to, this.mapName, at);
   }
 
@@ -357,7 +384,7 @@ class Game {
     this.floatAt(c.pos, 1.2, `+${g} gold`, 'gold');
     this.particles.burst(c.pos.clone().setY(c.pos.y + 0.6), 14, { color: 0xffc94a, speed: 1.6, up: 3, size: 0.06, life: 0.8 });
     this.hud.showToast(`${c.secret ? 'A hidden chest! ' : ''}${g} gold${extra}.`, 3);
-    this.sfx.ui(true);
+    if (c.secret) this.sfx.questAccept();
   }
 
   private spawnLostGold(): void {
@@ -401,9 +428,22 @@ class Game {
       },
       death: () => this.onPlayerDeath(),
       respawn: () => void this.respawnAtCheckpoint(),
-      swing: () => this.sfx.swing(this.player.weapon.heavy),
+      swing: () => (this.player.weapon.clips.includes('Thrust') ? this.sfx.thrust() : this.sfx.swing(this.player.weapon.heavy)),
+      knockdown: () => this.sfx.knockdown(),
+      getUp: () => this.sfx.getUp(),
+      shieldUp: () => this.sfx.shieldUp(),
+      guardBreak: () => {
+        this.sfx.guardBreak();
+        this.cam.addTrauma(0.5);
+      },
+      horseJump: (winged: boolean) => this.sfx.horseJump(winged),
+      noFlask: () => {
+        this.sfx.denied();
+        this.hud.showToast('No waterskins left. Rest at a bonfire to refill them.', 2);
+      },
       jump: (double: boolean) => {
-        this.sfx.roll();
+        if (double) this.sfx.doubleJump();
+        else this.sfx.jump();
         if (double) {
           const p = this.player.pos;
           this.particles.burst(new THREE.Vector3(p.x, p.y, p.z), 12, { color: 0xf3eadc, speed: 2.2, up: -0.5, size: 0.08, life: 0.4, gravity: 1 });
@@ -457,6 +497,7 @@ class Game {
   private onPlayerDeath(): void {
     this.closeDialogue(false);
     this.sfx.death();
+    this.sfx.diedDrone();
     this.time.slowmo(1.2, 0.35);
     const gold = this.progress.data.gold;
     if (gold > 0) {
@@ -510,7 +551,7 @@ class Game {
     this.npcs.calmGuards();
     this.progress.save();
     if (first) this.sfx.ignite();
-    else this.sfx.ui(true);
+    else this.sfx.rest();
     this.particles.burst(b.pos.clone().setY(b.pos.y + 0.6), 24, { color: 0xffa040, speed: 2, up: 3, size: 0.07, life: 0.9, gravity: -1 });
     this.hud.showToast(first ? 'BONFIRE LIT' : 'Rested. Health and waterskins restored; enemies have returned.', 3);
   }
@@ -531,7 +572,7 @@ class Game {
     }
     this.progress.save();
     this.hud.showToast(`Quest complete: ${q.title} — ${bits.join(', ')}`, 4.5);
-    this.sfx.ui(true);
+    this.sfx.questComplete();
   }
 
   /** Rising HUD text above a world position. */
@@ -840,12 +881,13 @@ class Game {
     const buy = (price: number, fn: () => void) => {
       if (d.gold < price) {
         this.hud.showToast('Not enough gold.', 1.8);
-        this.sfx.exhausted();
+        this.sfx.denied();
         return;
       }
       d.gold -= price;
       fn();
       P.save();
+      this.sfx.purchase();
       this.hud.showToast('Purchased.', 1.5);
     };
     const tabs: MenuTab[] = [
@@ -863,6 +905,7 @@ class Game {
               activate: () => {
                 if (!d.weapons.includes(w.id)) buy(w.price, () => d.weapons.push(w.id));
                 if (d.weapons.includes(w.id)) {
+                  if (d.equipped !== w.id) this.sfx.shieldUp();
                   d.equipped = w.id;
                   P.save();
                   this.rebuildPlayer();
@@ -997,7 +1040,7 @@ class Game {
     }
     const lines = quest ? quest.lines : npc.startTalk();
     if (quest) npc.startTalk();
-    this.dialogue = { npc, lines, i: 0, onDone: quest?.onDone };
+    this.dialogue = { npc, lines: quest ? lines : withFiller(lines, npc.name), i: 0, onDone: quest?.onDone, voice: voiceOf(npc) };
     this.player.talking = true;
     // Turn to face the stranger.
     this.player.yawTarget = Math.atan2(npc.pos.x - this.player.pos.x, npc.pos.z - this.player.pos.z);
@@ -1344,6 +1387,8 @@ class Game {
       const far = Math.hypot(d.npc.pos.x - p.pos.x, d.npc.pos.z - p.pos.z) > TALK_RANGE + 3;
       if (f.cancel || far || d.npc.dead || p.dead) {
         this.closeDialogue(false);
+      } else if ((f.interact || f.confirm) && this.hud.typing) {
+        this.hud.finishTyping();
       } else if (f.interact || f.confirm) {
         d.i++;
         if (d.i >= d.lines.length) this.closeDialogue(true);
@@ -1416,8 +1461,13 @@ class Game {
         this.openChest(chest);
       } else if (exit) {
         void this.travel(exit.to);
-      } else if (p.horse) p.dismount(this.world);
-      else if (horse) p.mount(horse);
+      } else if (p.horse) {
+        p.dismount(this.world);
+        this.sfx.dismount();
+      } else if (horse) {
+        p.mount(horse);
+        this.sfx.mount();
+      }
     }
   }
 

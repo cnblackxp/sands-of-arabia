@@ -130,6 +130,9 @@ export class Npc {
     if (this.dead) return res;
     this.hp -= dmg;
     this.flash.hit();
+    if (this.role === 'guard') this.sys.sfx.grunt(this.female ? 230 : 140);
+    else this.sys.sfx.yelp(this.female);
+    if (this.hp <= 0) this.sys.sfx.death();
     this.knock.copy(this.pos).sub(from).setY(0).normalize().multiplyScalar(this.hp <= 0 ? 3 : 2.6);
     if (this.hp <= 0) {
       this.hp = 0;

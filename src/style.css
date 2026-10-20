@@ -265,6 +265,24 @@ small {
   line-height: 1.4;
   min-height: 2.8em;
 }
+.dlg-rest {
+  visibility: hidden;
+}
+/* The speaker's name bobs while they talk. */
+.dialogue.talking .dlg-name {
+  animation: dlg-bob 0.32s ease-in-out infinite alternate;
+}
+@keyframes dlg-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-2px);
+  }
+}
+.dlg-name {
+  display: inline-block;
+}
 .dlg-more {
   text-align: right;
   font-size: 12px;

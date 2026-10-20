@@ -66,7 +66,8 @@ export class Horse {
   }
 
   /** Jump (ridden). Winged horses can jump again in mid-air. */
-  jump(): void {
+  /** Returns true if the horse actually took off (or beat its wings again). */
+  jump(): boolean {
     if (!this.airborne) {
       this.airborne = true;
       this.vy = this.winged ? 13 : 7;
@@ -74,8 +75,9 @@ export class Horse {
     } else if (this.winged && this.airJumps < 1) {
       this.airJumps++;
       this.vy = 12;
-    }
+    } else return false;
     this.flapT = 0.6;
+    return true;
   }
 
   /**

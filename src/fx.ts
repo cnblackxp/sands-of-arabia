@@ -302,7 +302,8 @@ export class Sfx {
   private out(pan: number): AudioNode | null {
     const c = this.ctx;
     if (!c || !this.master) return null;
-    if (Math.abs(pan) < 0.02) return this.master;
+    // A bad position upstream must never throw inside the frame loop.
+    if (!Number.isFinite(pan) || Math.abs(pan) < 0.02) return this.master;
     const p = c.createStereoPanner();
     p.pan.value = Math.max(-1, Math.min(1, pan));
     p.connect(this.master);
@@ -312,7 +313,7 @@ export class Sfx {
   private noiseBurst(dur: number, f0: number, f1: number, q: number, gain: number, type: BiquadFilterType = 'bandpass', pan = 0, delay = 0): void {
     const c = this.ctx;
     const out = this.out(pan);
-    if (!c || !out || !this.noise || gain < 0.002) return;
+    if (!c || !out || !this.noise || !(gain >= 0.002) || !Number.isFinite(f0 + f1 + dur + delay)) return;
     const t = c.currentTime + delay;
     const src = c.createBufferSource();
     src.buffer = this.noise;
@@ -333,7 +334,7 @@ export class Sfx {
   private tone(dur: number, f0: number, f1: number, gain: number, type: OscillatorType = 'sine', delay = 0, pan = 0): void {
     const c = this.ctx;
     const out = this.out(pan);
-    if (!c || !out || gain < 0.002) return;
+    if (!c || !out || !(gain >= 0.002) || !Number.isFinite(f0 + f1 + dur + delay)) return;
     const t = c.currentTime + delay;
     const o = c.createOscillator();
     o.type = type;
@@ -468,6 +469,122 @@ export class Sfx {
   }
   ui(confirm = false): void {
     this.tone(0.06, confirm ? 900 : 650, confirm ? 1200 : 640, 0.15, 'triangle');
+  }
+
+  // --- more combat & movement -------------------------------------------------
+  /** Spear thrust: a short, sharp hiss. */
+  thrust(): void {
+    this.noiseBurst(0.14, 1800, 5200, 2.2, 0.22, 'bandpass');
+  }
+  jump(): void {
+    this.noiseBurst(0.16, 500, 1100, 1, 0.16, 'bandpass');
+    this.tone(0.08, 210, 260, 0.06, 'triangle');
+  }
+  doubleJump(): void {
+    // A feathery flutter.
+    for (let i = 0; i < 3; i++) this.noiseBurst(0.08, 900 + i * 300, 2400, 1.4, 0.12, 'bandpass', 0, i * 0.05);
+  }
+  knockdown(): void {
+    this.tone(0.3, 80, 40, 0.8, 'triangle');
+    this.noiseBurst(0.35, 900, 150, 0.6, 0.45, 'lowpass');
+  }
+  getUp(): void {
+    this.noiseBurst(0.3, 700, 1400, 0.8, 0.12, 'bandpass');
+  }
+  shieldUp(): void {
+    this.tone(0.08, 260, 200, 0.18, 'triangle');
+    this.noiseBurst(0.06, 2500, 1200, 1, 0.1, 'bandpass');
+  }
+  guardBreak(): void {
+    this.tone(0.5, 900, 400, 0.25, 'square');
+    this.tone(0.6, 1350, 600, 0.12, 'sawtooth', 0.02);
+    this.noiseBurst(0.3, 4000, 800, 0.8, 0.3, 'lowpass');
+  }
+  /** Someone hurt: a gruff grunt (raiders) — pitch in Hz. */
+  grunt(pitch = 130, pan = 0, gain = 1): void {
+    this.tone(0.18, pitch * 1.15, pitch * 0.8, 0.22 * gain, 'sawtooth', 0, pan);
+    this.noiseBurst(0.14, 700, 400, 3, 0.18 * gain, 'bandpass', pan);
+  }
+  /** A townsperson's yelp. */
+  yelp(female: boolean, pan = 0, gain = 1): void {
+    const f = female ? 420 : 260;
+    this.tone(0.2, f, f * 1.3, 0.16 * gain, 'triangle', 0, pan);
+    this.tone(0.16, f * 1.5, f * 1.1, 0.06 * gain, 'sine', 0.02, pan);
+  }
+  // --- riding ---------------------------------------------------------------------
+  mount(): void {
+    this.tone(0.25, 110, 140, 0.1, 'sawtooth');
+    this.noiseBurst(0.25, 600, 300, 1.4, 0.14, 'bandpass');
+    this.snort(0, 0.6);
+  }
+  dismount(): void {
+    this.noiseBurst(0.18, 500, 200, 0.8, 0.18, 'lowpass');
+    this.tone(0.1, 120, 70, 0.25, 'triangle', 0.12);
+  }
+  horseJump(winged: boolean): void {
+    if (winged) this.wing(0, 1.1);
+    else this.snort(0, 0.8);
+    this.noiseBurst(0.2, 400, 900, 1, 0.14, 'bandpass');
+  }
+  // --- progression ------------------------------------------------------------------
+  questAccept(): void {
+    [523, 659, 784].forEach((f, i) => this.tone(0.22, f, f, 0.1, 'triangle', i * 0.09));
+  }
+  questComplete(): void {
+    [523, 659, 784, 1047].forEach((f, i) => this.tone(0.35, f, f, 0.12, 'triangle', i * 0.11));
+    [1047, 1319].forEach((f, i) => this.tone(0.5, f, f, 0.06, 'sine', 0.45 + i * 0.05));
+    this.coin();
+  }
+  purchase(): void {
+    this.coin();
+    this.tone(0.12, 330, 330, 0.12, 'triangle', 0.12);
+    this.tone(0.2, 440, 440, 0.12, 'triangle', 0.2);
+  }
+  denied(): void {
+    this.tone(0.14, 180, 150, 0.18, 'square');
+    this.tone(0.14, 150, 120, 0.18, 'square', 0.14);
+  }
+  rest(): void {
+    [392, 523, 659].forEach((f, i) => this.tone(0.9, f, f * 0.99, 0.07, 'sine', i * 0.2));
+    this.ignite();
+  }
+  travel(): void {
+    this.noiseBurst(1.1, 200, 1800, 0.6, 0.25, 'bandpass');
+  }
+  diedDrone(): void {
+    this.tone(2.6, 98, 92, 0.25, 'sawtooth');
+    this.tone(2.6, 147, 138, 0.12, 'sawtooth', 0.05);
+    this.noiseBurst(2.2, 300, 80, 0.5, 0.15, 'lowpass');
+  }
+
+  /**
+   * One "animalese" speech blip for a typed letter: a pitched buzz through a
+   * vowel-ish formant, so every character sounds like babbling speech.
+   */
+  voice(pitch: number, ch: string): void {
+    const c = this.ctx;
+    const out = this.out(0);
+    if (!c || !out) return;
+    const lower = ch.toLowerCase();
+    const formant: Record<string, number> = { a: 850, e: 600, i: 380, o: 520, u: 360 };
+    const code = lower.charCodeAt(0) || 97;
+    const f0 = pitch * (1 + ((code * 7) % 9 - 4) * 0.028);
+    const t = c.currentTime;
+    const o = c.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f0 * (formant[lower] ? 1.08 : 0.94), t + 0.06);
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = formant[lower] ?? 700 + ((code * 37) % 900);
+    bp.Q.value = 3;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+    o.connect(bp).connect(g).connect(out);
+    o.start(t);
+    o.stop(t + 0.09);
   }
 
   /** Ambience helpers: one crackle pop, a bird chirp, a cricket chirp. */

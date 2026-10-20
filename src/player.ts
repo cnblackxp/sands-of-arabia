@@ -49,6 +49,15 @@ export interface PlayerEvents {
   land(fall: number): void;
   heal(): void;
   exhausted(): void;
+  /** Heavy blow: knocked off your feet; then back up. */
+  knockdown(): void;
+  getUp(): void;
+  /** Shield raised; or broken by a blow with no stamina left. */
+  shieldUp(): void;
+  guardBreak(): void;
+  horseJump(winged: boolean): void;
+  /** Tried to drink with no waterskins left. */
+  noFlask(): void;
   /** Resolve a weapon blow against everything in the arc. */
   strike(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number): HitResult[];
   hit(results: HitResult[]): void;
@@ -228,6 +237,7 @@ export class Player implements PlayerView {
         this.stamina = 0;
         this.exhausted = true;
         this.blocking = false;
+        this.ev.guardBreak();
         dmg *= 0.35;
       }
     }
@@ -254,6 +264,7 @@ export class Player implements PlayerView {
         this.yaw = this.yawTarget = Math.atan2(from.x - this.mover.feet.x, from.z - this.mover.feet.z);
         this.rig.anim.stopOverlay(0.05);
         this.rig.anim.setBase('Knockdown', 1, 0.05, true);
+        this.ev.knockdown();
       } else {
         this.staggerT = 0.32;
         this.rig.anim.playOverlay('Hit', { fade: 0.04 });
@@ -385,7 +396,7 @@ export class Player implements PlayerView {
     if (this.horse) {
       this.updateAttack(dt, f);
       const h = this.horse;
-      if (f.jump) h.jump();
+      if (f.jump && h.jump()) this.ev.horseJump(h.winged);
       h.drive(dt, dir.x, dir.z, mag, f.run);
       h.update(dt);
       this.yaw = this.yawTarget = h.yaw;
@@ -457,7 +468,10 @@ export class Player implements PlayerView {
       if (this.downT > 0) {
         const before = this.downT;
         this.downT -= dt;
-        if (before > KNOCKDOWN.getUp && this.downT <= KNOCKDOWN.getUp) this.rig.anim.setBase('GetUp', 1.35, 0.05, true);
+        if (before > KNOCKDOWN.getUp && this.downT <= KNOCKDOWN.getUp) {
+          this.rig.anim.setBase('GetUp', 1.35, 0.05, true);
+          this.ev.getUp();
+        }
         if (this.downT <= 0) {
           this.downT = 0;
           this.staggerT = 0;
@@ -501,6 +515,7 @@ export class Player implements PlayerView {
       } else {
         if (this.rollQueued > 0 && canRoll) this.rollQueued = 0;
         // Healing draught.
+        if (f.heal && this.healT < 0 && this.attackT < 0 && this.progress.data.flasks <= 0) this.ev.noFlask();
         if (f.heal && this.healT < 0 && this.attackT < 0 && this.progress.data.flasks > 0) {
           this.healT = 0;
           this.healed = false;
@@ -525,7 +540,10 @@ export class Player implements PlayerView {
         const wantBlock = f.block && this.progress.shield && this.attackT < 0 && this.healT < 0 && this.stamina > 0;
         if (wantBlock !== this.blocking) {
           this.blocking = wantBlock;
-          if (wantBlock) this.rig.anim.playOverlay('Block', { loop: true, fade: 0.08 });
+          if (wantBlock) {
+            this.rig.anim.playOverlay('Block', { loop: true, fade: 0.08 });
+            this.ev.shieldUp();
+          }
           else this.rig.anim.stopOverlay(0.12);
         }
         if (this.healT < 0) this.updateAttack(dt, f);

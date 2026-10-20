@@ -225,6 +225,8 @@ export const FREE_PICKUPS: Record<string, { label: string; upgrade?: string; mes
 export interface QuestEvents {
   toast(text: string): void;
   reward(def: QuestDef): void;
+  /** A quest was taken on, or moved to its next step. */
+  sound(kind: 'accept' | 'step'): void;
 }
 
 export class QuestSystem {
@@ -307,11 +309,13 @@ export class QuestSystem {
     this.progress.data.trackedQuest = q.id;
     this.progress.save();
     this.ev.toast(`New quest: ${q.title}`);
+    this.ev.sound('accept');
   }
 
   private advance(q: QuestDef): void {
     const st = this.state(q.id)!;
     st.step++;
+    this.ev.sound('step');
     if (st.step >= q.objectives.length) {
       st.state = 'ready';
       this.ev.toast(`${q.title}: return to the ${roleName(q.giver)}`);

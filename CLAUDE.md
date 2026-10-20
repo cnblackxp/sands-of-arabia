@@ -190,6 +190,8 @@ Decisions worth knowing:
   - Heavy blows knock the player down (Knockdown, then GetUp). The player can't be hit while down.
 - **Audio.**
   - `fx.ts` (`Sfx`) synthesises every effect: combat, footsteps (sand or stone), hooves, wing beats synced to Flap, animals, chests and coins.
+  - It also covers vocal grunts and yelps when people are hit, the spear thrust, jump and double jump, knockdown and getting up, shield raise and guard break, mounting, quest jingles, the shop, travel and the YOU DIED drone. Pass `Sfx` only finite values; it ignores NaN rather than throwing.
+  - Dialogue types out at about 42 characters per second, with pauses at punctuation. `Hud.onVoice` voices every other letter as an "animalese" blip (`Sfx.voice`) at a pitch set per NPC (`voiceOf` in `main.ts`). Interact or confirm finishes the line, then advances to the next.
   - `audio.ts` has `Ambience` (wind, crowd, water, fire crackle, birds by day, crickets at night, all levels driven by the surroundings) and `Music`.
   - `Music` plays tracks listed in `assets/audio/music/music.json`, by mood: explore, town, night, combat, stronghold.
   - The tracks are Kevin MacLeod's, CC BY 4.0. Keep the credits in the README and in `music.json`.

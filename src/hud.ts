@@ -86,6 +86,15 @@ export class Hud {
   private dlgName: HTMLDivElement;
   private dlgText: HTMLDivElement;
   private dlgMore: HTMLDivElement;
+  private dlgShown!: HTMLSpanElement;
+  private dlgRest!: HTMLSpanElement;
+  /** Typewriter state: the full line and how much of it is revealed. */
+  private typeText = '';
+  private typeN = 0;
+  private typeWait = 0;
+  private typeMore = '';
+  /** Called for each revealed letter that should be voiced. */
+  onVoice: (ch: string) => void = () => {};
   private hint: HTMLDivElement;
   private toast: HTMLDivElement;
   private fps: HTMLDivElement;
@@ -134,6 +143,10 @@ export class Hud {
     this.dlgName = q('.dlg-name');
     this.dlgText = q('.dlg-text');
     this.dlgMore = q('.dlg-more');
+    this.dlgShown = document.createElement('span');
+    this.dlgRest = document.createElement('span');
+    this.dlgRest.className = 'dlg-rest';
+    this.dlgText.append(this.dlgShown, this.dlgRest);
     this.hint = q('.hint');
     this.toast = q('.toast');
     this.fps = q('.fps');
@@ -226,12 +239,60 @@ export class Hud {
   showDialogue(name: string, text: string, last: boolean): void {
     this.dlg.classList.remove('hidden');
     this.dlgName.textContent = name;
-    this.dlgText.textContent = text;
-    this.dlgMore.innerHTML = last ? `${this.key('next')} farewell` : `${this.key('next')} continue &nbsp;·&nbsp; ${this.key('leave')} leave`;
+    this.typeMore = last ? `${this.key('next')} farewell` : `${this.key('next')} continue &nbsp;·&nbsp; ${this.key('leave')} leave`;
+    // Re-showing the same line (a device switch) keeps the reveal going.
+    if (text !== this.typeText) {
+      this.typeText = text;
+      this.typeN = 0;
+      this.typeWait = 0.08;
+    }
+    this.renderType();
+  }
+
+  /** True while the current line is still being typed out. */
+  get typing(): boolean {
+    return !this.dlg.classList.contains('hidden') && this.typeN < this.typeText.length;
+  }
+
+  /** Reveal the whole line at once (interact pressed mid-line). */
+  finishTyping(): void {
+    this.typeN = this.typeText.length;
+    this.renderType();
+  }
+
+  private renderType(): void {
+    const t = this.typeText;
+    this.dlgShown.textContent = t.slice(0, this.typeN);
+    // The unrevealed rest is laid out invisibly so words never jump lines.
+    this.dlgRest.textContent = t.slice(this.typeN);
+    const done = this.typeN >= t.length;
+    this.dlg.classList.toggle('talking', !done);
+    this.dlgMore.innerHTML = done ? this.typeMore : `${this.key('next')} skip`;
+  }
+
+  private updateType(dt: number): void {
+    if (this.typeN >= this.typeText.length || this.dlg.classList.contains('hidden')) return;
+    this.typeWait -= dt;
+    let changed = false;
+    while (this.typeWait <= 0 && this.typeN < this.typeText.length) {
+      const ch = this.typeText[this.typeN++];
+      changed = true;
+      // Pauses on punctuation, like a breath between phrases.
+      let wait = 1 / 42;
+      if (ch === ',' || ch === ';' || ch === ':') wait = 0.16;
+      else if (ch === '.' || ch === '!' || ch === '?') wait = this.typeText[this.typeN] === '.' ? 0.09 : 0.3;
+      else if (ch === '…' || ch === '—') wait = 0.28;
+      this.typeWait += wait;
+      // Voice every other letter so speech babbles instead of buzzing.
+      if (/[\p{L}\p{N}]/u.test(ch) && this.typeN % 2 === 1) this.onVoice(ch);
+    }
+    if (changed) this.renderType();
   }
 
   hideDialogue(): void {
     this.dlg.classList.add('hidden');
+    this.typeText = '';
+    this.typeN = 0;
   }
 
   showToast(text: string, secs = 2.5): void {
@@ -268,6 +329,7 @@ export class Hud {
   }
 
   update(dt: number, fps: number): void {
+    this.updateType(dt);
     if (this.toastTimer > 0) {
       this.toastTimer -= dt;
       if (this.toastTimer <= 0) this.toast.classList.add('hidden');

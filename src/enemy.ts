@@ -221,6 +221,10 @@ export class Enemy {
   private animAcc = 0;
   private frame = 0;
   private guardHits = 0;
+  /** Grunt pitch: brutes are deep, skirmishers light. */
+  private get voicePitch(): number {
+    return this.kind === 'brute' ? 85 : this.kind === 'skirmisher' ? 165 : this.kind === 'chief' ? 105 : 130;
+  }
   private sawPlayerAttack = false;
 
   constructor(
@@ -344,6 +348,7 @@ export class Enemy {
       this.sfx.clang();
       if (this.guardHits >= 2) {
         // Guard break: wide open.
+        this.sfx.guardBreak();
         this.guardHits = 0;
         this.timer = 1.1;
         this.enter('stagger');
@@ -358,12 +363,14 @@ export class Enemy {
     this.lastDamage = this.sinceHurt < 1.5 ? this.lastDamage + dmg : dmg;
     this.sinceHurt = 0;
     this.flash.hit();
+    if (this.hp > 0) this.sfx.grunt(this.voicePitch);
     if (this.hp <= 0) {
       this.hp = 0;
       this.knock.copy(away).multiplyScalar(3);
       this.enter('dead');
       this.collider.setEnabled(false);
       this.sfx.death();
+      this.sfx.grunt(this.voicePitch * 0.75, 0, 1.2);
       res.killed = true;
       this.onKilled(this);
       return res;
