@@ -2,7 +2,8 @@
 Round-trip check: import the exported level GLBs + colliders into an empty scene
 and render a high game-style view.  Writes assets/previews/level_check.png.
 
-    blender -b --factory-startup -P preview_level.py -- [colliders]
+    blender -b --factory-startup -P preview_level.py -- [colliders] [map=hegra] [at=landmark] [scale=120]
+Without map= it checks the oasis (assets/level/level.json).
 """
 import sys, os, json, math
 import bpy
@@ -13,8 +14,14 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 A = os.path.join(ROOT, "assets")
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
-for f in ("level/terrain.glb", "level/town.glb", "level/backdrop.glb", "level/backdrop_ground.glb"):
-    bpy.ops.import_scene.gltf(filepath=os.path.join(A, f))
+MAP = next((a[4:] for a in ARGS if a.startswith("map=")), None)
+AT = next((a[3:] for a in ARGS if a.startswith("at=")), None)
+SCALE = float(next((a[6:] for a in ARGS if a.startswith("scale=")), "120"))
+LJ = f"level/{MAP}/level.json" if MAP else "level/level.json"
+level = json.load(open(os.path.join(A, LJ), encoding="utf8"))
+for key in ("terrain", "town", "backdrop", "backdrop_ground", "dressing"):
+    if level.get(key):
+        bpy.ops.import_scene.gltf(filepath=os.path.join(A, level[key]))
 # the Blender importer ignores COLOR_0 in materials; wire it so the check looks like three.js
 for m in bpy.data.materials:
     if m.name.startswith("SandVC") and m.node_tree:
@@ -22,7 +29,6 @@ for m in bpy.data.materials:
         p = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
         ca = nt.nodes.new("ShaderNodeVertexColor")
         nt.links.new(ca.outputs["Color"], p.inputs["Base Color"])
-level = json.load(open(os.path.join(A, "level/level.json"), encoding="utf8"))
 
 
 def b(v):          # three.js -> blender
@@ -68,12 +74,18 @@ sun.rotation_euler = (-sun_dir).to_track_quat("-Z", "Y").to_euler()
 
 cd = bpy.data.cameras.new("C")
 cd.type = "ORTHO"
-cd.ortho_scale = 120
+cd.ortho_scale = SCALE
 cd.clip_end = 4000
 cam = bpy.data.objects.new("C", cd)
 scene.collection.objects.link(cam)
 scene.camera = cam
-target = Vector((0, 10, 2))
+if AT and AT in level["landmarks"]:
+    target = b(level["landmarks"][AT])
+elif AT == "center" or MAP:
+    bx, bz = level["bounds"]["x"], level["bounds"]["z"]
+    target = Vector(((bx[0] + bx[1]) / 2, -(bz[0] + bz[1]) / 2, 0))
+else:
+    target = Vector((0, 10, 2))
 cam.location = target + Euler((0, 0, math.radians(-30))).to_matrix() @ Vector((0, -200, 170))
 cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
 scene.render.engine = "CYCLES"
@@ -89,6 +101,6 @@ except TypeError:
 scene.cycles.samples = 32
 scene.render.resolution_x, scene.render.resolution_y = 1600, 1000
 scene.view_settings.view_transform = "AgX"
-scene.render.filepath = os.path.join(A, "previews", "level_check.png")
+scene.render.filepath = os.path.join(A, "previews", f"level_{MAP or 'oasis'}{'_' + AT if AT else ''}.png")
 bpy.ops.render.render(write_still=True)
 print("WROTE")

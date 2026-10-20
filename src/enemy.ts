@@ -14,7 +14,7 @@ import type { World } from './world';
  * recovery is the opening. Poise decides whether a hit makes them flinch.
  */
 
-export type EnemyKind = 'raider' | 'skirmisher' | 'brute';
+export type EnemyKind = 'raider' | 'skirmisher' | 'brute' | 'chief';
 
 interface KindDef {
   title: string;
@@ -40,6 +40,12 @@ interface KindDef {
   lunge: number;
   acc: Accessory[];
   colours: Record<string, number>;
+  /** Which swings (indices into SWINGS) this kind uses; the first is its opener. */
+  swings: number[];
+  /** Chance to raise a shield when the player starts a swing nearby. */
+  block: number;
+  /** Skirmish-style: hop back out of reach after a combo. */
+  backstep: number;
 }
 
 const KINDS: Record<EnemyKind, KindDef> = {
@@ -64,6 +70,9 @@ const KINDS: Record<EnemyKind, KindDef> = {
     lunge: 2.2,
     acc: ['Keffiyeh', 'FaceWrap', 'Vest', 'Sword', 'Shield'],
     colours: { P_Robe: 0x2b2622, P_Sash: 0x7b2a24, P_Wrap: 0x3b3530, P_Pants: 0x2f2a26, P_Skin: 0x9a6440 },
+    swings: [0, 1],
+    block: 0.45,
+    backstep: 0.2,
   },
   skirmisher: {
     title: 'Skirmisher',
@@ -86,6 +95,9 @@ const KINDS: Record<EnemyKind, KindDef> = {
     lunge: 2.6,
     acc: ['Headband', 'FaceWrap', 'Hair', 'Sword'],
     colours: { P_Robe: 0x6b4a32, P_Sash: 0x2b2622, P_Hair: 0x1d1612, P_Pants: 0x3d3128, P_Skin: 0x7d4f31 },
+    swings: [3, 1, 3],
+    block: 0,
+    backstep: 0.65,
   },
   brute: {
     title: 'Raider Brute',
@@ -108,16 +120,58 @@ const KINDS: Record<EnemyKind, KindDef> = {
     lunge: 2.8,
     acc: ['Helmet', 'BeardLong', 'Lamellar', 'Belly', 'Sword', 'Shield'],
     colours: { P_Robe: 0x4a1a14, P_Sash: 0x2b2622, P_Wrap: 0x2b2622, P_Pants: 0x2a1d17, P_Skin: 0x7d4f31 },
+    swings: [2, 0],
+    block: 0,
+    backstep: 0,
+  },
+  chief: {
+    title: 'Raider Chief',
+    hp: 420,
+    poise: 4,
+    walk: 1.4,
+    run: 3.4,
+    scale: 1.38,
+    dmg: 38,
+    knock: 4,
+    range: 2.7,
+    windup: 0.9,
+    comboWindup: 0.45,
+    strikeSpeed: 1.4,
+    recover: 1.1,
+    maxCombo: 3,
+    comboChance: 0.5,
+    sight: 16,
+    turn: 2.2,
+    lunge: 3,
+    acc: ['Helmet', 'BeardLong', 'Lamellar', 'Cloak', 'Belly', 'Sword', 'Shield'],
+    colours: { P_Robe: 0x2a1d17, P_Sash: 0xd6a531, P_Wrap: 0x2b2622, P_Pants: 0x2a1d17, P_Skin: 0x7d4f31, P_Cloak: 0x6d1a14 },
+    swings: [2, 0, 1],
+    block: 0.25,
+    backstep: 0.15,
   },
 };
 
-// Clip timing (seconds of clip time) from rigs.py: arm raised / blade lands.
-const SWINGS = [
-  { clip: 'Attack', raise: 0.21, hit: 0.4 },
-  { clip: 'Attack2', raise: 0.17, hit: 0.375 },
+// Clip timing (seconds of clip time, from the manifest): arm raised / blade lands.
+// `raiseSpeed` plays the raise slowly as a telegraph; HeavyAttack has its own
+// authored raise-and-hold, so it plays at full speed. `strike` overrides the
+// kind's strike speed (null = use the kind's).
+interface Swing {
+  clip: string;
+  raise: number;
+  hit: number;
+  raiseSpeed: number;
+  strike: number | null;
+  heavy: boolean;
+}
+const SWINGS: Swing[] = [
+  { clip: 'Attack', raise: 0.21, hit: 0.375, raiseSpeed: 0.55, strike: null, heavy: false },
+  { clip: 'Attack2', raise: 0.17, hit: 0.333, raiseSpeed: 0.55, strike: null, heavy: false },
+  { clip: 'HeavyAttack', raise: 0.75, hit: 1.042, raiseSpeed: 1, strike: 1.15, heavy: true },
+  { clip: 'Thrust', raise: 0.18, hit: 0.333, raiseSpeed: 0.6, strike: null, heavy: false },
 ];
+const BACKSTEP = { duration: 0.5, distance: 1.6 };
 
-type EState = 'idle' | 'alert' | 'approach' | 'reposition' | 'windup' | 'strike' | 'recover' | 'stagger' | 'return' | 'dead';
+type EState = 'idle' | 'alert' | 'approach' | 'reposition' | 'windup' | 'strike' | 'recover' | 'stagger' | 'block' | 'backstep' | 'return' | 'dead';
 
 const RADIUS = 0.32;
 /** Body half-width for spacing (shoulders + arms), larger than the collision capsule. */
@@ -127,7 +181,7 @@ const LEASH = 38;
 const MAX_ATTACKERS = 2;
 const WAIT_RING = 3.6;
 const ATTACKING: ReadonlySet<string> = new Set(['windup', 'strike', 'recover']);
-const ENGAGED: ReadonlySet<string> = new Set(['alert', 'approach', 'reposition', 'windup', 'strike', 'recover', 'stagger']);
+const ENGAGED: ReadonlySet<string> = new Set(['alert', 'approach', 'reposition', 'windup', 'strike', 'recover', 'stagger', 'block', 'backstep']);
 const TAU = Math.PI * 2;
 
 export class Enemy {
@@ -164,6 +218,8 @@ export class Enemy {
   private wanderTarget: THREE.Vector3 | null = null;
   private animAcc = 0;
   private frame = 0;
+  private guardHits = 0;
+  private sawPlayerAttack = false;
 
   constructor(
     readonly kind: EnemyKind,
@@ -175,7 +231,7 @@ export class Enemy {
     private sfx: Sfx,
     seed: number,
   ) {
-    this.def = KINDS[kind];
+    this.def = KINDS[kind] ?? KINDS.raider;
     this.hp = this.def.hp;
     this.pos.set(...spawn.pos);
     this.pos.y = world.ground(this.pos.x, this.pos.z);
@@ -245,8 +301,16 @@ export class Enemy {
       case 'windup':
       case 'strike':
       case 'recover':
-      case 'stagger':
+      case 'block':
         a.setBase('Idle', 1, 0.15);
+        break;
+      case 'stagger':
+        a.stopOverlay(0.05);
+        a.setBase('Stagger', 1, 0.06, true);
+        break;
+      case 'backstep':
+        a.stopOverlay(0.05);
+        a.setBase('Backstep', 1, 0.06, true);
         break;
       case 'approach':
         a.setBase('Run', d.run / CLIP_SPEED.personRun, 0.15);
@@ -266,11 +330,29 @@ export class Enemy {
   damage(dmg: number, from: THREE.Vector3): HitResult {
     const res: HitResult = { pos: this.pos.clone().setY(this.pos.y + 1.2 * this.def.scale), killed: false, staggered: false };
     if (this.dead) return res;
+    const away = this.pos.clone().sub(from).setY(0).normalize();
+    // Shield up and facing the blow: no damage, but the guard wears down.
+    if (this.state === 'block' && Math.cos(wrapAngle(Math.atan2(-away.x, -away.z) - this.yaw)) > 0.3) {
+      res.blocked = true;
+      this.guardHits++;
+      this.knock.copy(away).multiplyScalar(1.2);
+      this.sfx.clang();
+      if (this.guardHits >= 2) {
+        // Guard break: wide open.
+        this.guardHits = 0;
+        this.timer = 1.1;
+        this.enter('stagger');
+        res.staggered = true;
+      } else {
+        this.rig.anim.playOverlay('BlockHit', { fade: 0.03 });
+        this.timer = Math.max(this.timer, 0.5);
+      }
+      return res;
+    }
     this.hp -= dmg;
     this.lastDamage = this.sinceHurt < 1.5 ? this.lastDamage + dmg : dmg;
     this.sinceHurt = 0;
     this.flash.hit();
-    const away = this.pos.clone().sub(from).setY(0).normalize();
     if (this.hp <= 0) {
       this.hp = 0;
       this.knock.copy(away).multiplyScalar(3);
@@ -287,8 +369,7 @@ export class Enemy {
     if (this.poiseHits >= this.def.poise && !armoured) {
       this.poiseHits = 0;
       this.knock.copy(away).multiplyScalar(this.def.poise > 1 ? 2.5 : 3.2);
-      this.rig.anim.playOverlay('Hit', { fade: 0.04 });
-      this.timer = this.def.poise > 1 ? 0.9 : 0.55;
+      this.timer = this.def.poise > 1 ? 1.0 : 0.75;
       this.enter('stagger');
       res.staggered = true;
     } else {
@@ -317,7 +398,41 @@ export class Enemy {
     const fromHome = Math.hypot(this.pos.x - this.home.x, this.pos.z - this.home.z);
     const playerHere = !player.dead && Math.hypot(player.pos.x - this.home.x, player.pos.z - this.home.z) < LEASH + 6;
 
+    // Shield reaction: when the player starts a swing in reach, maybe raise the guard.
+    if (player.attacking && !this.sawPlayerAttack) {
+      this.sawPlayerAttack = true;
+      const canBlock = this.state === 'approach' || this.state === 'reposition' || this.state === 'recover';
+      if (canBlock && d.block > 0 && dist < d.range + 1.6 && this.rnd() < d.block) {
+        this.rig.anim.playOverlay('Block', { loop: true, fade: 0.06 });
+        this.timer = 0.8 + this.rnd() * 0.5;
+        this.enter('block');
+      }
+    } else if (!player.attacking) {
+      this.sawPlayerAttack = false;
+    }
+
     switch (this.state) {
+      case 'block': {
+        this.timer -= dt;
+        this.yaw = turnToward(this.yaw, toPlayer, d.turn * 1.5, dt);
+        // BlockHit is one-shot; fall back to the held guard.
+        if (this.rig.anim.overlay === '') this.rig.anim.playOverlay('Block', { loop: true, fade: 0.05 });
+        if (this.timer <= 0) {
+          this.rig.anim.stopOverlay(0.15);
+          this.enter('approach');
+        }
+        break;
+      }
+      case 'backstep': {
+        this.timer -= dt;
+        const v = BACKSTEP.distance / BACKSTEP.duration;
+        this.stepDir(-Math.sin(this.yaw), -Math.cos(this.yaw), v * dt, dt, false);
+        if (this.timer <= 0) {
+          this.cooldown = Math.max(this.cooldown, 0.8);
+          this.enter('approach');
+        }
+        break;
+      }
       case 'idle': {
         // Loiter around the camp.
         this.idleTimer -= dt;
@@ -398,6 +513,7 @@ export class Enemy {
         // Raise slowly, then hold at the top until the windup expires.
         const t = a.overlayTime();
         if (t >= s.raise) a.setOverlayTimeScale(0);
+        else a.setOverlayTimeScale(s.raiseSpeed);
         // Tracks the player while winding up (that's what makes dodging timing matter).
         this.yaw = turnToward(this.yaw, toPlayer, d.turn, dt);
         if (!this.told && this.timer < 0.18) {
@@ -406,8 +522,8 @@ export class Enemy {
           this.sfx.tell();
           this.onTell(this);
         }
-        if (this.timer <= 0) {
-          a.setOverlayTimeScale(d.strikeSpeed);
+        if (this.timer <= 0 && (t < 0 || t >= s.raise - 0.02)) {
+          a.setOverlayTimeScale(s.strike ?? d.strikeSpeed);
           this.struck = false;
           this.timer = 0.6;
           this.enter('strike');
@@ -427,7 +543,7 @@ export class Enemy {
           this.sfx.swing(this.kind === 'brute');
           const facing = Math.cos(wrapAngle(toPlayer - this.yaw)) > 0.45;
           const reach = d.range + (player.mounted ? 0.6 : 0.25);
-          if (facing && dist < reach && !player.dead) player.hurt(d.dmg, this.pos, d.knock);
+          if (facing && dist < reach && !player.dead) player.hurt(s.heavy ? d.dmg * 1.15 : d.dmg, this.pos, s.heavy ? d.knock * 1.3 : d.knock);
           this.rig.anim.setOverlayTimeScale(1);
         }
         this.timer -= dt;
@@ -445,7 +561,12 @@ export class Enemy {
             this.startSwing(false);
           } else {
             this.cooldown = 0.6 + this.rnd() * 1.2;
-            this.enter('approach');
+            if (d.backstep > 0 && dist < d.range + 0.8 && this.rnd() < d.backstep) {
+              this.timer = BACKSTEP.duration;
+              this.enter('backstep');
+            } else {
+              this.enter('approach');
+            }
           }
         }
         break;
@@ -491,13 +612,24 @@ export class Enemy {
     }
   }
 
+  private comboStep = 0;
+
   private startSwing(first: boolean): void {
     const d = this.def;
-    this.swing = this.kind === 'brute' ? 0 : first ? Math.floor(this.rnd() * 2) : 1 - this.swing;
-    if (first) this.combo = d.maxCombo > 1 && this.rnd() < d.comboChance ? Math.floor(1 + this.rnd() * (d.maxCombo - 1)) : 0;
-    this.timer = (first ? d.windup : d.comboWindup) * (0.85 + this.rnd() * 0.3);
+    if (first) {
+      this.combo = d.maxCombo > 1 && this.rnd() < d.comboChance ? Math.floor(1 + this.rnd() * (d.maxCombo - 1)) : 0;
+      // Openers vary a little; the first listed swing is the favourite.
+      this.comboStep = this.rnd() < 0.7 ? 0 : Math.floor(this.rnd() * d.swings.length);
+    } else {
+      this.comboStep = (this.comboStep + 1) % d.swings.length;
+    }
+    this.swing = d.swings[this.comboStep];
+    const s = SWINGS[this.swing];
+    // The hold can't be shorter than the time the raise takes to play.
+    const minHold = s.raise / s.raiseSpeed + 0.05;
+    this.timer = Math.max(minHold, (first ? d.windup : d.comboWindup) * (0.85 + this.rnd() * 0.3));
     this.told = false;
-    this.rig.anim.playOverlay(SWINGS[this.swing].clip, { fade: 0.08, timeScale: 0.55 });
+    this.rig.anim.playOverlay(s.clip, { fade: 0.08, timeScale: s.raiseSpeed });
     this.enter('windup');
   }
 
@@ -573,10 +705,10 @@ export class EnemySystem {
 
   constructor(world: World, factory: CharacterFactory, scene: THREE.Scene, sfx: Sfx) {
     let seed = 100;
-    for (const s of world.assets.level.spawns) {
+    for (const s of world.level.spawns) {
       if (s.role !== 'enemy') continue;
-      const kind = (s.kind ?? 'raider') as EnemyKind;
-      const def = KINDS[kind];
+      const kind = (s.title === 'chief' ? 'chief' : (s.kind ?? 'raider')) as EnemyKind;
+      const def = KINDS[kind] ?? KINDS.raider;
       const rig = factory.createPerson(def.acc, def.colours, def.scale);
       const at = new THREE.Vector3(...s.pos);
       at.y = world.ground(at.x, at.z);

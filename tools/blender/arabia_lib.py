@@ -174,6 +174,11 @@ def smooth(a, b, x):
 
 
 def height(x, y):
+    """Ground height used by every builder; maps swap HEIGHT_FN to place props on their own terrain."""
+    return HEIGHT_FN(x, y)
+
+
+def oasis_height(x, y):
     d = (Vector((x, y)) - TOWN).length
     dune_w = smooth(TOWN_R * 0.8, TOWN_R * 1.9, d)
     # long wind-aligned dunes with sharp crests
@@ -195,6 +200,9 @@ def height(x, y):
     # rising ground toward the right-hand mesa
     h += smooth(60, 160, x) * smooth(40, 200, y) * 10
     return h
+
+
+HEIGHT_FN = oasis_height
 
 
 def crest_point(u):
@@ -718,7 +726,7 @@ def palm(x, y, s=1.0, lean=0.0):
 
 def tent(x, y, rot, s=1.0):
     mb = MB()
-    black = mat("GoatHair", "#2a211c", 1.0)
+    black = mat("GoatHair", "#4a3a2e", 1.0)
     stripe = random.choice(FABRICS)
     mb.box((0, 0, 1.6 * s), (7 * s, 4 * s, 0.1), black, rot=(0.12, 0, 0))
     mb.box((0, 2.0 * s, 0.85 * s), (7 * s, 0.06, 1.7 * s), black)

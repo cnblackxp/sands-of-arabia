@@ -175,6 +175,13 @@ export class DayCycle {
     this.apply(true);
   }
 
+  dispose(): void {
+    this.dome.removeFromParent();
+    this.envRT?.dispose();
+    this.envRT = null;
+    this.pmrem.dispose();
+  }
+
   /** Draw the night grade over the frame just rendered. */
   renderGrade(renderer: THREE.WebGLRenderer): void {
     if (this.grade < 0.01) return;

@@ -1,0 +1,30 @@
+{
+ "start": "oasis",
+ "maps": [
+  {
+   "name": "oasis",
+   "title": "The oasis town",
+   "level": "level/level.json"
+  },
+  {
+   "name": "hegra",
+   "title": "Hegra: the rock-cut city",
+   "level": "level/hegra/level.json"
+  },
+  {
+   "name": "caravanserai",
+   "title": "Caravanserai on the incense road",
+   "level": "level/caravanserai/level.json"
+  },
+  {
+   "name": "wadi",
+   "title": "Wadi of the date gardens",
+   "level": "level/wadi/level.json"
+  },
+  {
+   "name": "raider_fort",
+   "title": "The raider stronghold",
+   "level": "level/raider_fort/level.json"
+  }
+ ]
+}

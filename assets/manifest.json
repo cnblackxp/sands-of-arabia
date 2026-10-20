@@ -4,22 +4,35 @@
    "file": "characters/person.glb",
    "kind": "character",
    "size": [
-    0.83,
-    2.39,
-    1.116
+    1.218,
+    2.701,
+    1.156
    ],
    "materials": [
+    "P_Armor",
+    "P_ArmorTrim",
+    "P_Band",
+    "P_Bow",
     "P_Brass",
     "P_Clay",
+    "P_Cloak",
     "P_Eyes",
+    "P_Fletch",
     "P_Grip",
     "P_Hair",
     "P_Leather",
+    "P_Mail",
+    "P_Mask",
     "P_Pants",
     "P_Robe",
     "P_Sash",
+    "P_Shield",
+    "P_ShieldPaint",
     "P_Skin",
     "P_Steel",
+    "P_Vest",
+    "P_Waterskin",
+    "P_Wood",
     "P_Wrap"
    ],
    "bones": [
@@ -36,64 +49,157 @@
    ],
    "accessories": [
     "Beard",
+    "BeardLong",
+    "Belly",
+    "Bow",
+    "Cloak",
+    "FaceWrap",
     "Hair",
+    "Headband",
+    "Helmet",
+    "Jar",
     "Keffiyeh",
+    "Lamellar",
+    "Shield",
+    "Spear",
+    "Sword",
     "Turban",
     "Veil",
-    "Jar",
-    "Sword"
+    "Vest",
+    "Waterskin"
    ],
    "clips": {
     "Attack": {
      "frames": 18,
-     "loop": false
+     "loop": false,
+     "duration": 0.75,
+     "layer": "upper",
+     "hit_frame": 10,
+     "hit_time": 0.375
     },
     "Attack2": {
      "frames": 16,
-     "loop": false
+     "loop": false,
+     "duration": 0.667,
+     "layer": "upper",
+     "hit_frame": 9,
+     "hit_time": 0.333
+    },
+    "Backstep": {
+     "frames": 12,
+     "loop": false,
+     "duration": 0.5,
+     "layer": "full"
+    },
+    "Block": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "upper"
+    },
+    "BlockHit": {
+     "frames": 10,
+     "loop": false,
+     "duration": 0.417,
+     "layer": "upper"
     },
     "Death": {
      "frames": 30,
-     "loop": false
+     "loop": false,
+     "duration": 1.25,
+     "layer": "full"
+    },
+    "GetUp": {
+     "frames": 30,
+     "loop": false,
+     "duration": 1.25,
+     "layer": "full"
+    },
+    "HeavyAttack": {
+     "frames": 34,
+     "loop": false,
+     "duration": 1.417,
+     "layer": "upper",
+     "hit_frame": 26,
+     "hit_time": 1.042,
+     "windup_end_time": 0.792
     },
     "Hit": {
      "frames": 12,
-     "loop": false
+     "loop": false,
+     "duration": 0.5,
+     "layer": "upper"
     },
     "Idle": {
      "frames": 48,
-     "loop": true
+     "loop": true,
+     "duration": 2.0,
+     "layer": "full"
     },
     "Jump": {
      "frames": 14,
-     "loop": false
+     "loop": false,
+     "duration": 0.583,
+     "layer": "full"
+    },
+    "Knockdown": {
+     "frames": 18,
+     "loop": false,
+     "duration": 0.75,
+     "layer": "full"
     },
     "Ride": {
      "frames": 12,
-     "loop": true
+     "loop": true,
+     "duration": 0.5,
+     "layer": "full"
     },
     "Roll": {
      "frames": 14,
-     "loop": false
+     "loop": false,
+     "duration": 0.583,
+     "layer": "full"
     },
     "Run": {
      "frames": 16,
-     "loop": true
+     "loop": true,
+     "duration": 0.667,
+     "layer": "full"
     },
     "Sit": {
      "frames": 48,
-     "loop": true
+     "loop": true,
+     "duration": 2.0,
+     "layer": "full"
+    },
+    "Stagger": {
+     "frames": 20,
+     "loop": false,
+     "duration": 0.833,
+     "layer": "full"
     },
     "Talk": {
      "frames": 48,
-     "loop": true
+     "loop": true,
+     "duration": 2.0,
+     "layer": "upper"
+    },
+    "Thrust": {
+     "frames": 20,
+     "loop": false,
+     "duration": 0.833,
+     "layer": "upper",
+     "hit_frame": 9,
+     "hit_time": 0.333
     },
     "Walk": {
      "frames": 24,
-     "loop": true
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full"
     }
    },
-   "notes": "Body + accessory SkinnedMeshes share one skeleton; toggle accessories with .visible. Recolour by cloning materials named P_*. Upper-body clips (Attack, Attack2, Talk, Hit) key only spine/arms/head so they layer over Walk/Run/Ride. Attack hit frame ~10 (0.4 s), Attack2 ~9. Clip ground speeds: Walk 1.5 m/s, Run 4.8 m/s. Death ends lying down (clampWhenFinished)."
+   "notes": "Body + accessory SkinnedMeshes share one skeleton; toggle accessories with .visible. Recolour by cloning materials named P_*. Upper-body clips (Attack, Attack2, Talk, Hit) key only spine/arms/head so they layer over Walk/Run/Ride (see each clip's layer and hit_time). Thrust rotates hand_R so the upright Spear levels out; Shield sits on hand_L and faces forward in Block. Clip ground speeds: Walk 1.5 m/s, Run 4.8 m/s. Death ends lying down (clampWhenFinished)."
   },
   "horse": {
    "file": "characters/horse.glb",
@@ -119,19 +225,27 @@
    "clips": {
     "Gallop": {
      "frames": 12,
-     "loop": true
+     "loop": true,
+     "duration": 0.5,
+     "layer": "full"
     },
     "Idle": {
      "frames": 48,
-     "loop": true
+     "loop": true,
+     "duration": 2.0,
+     "layer": "full"
     },
     "Rear": {
      "frames": 30,
-     "loop": false
+     "loop": false,
+     "duration": 1.25,
+     "layer": "full"
     },
     "Walk": {
      "frames": 32,
-     "loop": true
+     "loop": true,
+     "duration": 1.333,
+     "layer": "full"
     }
    },
    "sockets": {
@@ -165,19 +279,27 @@
    "clips": {
     "Idle": {
      "frames": 48,
-     "loop": true
+     "loop": true,
+     "duration": 2.0,
+     "layer": "full"
     },
     "Run": {
      "frames": 16,
-     "loop": true
+     "loop": true,
+     "duration": 0.667,
+     "layer": "full"
     },
     "Sit": {
      "frames": 48,
-     "loop": true
+     "loop": true,
+     "duration": 2.0,
+     "layer": "full"
     },
     "Walk": {
      "frames": 32,
-     "loop": true
+     "loop": true,
+     "duration": 1.333,
+     "layer": "full"
     }
    },
    "sockets": {
@@ -194,7 +316,7 @@
     5.625
    ],
    "materials": [
-    "Mud1",
+    "Mud0",
     "Opening",
     "Wood"
    ]
@@ -208,7 +330,7 @@
     6.125
    ],
    "materials": [
-    "Lime",
+    "Mud2",
     "Opening",
     "Wood"
    ]
@@ -222,7 +344,7 @@
     4.825
    ],
    "materials": [
-    "Mud1",
+    "Lime",
     "Opening",
     "Wood"
    ]
@@ -251,7 +373,7 @@
    ],
    "materials": [
     "Lime",
-    "Mud2",
+    "Mud1",
     "Opening"
    ]
   },
@@ -288,21 +410,18 @@
    "file": "market/stall_spice.glb",
    "kind": "prop",
    "size": [
-    4.875,
-    3.138,
-    4.23
+    3.708,
+    3.146,
+    3.572
    ],
    "materials": [
     "Aw0a",
     "Aw0b",
+    "Clay",
     "Clay2",
-    "LampFlame",
-    "Leather",
-    "Rug3",
-    "Sack",
-    "Spice0",
-    "Spice1",
+    "Rug0",
     "Spice2",
+    "Spice3",
     "Spice4",
     "Wood"
    ]
@@ -311,18 +430,17 @@
    "file": "market/stall_pots.glb",
    "kind": "prop",
    "size": [
-    4.379,
-    3.142,
-    4.017
+    4.602,
+    3.14,
+    4.119
    ],
    "materials": [
     "Aw1a",
     "Aw1b",
     "Clay",
     "Clay2",
-    "LampFlame",
-    "Leather",
-    "Rug0",
+    "Rug1",
+    "Sack",
     "Wood"
    ]
   },
@@ -330,19 +448,17 @@
    "file": "market/stall_cloth.glb",
    "kind": "prop",
    "size": [
-    4.436,
-    3.145,
-    3.894
+    4.262,
+    3.143,
+    3.987
    ],
    "materials": [
     "Aw2a",
     "Aw2b",
     "Clay",
-    "Clay2",
     "Rug0",
     "Rug1",
     "Rug2",
-    "Rug3",
     "Sack",
     "Wood"
    ]
@@ -351,19 +467,17 @@
    "file": "market/stall_brass.glb",
    "kind": "prop",
    "size": [
-    4.724,
-    3.147,
-    3.868
+    4.706,
+    3.144,
+    3.882
    ],
    "materials": [
     "Aw3a",
     "Aw3b",
     "Brass",
     "Clay",
-    "Clay2",
-    "LampFlame",
-    "Leather",
-    "Rug3",
+    "Rug1",
+    "Sack",
     "Wood"
    ]
   },
@@ -371,9 +485,9 @@
    "file": "nature/palm_a.glb",
    "kind": "nature",
    "size": [
-    6.92,
-    7.387,
-    7.858
+    6.656,
+    8.794,
+    7.076
    ],
    "materials": [
     "Dates",
@@ -385,9 +499,9 @@
    "file": "nature/palm_b.glb",
    "kind": "nature",
    "size": [
-    9.064,
-    12.623,
-    8.605
+    8.54,
+    11.194,
+    9.236
    ],
    "materials": [
     "Dates",
@@ -399,9 +513,9 @@
    "file": "nature/palm_c.glb",
    "kind": "nature",
    "size": [
-    6.346,
-    9.773,
-    7.208
+    5.729,
+    8.697,
+    5.805
    ],
    "materials": [
     "Dates",
@@ -587,75 +701,58 @@
    ]
   },
   "terrain": {
-   "file": "level/terrain.glb",
+   "file": "level/raider_fort/terrain.glb",
    "kind": "terrain",
    "size": [
-    400.0,
-    30.931,
-    400.0
+    220.0,
+    11.573,
+    220.0
    ],
    "materials": [
     "SandVC"
-   ],
-   "notes": "vertex colours, no normals: GLTFLoader enables flatShading automatically"
+   ]
   },
   "town": {
-   "file": "level/town.glb",
+   "file": "level/raider_fort/town.glb",
    "kind": "level",
    "size": [
-    141.796,
-    29.957,
-    169.465
+    205.392,
+    24.999,
+    209.999
    ],
    "materials": [
-    "Aw1a",
-    "Aw1b",
-    "Aw2a",
-    "Aw2b",
-    "Aw3a",
-    "Aw3b",
-    "Aw4a",
-    "Aw4b",
-    "Aw5a",
-    "Aw5b",
-    "Betyl",
+    "Banner0",
+    "Banner1",
+    "Banner2",
+    "Bark",
+    "Bone",
     "Brass",
+    "Canopy0",
+    "Canopy1",
     "Clay",
-    "Clay2",
-    "Dates",
+    "DryBrush",
     "Fire",
-    "Frond",
     "GoatHair",
-    "Grass",
-    "LampFlame",
-    "Leather",
+    "GreyBand0",
+    "GreyBand1",
+    "GreyBand2",
+    "GreyBand3",
     "Lime",
-    "Mud0",
     "Mud1",
-    "Mud2",
     "Opening",
-    "RockBand0",
-    "RockBand1",
-    "RockBand2",
-    "RockBand3",
     "Rug0",
     "Rug1",
     "Rug2",
     "Rug3",
     "Rug4",
     "Sack",
-    "Spice0",
-    "Spice1",
-    "Spice2",
-    "Spice3",
-    "Spice4",
-    "Spice5",
+    "Shrub0",
+    "Shrub1",
+    "Shrub2",
+    "Steel",
     "Stone",
-    "TombDoor",
-    "TombFace",
-    "TombRock",
-    "Trunk",
-    "Water",
+    "StoneDark",
+    "TentCloth",
     "Wood"
    ]
   },
@@ -669,7 +766,7 @@
    ],
    "materials": [
     "FarRock",
-    "Rock",
+    "Rock.001",
     "RockBand0",
     "RockBand1",
     "RockBand2",
@@ -688,17 +785,64 @@
    "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
   },
   "backdrop_ground": {
-   "file": "level/backdrop_ground.glb",
+   "file": "level/raider_fort/backdrop_ground.glb",
    "kind": "backdrop",
    "size": [
-    1800.0,
-    30.206,
-    1800.0
+    1660.0,
+    11.343,
+    1660.0
    ],
    "materials": [
     "SandVC"
+   ]
+  },
+  "dressing": {
+   "file": "level/dressing.glb",
+   "kind": "level",
+   "size": [
+    385.349,
+    29.358,
+    391.606
    ],
-   "notes": "coarse ground ring around the playable terrain (hole in the middle)"
+   "materials": [
+    "Banner0",
+    "Bark",
+    "Bone",
+    "Canopy0",
+    "Canopy1",
+    "DryBrush",
+    "RockBand0",
+    "RockBand1",
+    "RockBand2",
+    "RockBand3",
+    "Shrub0",
+    "Shrub1",
+    "Shrub2",
+    "Stone",
+    "StoneDark",
+    "Wood"
+   ],
+   "notes": "dune dressing; colliders are in level.json"
+  },
+  "level_hegra": {
+   "file": "level/hegra/level.json",
+   "kind": "level-data",
+   "title": "Hegra: the rock-cut city"
+  },
+  "level_caravanserai": {
+   "file": "level/caravanserai/level.json",
+   "kind": "level-data",
+   "title": "Caravanserai on the incense road"
+  },
+  "level_wadi": {
+   "file": "level/wadi/level.json",
+   "kind": "level-data",
+   "title": "Wadi of the date gardens"
+  },
+  "level_raider_fort": {
+   "file": "level/raider_fort/level.json",
+   "kind": "level-data",
+   "title": "The raider stronghold"
   }
  },
  "conventions": {

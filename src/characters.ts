@@ -140,8 +140,21 @@ export class CharacterFactory {
     private person: GLTF,
     private horse: GLTF,
     private camel: GLTF,
+    clipMeta: Record<string, { loop: boolean; layer?: string }> = {},
   ) {
-    this.personLib = new ClipLibrary(person.animations, ['Attack', 'Attack2', 'Talk', 'Hit'], PERSON_LOWER, ['Death', 'Roll', 'Jump']);
+    // Layering comes from the manifest: `upper` clips are overlays, non-looping
+    // full-body clips play once and hold their last pose.
+    const names = person.animations.map((c) => c.name);
+    const overlay = new Set(['Attack', 'Attack2', 'Talk', 'Hit']);
+    const once = new Set(['Death', 'Roll', 'Jump']);
+    for (const n of names) {
+      const m = clipMeta[n];
+      if (!m) continue;
+      if (m.layer === 'upper') overlay.add(n);
+      else overlay.delete(n);
+      if (m.layer !== 'upper' && !m.loop) once.add(n);
+    }
+    this.personLib = new ClipLibrary(person.animations, [...overlay], PERSON_LOWER, [...once]);
     this.horseLib = new ClipLibrary(horse.animations, [], null, ['Rear']);
     this.camelLib = new ClipLibrary(camel.animations, [], null, []);
   }

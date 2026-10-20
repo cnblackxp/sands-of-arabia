@@ -1,6 +1,6 @@
 // Flavour lines for strangers in the oasis town. Each conversation picks a few.
 
-export type NpcRole = 'wanderer' | 'merchant' | 'sitter' | 'water_carrier' | 'guard' | 'priest';
+export type NpcRole = 'wanderer' | 'merchant' | 'sitter' | 'water_carrier' | 'guard' | 'priest' | 'farmer' | 'prisoner';
 
 export const ROLE_TITLE: Record<NpcRole, string> = {
   wanderer: 'Traveller',
@@ -9,9 +9,11 @@ export const ROLE_TITLE: Record<NpcRole, string> = {
   water_carrier: 'Water carrier',
   guard: 'Gate guard',
   priest: 'Priest of the shrine',
+  farmer: 'Farmer',
+  prisoner: 'Prisoner',
 };
 
-const LINES: Record<NpcRole, string[]> = {
+const LINES: Record<string, string[]> = {
   wanderer: [
     'The caravan from Gerrha came in at noon. Frankincense, pearls, and a great deal of complaining.',
     'Mind the dunes past the tomb, friend. The sand moves when no one is looking.',
@@ -59,6 +61,23 @@ const LINES: Record<NpcRole, string[]> = {
     'Light incense for those on the road tonight. The desert is wide.',
   ],
 };
+
+const EXTRA_LINES: Record<'farmer' | 'prisoner', string[]> = {
+  farmer: [
+    'The falaj runs sweet this year. Mind you do not step in the channel.',
+    'Dates ripen in the heat. The heat, at least, we have plenty of.',
+    'My grandfather cut these terraces. My grandson will curse them, as I do.',
+    'Raiders took two goats last moon. The watchtower saw nothing, as usual.',
+    'Water is shared by the hour here. Steal a turn and the whole wadi knows.',
+  ],
+  prisoner: [
+    'Please — they mean to sell us at the coast. Cut these ropes!',
+    'The chief keeps the key in his tent. And three guards in front of it.',
+    'I was a trader once. Now I am inventory.',
+    'If you are going to fight them, fight them quickly.',
+  ],
+};
+Object.assign(LINES, EXTRA_LINES);
 
 const MALE = ['Amr', 'Harith', 'Qays', 'Zayd', "Imru' al-Qays", 'Aws', 'Kalb', 'Malik', 'Hani', 'Thalaba', 'Uday', 'Shanfara', 'Tarafa', 'Labid', 'Antara', 'Nabigh', 'Hatim', 'Duraid'];
 const FEMALE = ['Hind', 'Salma', 'Laila', 'Rabab', 'Khawla', 'Asma', 'Mawiya', 'Zaynab', 'Su\'ad', 'Umayma'];

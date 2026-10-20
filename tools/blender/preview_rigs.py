@@ -74,6 +74,21 @@ poses = [("Idle", 1), ("Walk", 7), ("Run", 5), ("Attack", 6), ("Attack", 10), ("
 for i, (clip, fr) in enumerate(poses):
     posed(person, clip, fr, (i * 1.6, 0, 0), math.radians(-35), looks[i % 4])
 
+# row 3 (front): raider gear and v3 combat clips
+row3 = [("Block", 1, ("FaceWrap", "Lamellar", "Shield", "Spear", "Helmet")),
+        ("Thrust", 6, ("FaceWrap", "Vest", "Shield", "Spear")),
+        ("Thrust", 9, ("FaceWrap", "Vest", "Shield", "Spear")),
+        ("HeavyAttack", 20, ("Helmet", "Lamellar", "Sword")),
+        ("HeavyAttack", 26, ("Helmet", "Lamellar", "Sword")),
+        ("Stagger", 4, ("Turban", "Vest", "Sword")),
+        ("Knockdown", 18, ("Keffiyeh", "Sword")),
+        ("GetUp", 18, ("Keffiyeh", "Sword")),
+        ("Backstep", 4, ("Headband", "Cloak", "Sword")),
+        ("Idle", 1, ("Headband", "Cloak", "Bow", "Waterskin")),
+        ("Walk", 7, ("Turban", "Belly", "BeardLong", "Waterskin"))]
+for i, (clip, fr, show) in enumerate(row3):
+    posed(person, clip, fr, (i * 1.6, -4.0, 0), math.radians(-35), show)
+
 # row 2: rider on a galloping horse, rearing horse, camels
 scene.frame_set(F)
 h = posed(horse, "Gallop", 3, (1.0, 5.0, 0), math.radians(-60), ("Saddle",))
@@ -115,11 +130,11 @@ sun.rotation_euler = (math.radians(50), 0, math.radians(-30))
 
 cd = bpy.data.cameras.new("C")
 cd.type = "ORTHO"
-cd.ortho_scale = 21
+cd.ortho_scale = 25
 cam = bpy.data.objects.new("C", cd)
 scene.collection.objects.link(cam)
 scene.camera = cam
-target = Vector((9.0, 2.6, 0.9))
+target = Vector((9.0, 0.6, 0.9))
 cam.location = target + Vector((0, -30, 17))
 cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
 
@@ -135,7 +150,7 @@ except TypeError:
     pass
 scene.cycles.samples = 24
 scene.cycles.use_denoising = True
-scene.render.resolution_x, scene.render.resolution_y = 1800, 900
+scene.render.resolution_x, scene.render.resolution_y = 1800, 1050
 scene.render.filepath = OUT
 scene.frame_set(F)
 bpy.ops.render.render(write_still=True)

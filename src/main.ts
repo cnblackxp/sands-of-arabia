@@ -14,9 +14,12 @@ import { Physics } from './physics';
 import { Player } from './player';
 import { DayCycle, timeLabel } from './sky';
 import { mulberry32 } from './util';
-import { loadAssets, World } from './world';
+import type { Exit } from './level';
+import { cutout, loadCommon, loadMap, World, type CommonAssets, type MapEntry } from './world';
 
 const TALK_RANGE = 2.4;
+/** See-through radius around the player, metres. */
+const CUT_RADIUS = 2.6;
 const MOUNT_RANGE = 2.8;
 
 const ROBES: (number | null)[] = [null, 0xf1ece0, 0x2c3e73, 0x7b2a24, 0xc9902e, 0x2f6d4f, 0x5b2d6e, 0x2b2622, 0xb8a48a];
@@ -33,8 +36,15 @@ class Game {
   hud: Hud;
   sfx = new Sfx();
   time = new TimeScale();
-  physics = new Physics();
+  physics!: Physics;
   world!: World;
+  common!: CommonAssets;
+  factory!: CharacterFactory;
+  mapName = '';
+  exits: Exit[] = [];
+  private beacons: THREE.Mesh[] = [];
+  private travelling = false;
+  private debugObj: THREE.Object3D | null = null;
   day!: DayCycle;
   player!: Player;
   npcs!: NpcSystem;
@@ -72,62 +82,99 @@ class Game {
   async start(): Promise<void> {
     const bar = document.querySelector('#loading .bar div') as HTMLDivElement;
     const msg = document.querySelector('#loading .msg') as HTMLDivElement;
-    const [assets] = await Promise.all([
-      loadAssets((f, label) => {
-        bar.style.width = `${f * 100}%`;
-        msg.textContent = `Loaded ${label}`;
-      }),
-      this.physics.init(),
-    ]);
-    this.world = new World(assets, this.physics);
+    this.common = await loadCommon((f, label) => {
+      bar.style.width = `${f * 50}%`;
+      msg.textContent = `Loaded ${label}`;
+    });
+    const c = this.common;
+    this.factory = new CharacterFactory(c.person, c.horse, c.camel, c.personClips);
+
+    const hudRoot = document.getElementById('hud')!;
+    this.menu = new PauseMenu(hudRoot, this.menuHost(), this.hud, () => {
+      this.cam.focus = false;
+      this.minimap?.setVisible(true);
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Backquote' && this.debugObj) this.debugObj.visible = !this.debugObj.visible;
+    });
+
+    await this.enterMap(c.maps.start, null);
+    this.resize();
+    this.canvas.focus();
+    this.renderer.setAnimationLoop(() => this.frame());
+    // Embedded previews can stall requestAnimationFrame while the page is still
+    // visible; keep ticking from a timer until rAF comes back.
+    setInterval(() => {
+      if (performance.now() - this.last > 120) this.frame();
+    }, 33);
+  }
+
+  private mapEntry(name: string): MapEntry {
+    return this.common.maps.maps.find((m) => m.name === name) ?? this.common.maps.maps[0];
+  }
+
+  /** Travel to another map through an exit. */
+  async travel(to: string): Promise<void> {
+    if (this.travelling) return;
+    this.closeDialogue();
+    await this.enterMap(to, this.mapName);
+  }
+
+  /**
+   * Load (or reuse) a map and rebuild everything that lives in it. The player
+   * keeps HP, stamina and looks; horses, camels and people belong to the map.
+   */
+  private async enterMap(name: string, from: string | null): Promise<void> {
+    this.travelling = true;
+    const entry = this.mapEntry(name);
+    const loading = document.getElementById('loading')!;
+    const bar = document.querySelector('#loading .bar div') as HTMLDivElement;
+    const msg = document.querySelector('#loading .msg') as HTMLDivElement;
+    (document.querySelector('#loading .title') as HTMLDivElement).textContent = entry.title;
+    loading.classList.remove('done');
+    const map = await loadMap(entry, (f, label) => {
+      bar.style.width = `${50 + f * 50}%`;
+      msg.textContent = `Loaded ${label}`;
+    });
+
+    // Carry over what belongs to the player and the clock.
+    const prev = this.player ? { hp: this.player.hp, stamina: this.player.stamina, look: this.player.lookIndex } : null;
+    const hours = this.day?.hours;
+    this.teardown();
+
+    this.physics = new Physics();
+    await this.physics.init();
+    this.world = new World(map, this.physics);
+    this.mapName = entry.name;
     const scene = this.world.scene;
-    this.day = new DayCycle(this.world, this.renderer, assets.bg, assets.envHdr);
+    this.day = new DayCycle(this.world, this.renderer, this.common.bg, this.common.envHdr);
+    if (hours !== undefined) this.day.set(hours);
+    this.day.flowing = FLOW[this.flow].on;
+    this.day.speed = FLOW[this.flow].speed;
     this.particles = new Particles(scene);
     this.glints = new Glints(scene);
-    const factory = new CharacterFactory(assets.person, assets.horse, assets.camel);
+    const factory = this.factory;
     const rnd = mulberry32(21);
+    const level = map.level;
 
-    const ps = assets.level.spawns.find((s) => s.role === 'player')!;
+    // Arrival: the spawn marked `from: <previous map>`, else the default one.
+    const spawns = level.spawns.filter((s) => s.role === 'player');
+    const ps = (from && spawns.find((s) => s.from === from)) || spawns.find((s) => !s.from) || spawns[0];
     const at = new THREE.Vector3(...ps.pos);
     at.y = this.world.ground(at.x, at.z);
-    this.player = new Player(factory, this.physics, at, ps.yaw, {
-      hurt: (dmg, heavy) => this.onPlayerHurt(dmg, heavy),
-      death: () => {
-        this.closeDialogue();
-        this.sfx.death();
-        this.time.slowmo(1.2, 0.35);
-        this.hud.showToast('YOU DIED', 3.5);
-      },
-      respawn: () => {
-        this.npcs.calmGuards();
-        this.enemies.resetAll();
-        this.hud.showToast('You wake at the edge of the market. The raiders have regrouped.', 3.5);
-      },
-      swing: () => this.sfx.swing(),
-      jump: () => this.sfx.roll(),
-      land: () => {
-        this.sfx.land();
-        const p = this.player.pos;
-        this.particles.burst(new THREE.Vector3(p.x, p.y + 0.05, p.z), 8, { color: 0xd9b58a, speed: 1.8, up: 0.8, size: 0.11, life: 0.45, gravity: 3 });
-      },
-      roll: () => {
-        this.sfx.roll();
-        const p = this.player.pos;
-        this.particles.burst(new THREE.Vector3(p.x, p.y + 0.1, p.z), 10, { color: 0xd9b58a, speed: 1.6, up: 1.2, size: 0.12, life: 0.6, gravity: 2 });
-      },
-      exhausted: () => {
-        this.hud.staminaDenied();
-        this.sfx.exhausted();
-      },
-      strike: (o, yaw, range, half, dmg) => [...this.npcs.hitArc(o, yaw, range, half, dmg), ...this.enemies.hitArc(o, yaw, range, half, dmg)],
-      hit: (r) => this.onPlayerHit(r),
-      aim: (o, yaw) => this.enemies.aimTarget(o, yaw, 3.4, THREE.MathUtils.degToRad(55))?.pos ?? null,
-    });
+    this.player = new Player(factory, this.physics, at, ps.yaw, this.playerEvents());
+    if (prev) {
+      this.player.hp = Math.max(1, prev.hp);
+      this.player.stamina = prev.stamina;
+    }
+    if (prev && (prev.look !== 0 || this.robe !== 0)) this.player.setLook(prev.look, ROBES[this.robe] ?? undefined);
     scene.add(this.player.rig.root);
 
     this.npcs = new NpcSystem(this.world, factory, scene, this.sfx);
     this.enemies = new EnemySystem(this.world, factory, scene, this.sfx);
-    for (const s of assets.level.spawns) {
+    this.horses = [];
+    this.camels = [];
+    for (const s of level.spawns) {
       if (s.role === 'horse') {
         const h = new Horse(factory, this.physics, s, rnd);
         this.horses.push(h);
@@ -146,33 +193,99 @@ class Game {
     };
     this.npcs.onDeathCb = (n) => this.hud.showToast(`${n.name} the ${n.title.toLowerCase()} has fallen.`);
 
-    const hudRoot = document.getElementById('hud')!;
-    this.minimap = new Minimap(hudRoot, assets.level, assets.heights);
-    this.menu = new PauseMenu(hudRoot, this.menuHost(), this.hud, () => {
-      this.cam.focus = false;
-      this.minimap.setVisible(true);
-    });
+    // Exits: a soft light pillar over each cairn.
+    this.exits = level.exits ?? [];
+    const beamGeo = new THREE.CylinderGeometry(0.25, 0.55, 10, 12, 1, true);
+    for (const e of this.exits) {
+      // Fades out upward so it reads as a shaft of light, not a solid post.
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { opacity: { value: 0.3 } },
+        vertexShader: 'varying float vY; void main() { vY = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: 'uniform float opacity; varying float vY; void main() { gl_FragColor = vec4(vec3(1.0, 0.82, 0.5) * opacity * pow(1.0 - vY, 1.6), 1.0); }',
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const m = new THREE.Mesh(beamGeo, mat);
+      m.position.set(e.pos[0], this.world.ground(e.pos[0], e.pos[2]) + 5, e.pos[2]);
+      this.beacons.push(m);
+      scene.add(m);
+    }
 
-    const debug = this.world.colliderDebug();
-    debug.visible = false;
-    scene.add(debug);
-    window.addEventListener('keydown', (e) => {
-      if (e.code === 'Backquote') debug.visible = !debug.visible;
-    });
+    const hudRoot = document.getElementById('hud')!;
+    const mode = this.minimap?.mode ?? 0;
+    this.minimap?.dispose();
+    this.minimap = new Minimap(hudRoot, level, map.heights);
+    while (this.minimap.mode !== mode) this.minimap.cycle();
+
+    this.debugObj = this.world.colliderDebug();
+    this.debugObj.visible = false;
+    scene.add(this.debugObj);
 
     this.physics.step();
     this.cam.snap(this.player.pos);
-    this.resize();
     // Compile shaders before the first frame to avoid a hitch.
     this.renderer.compile(scene, this.cam.camera);
-    document.getElementById('loading')!.classList.add('done');
-    this.canvas.focus();
-    this.renderer.setAnimationLoop(() => this.frame());
-    // Embedded previews can stall requestAnimationFrame while the page is still
-    // visible; keep ticking from a timer until rAF comes back.
-    setInterval(() => {
-      if (performance.now() - this.last > 120) this.frame();
-    }, 33);
+    loading.classList.add('done');
+    this.last = performance.now();
+    this.travelling = false;
+    this.hud.showToast(entry.title, 3);
+  }
+
+  /** Drop everything that belongs to the current map. */
+  private teardown(): void {
+    if (!this.world) return;
+    this.world.scene.traverse((o) => {
+      // Character meshes are generated per rig; map GLTFs stay cached.
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.name === 'Merged') m.geometry.dispose();
+    });
+    for (const b of this.beacons) (b.material as THREE.Material).dispose();
+    this.beacons = [];
+    this.day.dispose();
+    this.physics.world.free();
+    this.dialogue = null;
+    this.hud.hideDialogue();
+  }
+
+  private playerEvents() {
+    return {
+      hurt: (dmg: number, heavy: boolean) => this.onPlayerHurt(dmg, heavy),
+      death: () => {
+        this.closeDialogue();
+        this.sfx.death();
+        this.time.slowmo(1.2, 0.35);
+        this.hud.showToast('YOU DIED', 3.5);
+      },
+      respawn: () => {
+        this.npcs.calmGuards();
+        this.enemies.resetAll();
+        this.hud.showToast('You wake where you arrived. The raiders have regrouped.', 3.5);
+      },
+      swing: () => this.sfx.swing(),
+      jump: () => this.sfx.roll(),
+      land: () => {
+        this.sfx.land();
+        const p = this.player.pos;
+        this.particles.burst(new THREE.Vector3(p.x, p.y + 0.05, p.z), 8, { color: 0xd9b58a, speed: 1.8, up: 0.8, size: 0.11, life: 0.45, gravity: 3 });
+      },
+      roll: () => {
+        this.sfx.roll();
+        const p = this.player.pos;
+        this.particles.burst(new THREE.Vector3(p.x, p.y + 0.1, p.z), 10, { color: 0xd9b58a, speed: 1.6, up: 1.2, size: 0.12, life: 0.6, gravity: 2 });
+      },
+      exhausted: () => {
+        this.hud.staminaDenied();
+        this.sfx.exhausted();
+      },
+      strike: (o: THREE.Vector3, yaw: number, range: number, half: number, dmg: number) => [
+        ...this.npcs.hitArc(o, yaw, range, half, dmg),
+        ...this.enemies.hitArc(o, yaw, range, half, dmg),
+      ],
+      hit: (r: HitResult[]) => this.onPlayerHit(r),
+      aim: (o: THREE.Vector3, yaw: number) => this.enemies.aimTarget(o, yaw, 3.4, THREE.MathUtils.degToRad(55))?.pos ?? null,
+    };
   }
 
   private menuHost() {
@@ -229,7 +342,18 @@ class Game {
   private onPlayerHit(results: HitResult[]): void {
     if (this.dialogue) this.closeDialogue();
     let killed = false;
+    const landed = results.filter((r) => !r.blocked);
     for (const r of results) {
+      if (!r.blocked) continue;
+      this.particles.burst(r.pos, 10, { color: 0xffd27a, speed: 4, up: 2, size: 0.05, life: 0.3, gravity: 6 });
+    }
+    if (landed.length === 0) {
+      // Every blow hit a shield: small recoil, no blood.
+      this.time.hitstop(0.06);
+      this.cam.addTrauma(0.2);
+      return;
+    }
+    for (const r of landed) {
       killed ||= r.killed;
       this.particles.burst(r.pos, r.killed ? 16 : 9, { color: 0x7a1a12, speed: 3.2, up: 2.6, size: 0.08, life: 0.55 });
       this.particles.burst(r.pos.clone().setY(r.pos.y - 1.0), 6, { color: 0xd9b58a, speed: 1.8, up: 1, size: 0.12, life: 0.5, gravity: 3 });
@@ -277,6 +401,10 @@ class Game {
   // --- frame -----------------------------------------------------------------------
 
   private frame(): void {
+    if (this.travelling || !this.world) {
+      this.last = performance.now();
+      return;
+    }
     const now = performance.now();
     const realDt = Math.min((now - this.last) / 1000, 1 / 20);
     this.fpsAcc += (now - this.last) / 1000;
@@ -331,8 +459,37 @@ class Game {
     this.updateHints();
     if (this.frameNo % 2 === 0) this.drawMinimap();
     this.hud.update(realDt, this.fps);
+    this.world.setNightGlow(this.day.grade);
+    this.updateCutout();
+    for (const b of this.beacons) (b.material as THREE.ShaderMaterial).uniforms.opacity.value = 0.26 + 0.08 * Math.sin(now / 400);
     this.renderer.render(this.world.scene, this.cam.camera);
     this.day.renderGrade(this.renderer);
+  }
+
+  /** Feed the see-through shader: the player's screen position and depth. */
+  private updateCutout(): void {
+    const cam = this.cam.camera as THREE.OrthographicCamera | THREE.PerspectiveCamera;
+    const p = this.player.pos;
+    const head = this.projected.set(p.x, p.y + 1.0, p.z);
+    cam.updateMatrixWorld();
+    const view = head.clone().applyMatrix4(cam.matrixWorldInverse);
+    head.project(cam);
+    const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    cutout.uResolution.value.copy(size);
+    cutout.uCutAspect.value = size.x / size.y;
+    cutout.uCutCenter.value.set(head.x, head.y);
+    cutout.uCutDepth.value = -view.z;
+    cutout.uCamWorld.value.copy(cam.matrixWorld);
+    cutout.uCutFloorY.value = p.y + 0.5;
+    const ortho = (cam as THREE.OrthographicCamera).isOrthographicCamera;
+    const halfH = ortho ? ((cam as THREE.OrthographicCamera).top - (cam as THREE.OrthographicCamera).bottom) / 2 : -view.z * Math.tan(THREE.MathUtils.degToRad((cam as THREE.PerspectiveCamera).fov / 2));
+    cutout.uCutRadius.value = this.player.dead || this.menu.isOpen ? 0 : CUT_RADIUS / halfH;
+  }
+
+  private nearestExit(): Exit | null {
+    const p = this.player.pos;
+    for (const e of this.exits) if (Math.hypot(e.pos[0] - p.x, e.pos[2] - p.z) < e.radius) return e;
+    return null;
   }
 
   private handleInput(f: Frame): void {
@@ -375,14 +532,18 @@ class Game {
     }
     const horse = p.horse ? null : this.nearestHorse();
     const npc = p.horse ? null : this.npcs.nearestTalkable(p.pos, TALK_RANGE);
+    const exit = npc ? null : this.nearestExit();
     let prompt: string | null = null;
-    if (p.horse) prompt = `${k('mount')} Dismount`;
+    if (exit) prompt = `${k('talk')} ${exit.label}`;
+    else if (p.horse) prompt = `${k('mount')} Dismount`;
     else if (npc) prompt = `${k('talk')} Talk to ${npc.name} <i>(${npc.title.toLowerCase()})</i>`;
     else if (horse) prompt = `${k('mount')} Mount horse`;
     this.hud.setPrompt(prompt);
     // One interact button: talk if someone is in reach, else mount / dismount.
     if (f.interact && !p.attacking && !p.rolling && !p.jumping) {
-      if (npc) {
+      if (exit) {
+        void this.travel(exit.to);
+      } else if (npc) {
         this.openDialogue(npc);
         f.attack = false;
       } else if (p.horse) p.dismount(this.world);
@@ -432,6 +593,7 @@ class Game {
     for (const e of this.enemies.list) if (!e.dead) m.push({ x: e.pos.x, z: e.pos.z, kind: 'enemy' });
     for (const h of this.horses) if (h !== this.player.horse) m.push({ x: h.pos.x, z: h.pos.z, kind: 'horse' });
     for (const c of this.camels) m.push({ x: c.rig.root.position.x, z: c.rig.root.position.z, kind: 'camel' });
+    for (const e of this.exits) m.push({ x: e.pos[0], z: e.pos[2], kind: 'exit' });
     this.minimap.draw(this.player.pos.x, this.player.pos.z, this.player.yaw, this.cam.yaw, m);
   }
 

@@ -321,6 +321,11 @@ export class Sfx {
     this.tone(0.6, 90, 35, 0.9, 'triangle');
     this.noiseBurst(0.4, 800, 120, 0.6, 0.35, 'lowpass');
   }
+  clang(): void {
+    this.tone(0.35, 1700, 1500, 0.22, 'square');
+    this.tone(0.5, 2900, 2700, 0.1, 'sine', 0.005);
+    this.noiseBurst(0.08, 5000, 2000, 1.2, 0.3, 'highpass');
+  }
   land(): void {
     this.noiseBurst(0.12, 600, 150, 0.7, 0.3, 'lowpass');
     this.tone(0.1, 110, 60, 0.35, 'triangle');

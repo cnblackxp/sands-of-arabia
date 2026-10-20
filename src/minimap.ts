@@ -3,7 +3,7 @@ import type { HeightField, LevelData } from './level';
 export interface MapMarker {
   x: number;
   z: number;
-  kind: 'npc' | 'enemy' | 'hostile' | 'guard' | 'horse' | 'camel' | 'dead';
+  kind: 'npc' | 'enemy' | 'hostile' | 'guard' | 'horse' | 'camel' | 'dead' | 'exit';
 }
 
 const PX_PER_M = 2;
@@ -26,6 +26,7 @@ const MARKER: Record<MapMarker['kind'], [string, number]> = {
   horse: ['#c58a4a', 2.2],
   camel: ['#d8b483', 2.2],
   dead: ['#6a5a50', 1.4],
+  exit: ['#ffd04a', 3.6],
 };
 
 /** Corner minimap: pre-rendered terrain + colliders, rotated to the camera. */
@@ -101,6 +102,10 @@ export class Minimap {
     root.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d')!;
     this.applyMode();
+  }
+
+  dispose(): void {
+    this.canvas.remove();
   }
 
   cycle(): void {

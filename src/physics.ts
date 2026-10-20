@@ -83,8 +83,11 @@ export class Physics {
   groundAt: (x: number, z: number) => number = () => 0;
   bounds = { x: [-200, 200] as [number, number], z: [-250, 150] as [number, number] };
 
+  private static ready: Promise<void> | null = null;
+
   async init(): Promise<void> {
-    await RAPIER.init();
+    Physics.ready ??= RAPIER.init();
+    await Physics.ready;
     this.world = new RAPIER.World({ x: 0, y: 0, z: 0 });
     const ctl = this.world.createCharacterController(0.03);
     ctl.setApplyImpulsesToDynamicBodies(false);

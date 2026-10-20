@@ -25,6 +25,8 @@ const ATTACKS = [
 
 const ROLL = { duration: 0.62, distance: 4.2, iStart: 0.06, iEnd: 0.42 };
 const JUMP = { v0: 5.2, gravity: 18 };
+/** Heavy blows knock the player down: fall, lie, get up (with wake-up i-frames). */
+const KNOCKDOWN = { fall: 0.75, lie: 0.35, getUp: 1.25 / 1.35 };
 
 /** Hooks the game uses for feedback; the player itself stays presentation-free. */
 export interface PlayerEvents {
@@ -72,6 +74,8 @@ export class Player implements PlayerView {
   private staminaDelay = 0;
   private exhausted = false;
   private staggerT = 0;
+  /** >0 while knocked down; counts the whole fall, lie and get-up sequence. */
+  private downT = 0;
   private readonly knock = new THREE.Vector3();
   private invulnT = 0;
   private sinceHurt = 10;
@@ -139,7 +143,9 @@ export class Player implements PlayerView {
     return this.attackT >= 0;
   }
   get invulnerable(): boolean {
-    return this.invulnT > 0 || (this.rollT >= ROLL.iStart && this.rollT <= ROLL.iEnd);
+    // No hitting a downed player: invulnerable from the fall until back on their feet.
+    const gettingUp = this.downT > 0;
+    return this.invulnT > 0 || gettingUp || (this.rollT >= ROLL.iStart && this.rollT <= ROLL.iEnd);
   }
   get isExhausted(): boolean {
     return this.exhausted;
@@ -161,10 +167,20 @@ export class Player implements PlayerView {
     if (!this.horse) {
       // Flinch: interrupt the attack and slide back.
       this.knock.copy(this.mover.feet).sub(from).setY(0).normalize().multiplyScalar(knock * 2.2);
-      this.staggerT = heavy ? 0.55 : 0.32;
       this.attackT = -1;
       this.attackQueued = 0;
-      this.rig.anim.playOverlay('Hit', { fade: 0.04 });
+      this.rollT = -1;
+      if (heavy && !this.airborne) {
+        // Heavy blows knock you down.
+        this.downT = KNOCKDOWN.fall + KNOCKDOWN.lie + KNOCKDOWN.getUp;
+        this.staggerT = this.downT;
+        this.yaw = this.yawTarget = Math.atan2(from.x - this.mover.feet.x, from.z - this.mover.feet.z);
+        this.rig.anim.stopOverlay(0.05);
+        this.rig.anim.setBase('Knockdown', 1, 0.05, true);
+      } else {
+        this.staggerT = 0.32;
+        this.rig.anim.playOverlay('Hit', { fade: 0.04 });
+      }
     }
     return true;
   }
@@ -177,6 +193,8 @@ export class Player implements PlayerView {
     this.rollT = -1;
     this.airborne = false;
     this.jumpH = 0;
+    this.downT = 0;
+    this.staggerT = 0;
     this.rig.anim.stopOverlay(0.1);
     this.rig.anim.setBase('Death', 1, 0.12);
     this.ev.death();
@@ -302,6 +320,17 @@ export class Player implements PlayerView {
       step = this.mover.move(this.moveDir.x * this.speed * dt, this.moveDir.z * this.speed * dt, this.jumpH);
     } else if (this.staggerT > 0) {
       this.staggerT -= dt;
+      if (this.downT > 0) {
+        const before = this.downT;
+        this.downT -= dt;
+        // Lying still, then get up.
+        if (before > KNOCKDOWN.getUp && this.downT <= KNOCKDOWN.getUp) this.rig.anim.setBase('GetUp', 1.35, 0.05, true);
+        if (this.downT <= 0) {
+          this.downT = 0;
+          this.staggerT = 0;
+          this.rig.anim.setBase('Idle', 1, 0.15);
+        }
+      }
       this.speed = 0;
       step = this.mover.move(this.knock.x * dt, this.knock.z * dt);
       this.knock.multiplyScalar(Math.max(0, 1 - dt * 8));
@@ -380,7 +409,7 @@ export class Player implements PlayerView {
     // Foot speed follows the speed actually achieved (walls slow it down).
     const actual = dt > 0 ? Math.hypot(step.x, step.z) / dt : 0;
     this.animSpeed += (Math.min(actual, this.speed + 0.01) - this.animSpeed) * (1 - Math.exp(-dt * 15));
-    if (this.rollT < 0 && !this.airborne) {
+    if (this.rollT < 0 && !this.airborne && this.downT <= 0) {
       const a = this.rig.anim;
       const s = this.animSpeed;
       if (s < 0.15) a.setBase('Idle', 1, 0.2);

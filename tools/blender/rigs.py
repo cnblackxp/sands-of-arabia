@@ -233,6 +233,63 @@ def build_person(col):
         ("hand_R", "box", (hand, (0.04, 0.04, 0.18), mat("P_Grip", "#3a2414", 0.8), rot)),
         ("hand_R", "box", (hand - d * 0.11, (0.06, 0.06, 0.05), brass, rot)),        # pommel
     ])
+    # ---- v3 gear: raider kit, armour and travel accessories (toggle with .visible)
+    mask = mat("P_Mask", "#2a2420", 0.9)
+    band = mat("P_Band", "#8b1e1e", 0.9)
+    mail = mat("P_Mail", "#6f6e6a", 0.5, metallic=0.8)
+    vest = mat("P_Vest", "#6b4423", 0.75)
+    armor = mat("P_Armor", "#7a5a3a", 0.6)
+    trim = mat("P_ArmorTrim", "#b08a4a", 0.5, metallic=0.6)
+    cloak = mat("P_Cloak", "#4b3a2c", 0.95)
+    shield_wood = mat("P_Shield", "#7a5232", 0.8)
+    shield_paint = mat("P_ShieldPaint", "#8b1e1e", 0.8)
+    skin_bag = mat("P_Waterskin", "#8a5a32", 0.7)
+    bow_wood = mat("P_Bow", "#5a3a22", 0.7)
+    shaft = mat("P_Wood", "#7a5a3a", 0.8)
+    fletch = mat("P_Fletch", "#e8e0d0", 0.9)
+    acc("FaceWrap", [("head", "box", ((0, -0.125, 1.67), (0.37, 0.12, 0.2), mask))])
+    acc("Headband", [("head", "box", ((0, 0, 1.86), (0.36, 0.36, 0.06), band)),
+                     ("head", "box", ((0, 0.2, 1.8), (0.05, 0.04, 0.2), band))])
+    acc("Helmet", [("head", "box", ((0, 0, 1.98), (0.38, 0.38, 0.14), steel)),
+                   ("head", "box", ((0, 0, 2.07), (0.26, 0.26, 0.08), steel)),
+                   ("head", "cyl", ((0, 0, 2.17), 0.04, 0.0, 0.14, steel)),
+                   ("head", "box", ((0, -0.18, 1.82), (0.04, 0.02, 0.16), steel)),
+                   ("head", "box", ((0, 0.06, 1.68), (0.4, 0.32, 0.22), mail))])
+    acc("BeardLong", [("head", "box", ((0, -0.13, 1.56), (0.34, 0.12, 0.32), hair))])
+    acc("Vest", [("spine", "box", ((0, 0, 1.25), (0.56, 0.38, 0.44), vest)),
+                 ("arm_L", "box", ((-0.34, 0, 1.4), (0.2, 0.22, 0.12), vest)),
+                 ("arm_R", "box", ((0.34, 0, 1.4), (0.2, 0.22, 0.12), vest))])
+    lam = [("spine", "box", ((0, 0, 1.25), (0.57, 0.39, 0.46), armor)),
+           ("hips", "box", ((0, 0, 0.86), (0.6, 0.42, 0.28), armor)),
+           ("arm_L", "box", ((-0.34, 0, 1.42), (0.22, 0.24, 0.14), armor)),
+           ("arm_R", "box", ((0.34, 0, 1.42), (0.22, 0.24, 0.14), armor))]
+    lam += [("spine", "box", ((0, 0, 1.07 + k * 0.12), (0.58, 0.4, 0.025), trim)) for k in range(4)]
+    lam += [("hips", "box", ((0, 0, 0.76 + k * 0.1), (0.61, 0.43, 0.025), trim)) for k in range(2)]
+    acc("Lamellar", lam)
+    acc("Cloak", [("spine", "box", ((0, 0.04, 1.47), (0.6, 0.42, 0.08), cloak)),
+                  ("spine", "box", ((0, 0.21, 1.02), (0.58, 0.05, 0.96), cloak)),
+                  ("spine", "box", ((0, -0.18, 1.44), (0.08, 0.02, 0.08), brass))])
+    sc = Vector((-0.38, -0.17, 1.0))                     # round shield on the left forearm, face forward
+    acc("Shield", [("hand_L", "cyl", (sc, 0.34, 0.34, 0.06, shield_wood, 12, (R(90), 0, 0))),
+                   ("hand_L", "cyl", (sc + Vector((0, -0.006, 0)), 0.22, 0.22, 0.065, shield_paint, 12, (R(90), 0, 0))),
+                   ("hand_L", "cyl", (sc + Vector((0, 0.02, 0)), 0.36, 0.36, 0.04, brass, 12, (R(90), 0, 0))),
+                   ("hand_L", "cyl", (sc + Vector((0, -0.05, 0)), 0.08, 0.06, 0.08, brass, 8, (R(90), 0, 0)))])
+    sd = Vector((0, -0.1, 1)).normalized()               # spear held upright; Thrust levels it with hand_R
+    srot = (math.asin(0.1 / Vector((0, -0.1, 1)).length), 0, 0)
+    acc("Spear", [("hand_R", "box", (hand + sd * 0.3, (0.05, 0.05, 2.4), shaft, srot)),
+                  ("hand_R", "box", (hand + sd * 1.47, (0.06, 0.06, 0.08), steel, srot)),
+                  ("hand_R", "box", (hand + sd * 1.64, (0.08, 0.02, 0.28), steel, srot)),
+                  ("hand_R", "box", (hand - sd * 0.9, (0.06, 0.06, 0.06), steel, srot))])
+    acc("Waterskin", [("hips", "box", ((0.31, 0.1, 0.8), (0.16, 0.13, 0.3), skin_bag)),
+                      ("spine", "box", ((0, -0.176, 1.22), (0.05, 0.02, 0.62), leather, (0, R(35), 0))),
+                      ("spine", "box", ((0, 0.176, 1.22), (0.05, 0.02, 0.62), leather, (0, R(-35), 0)))])
+    acc("Bow", [("spine", "box", ((0, 0.23, 1.2), (0.05, 0.05, 0.95), bow_wood, (0, R(35), 0))),
+                ("spine", "box", ((0.33, 0.23, 1.58), (0.04, 0.04, 0.3), bow_wood, (0, R(70), 0))),
+                ("spine", "box", ((-0.33, 0.23, 0.82), (0.04, 0.04, 0.3), bow_wood, (0, R(70), 0))),
+                ("spine", "box", ((0.02, 0.25, 1.2), (0.01, 0.01, 1.3), fletch, (0, R(35), 0))),
+                ("spine", "box", ((-0.15, 0.22, 1.25), (0.13, 0.1, 0.5), leather, (0, R(-20), 0))),
+                ("spine", "box", ((-0.19, 0.22, 1.54), (0.1, 0.08, 0.1), fletch, (0, R(-20), 0)))])
+    acc("Belly", [("spine", "box", ((0, -0.08, 1.13), (0.6, 0.44, 0.34), robe))])
     person_clips(arm)
     return arm
 
@@ -371,6 +428,98 @@ def person_clips(arm):
              "arm_L": {"rot": (-20, 0, -16)}, "arm_R": {"rot": (-20, 0, 16)}},
         15: rest,
     }, loop=False)
+    # ---- v3 combat clips. "hit" = frame the blow lands (exported as hit_time).
+    # HeavyAttack: two-handed overhead with a long, readable raise (windup frames 1-20).
+    clip(arm, "HeavyAttack", 34, {
+        1: rest,
+        14: {"spine": {"rot": (-14, 8, 0)}, "head": {"rot": (-10, 0, 0)},
+             "arm_R": {"rot": (-170, 0, -28)}, "arm_L": {"rot": (-170, 0, 28)}},
+        20: {"spine": {"rot": (-17, 9, 0)}, "head": {"rot": (-12, 0, 0)},
+             "arm_R": {"rot": (-176, 0, -28)}, "arm_L": {"rot": (-176, 0, 28)}},
+        26: {"spine": {"rot": (26, -6, 0)}, "head": {"rot": (12, 0, 0)},
+             "arm_R": {"rot": (-24, 0, -22)}, "arm_L": {"rot": (-24, 0, 22)}},
+        30: {"spine": {"rot": (24, -5, 0)}, "head": {"rot": (10, 0, 0)},
+             "arm_R": {"rot": (-20, 0, -20)}, "arm_L": {"rot": (-20, 0, 20)}},
+        35: rest,
+    }, loop=False)
+    # Thrust: spear (or sword) lunge; hand_R keeps the weapon level as the arm drives forward.
+    clip(arm, "Thrust", 20, {
+        1: rest,
+        6: {"spine": {"rot": (-4, 26, 0)}, "arm_R": {"rot": (22, 0, 6)}, "hand_R": {"rot": (68, 0, 0)},
+            "arm_L": {"rot": (-30, 0, -10)}},
+        9: {"spine": {"rot": (14, -24, 0)}, "arm_R": {"rot": (-72, 0, -4)}, "hand_R": {"rot": (162, 0, 0)},
+            "arm_L": {"rot": (20, 0, -12)}, "head": {"rot": (6, 6, 0)}},
+        12: {"spine": {"rot": (12, -22, 0)}, "arm_R": {"rot": (-68, 0, -4)}, "hand_R": {"rot": (158, 0, 0)},
+             "arm_L": {"rot": (18, 0, -12)}, "head": {"rot": (5, 5, 0)}},
+        21: rest,
+    }, loop=False)
+    # Block: shield (left forearm) up in front, weapon ready. Loops while held.
+    clip(arm, "Block", 24, cyc(24, 6, lambda t: {
+        "arm_L": {"rot": (-58 + 2 * S(t), 0, 30)},
+        "arm_R": {"rot": (-28, 0, 10)},
+        "spine": {"rot": (9 + 1.5 * S(t), -6, 0)},
+        "head": {"rot": (6, 4, 0)},
+    }))
+    clip(arm, "BlockHit", 10, {
+        1: {"arm_L": {"rot": (-58, 0, 30)}, "arm_R": {"rot": (-28, 0, 10)}, "spine": {"rot": (9, -6, 0)},
+            "head": {"rot": (6, 4, 0)}},
+        3: {"arm_L": {"rot": (-38, 0, 22)}, "arm_R": {"rot": (-18, 0, 14)}, "spine": {"rot": (-8, -2, 0)},
+            "head": {"rot": (-6, 4, 0)}},
+        11: {"arm_L": {"rot": (-58, 0, 30)}, "arm_R": {"rot": (-28, 0, 10)}, "spine": {"rot": (9, -6, 0)},
+             "head": {"rot": (6, 4, 0)}},
+    }, loop=False)
+    # Stagger: guard broken, full body reel with a step back
+    clip(arm, "Stagger", 20, {
+        1: rest,
+        4: {"hips": {"loc": (0, -0.05, 0)}, "spine": {"rot": (-28, 10, 0)}, "head": {"rot": (-22, -10, 0)},
+            "arm_L": {"rot": (-55, 0, -42)}, "arm_R": {"rot": (-50, 0, 40)}, "leg_R": {"rot": (24, 0, 4)},
+            "leg_L": {"rot": (-8, 0, 0)}},
+        10: {"hips": {"loc": (0, -0.08, 0)}, "spine": {"rot": (-16, -6, 0)}, "head": {"rot": (-10, 6, 0)},
+             "arm_L": {"rot": (-30, 0, -30)}, "arm_R": {"rot": (-24, 0, 28)}, "leg_R": {"rot": (16, 0, 4)},
+             "leg_L": {"rot": (-14, 0, 0)}},
+        21: rest,
+    }, loop=False)
+    lying = {"root": {"rot": (-90, 0, 0), "loc": (0, 0.17, 0)}, "spine": {"rot": (-4, 0, 0)},
+             "head": {"rot": (-6, -15, 0)}, "arm_L": {"rot": (-140, 0, -45)}, "arm_R": {"rot": (-120, 0, 45)},
+             "leg_L": {"rot": (-6, 0, -10)}, "leg_R": {"rot": (6, 0, 10)}}
+    # Knockdown: thrown on the back (ends lying; follow with GetUp)
+    clip(arm, "Knockdown", 18, {
+        1: rest,
+        5: {"spine": {"rot": (-22, 0, 0)}, "head": {"rot": (-20, 0, 0)},
+            "arm_L": {"rot": (-70, 0, -40)}, "arm_R": {"rot": (-70, 0, 40)}, "leg_L": {"rot": (-25, 0, 0)}},
+        12: {"root": {"rot": (-86, 0, 0), "loc": (0, 0.2, 0)}, "spine": {"rot": (-8, 0, 0)},
+             "head": {"rot": (-14, -10, 0)}, "arm_L": {"rot": (-150, 0, -50)}, "arm_R": {"rot": (-130, 0, 50)},
+             "leg_L": {"rot": (-30, 0, -10)}, "leg_R": {"rot": (-10, 0, 10)}},
+        18: lying,
+    }, loop=False)
+    clip(arm, "GetUp", 30, {
+        1: lying,
+        10: {"root": {"rot": (-40, 0, 0), "loc": (0, 0.05, 0)}, "hips": {"loc": (0, -0.1, 0)},
+             "spine": {"rot": (20, 0, 0)}, "head": {"rot": (10, 0, 0)},
+             "arm_L": {"rot": (25, 0, -20)}, "arm_R": {"rot": (25, 0, 20)},
+             "leg_L": {"rot": (-75, 0, -10)}, "leg_R": {"rot": (-55, 0, 10)}},
+        18: {"root": {"rot": (0, 0, 0), "loc": (0, 0, 0)}, "hips": {"loc": (0, -0.36, 0)},
+             "spine": {"rot": (32, 0, 0)}, "head": {"rot": (-10, 0, 0)},
+             "arm_L": {"rot": (-30, 0, -15)}, "arm_R": {"rot": (-30, 0, 15)},
+             "leg_L": {"rot": (-55, 0, -6)}, "leg_R": {"rot": (-30, 0, 6)}},
+        24: {"hips": {"loc": (0, -0.1, 0)}, "spine": {"rot": (10, 0, 0)},
+             "leg_L": {"rot": (-15, 0, 0)}, "leg_R": {"rot": (-8, 0, 0)}},
+        31: rest,
+    }, loop=False)
+    # Backstep: quick hop back out of reach (in place; the game moves the root ~1.6 m back)
+    clip(arm, "Backstep", 12, {
+        1: rest,
+        4: {"hips": {"loc": (0, -0.07, 0)}, "spine": {"rot": (-10, 0, 0)}, "head": {"rot": (4, 0, 0)},
+            "leg_R": {"rot": (36, 0, 0)}, "leg_L": {"rot": (-12, 0, 0)},
+            "arm_L": {"rot": (-30, 0, -14)}, "arm_R": {"rot": (-34, 0, 12)}},
+        8: {"hips": {"loc": (0, 0.03, 0)}, "spine": {"rot": (-4, 0, 0)},
+            "leg_R": {"rot": (12, 0, 0)}, "leg_L": {"rot": (22, 0, 0)},
+            "arm_L": {"rot": (-20, 0, -10)}, "arm_R": {"rot": (-24, 0, 10)}},
+        13: rest,
+    }, loop=False)
+    for name, f in (("Attack", 10), ("Attack2", 9), ("HeavyAttack", 26), ("Thrust", 9)):
+        bpy.data.actions[name]["hit"] = f
+    bpy.data.actions["HeavyAttack"]["windup_end"] = 20
     # Sit: cross-legged on the ground
     clip(arm, "Sit", 48, cyc(48, 12, lambda t: {
         "hips": {"loc": (0, -0.62, 0)},

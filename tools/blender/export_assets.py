@@ -155,11 +155,14 @@ def rock_color(c, seed=0.0):
 
 
 def sand_color(c, nz):
+    # softened in v3: the old palette went maroon under the dusk grade
     f = noise.noise(Vector((c.x * 0.02, c.y * 0.02, 0.5))) * 0.5 + 0.5
-    lo, mid, hi = L.lin("#c98a4b"), L.lin("#dba366"), L.lin("#e9bb7c")
+    lo, mid, hi = L.lin("#c8955c"), L.lin("#d8ac74"), L.lin("#e6c28e")
     col = mix(lo, mid, min(1, f * 2)) if f < 0.5 else mix(mid, hi, (f - 0.5) * 2)
     slope = 1 - L.smooth(0.75, 0.98, nz)
-    return mix(col, L.lin("#b46f3a"), slope * 0.85)
+    col = mix(col, L.lin("#bf8a58"), slope * 0.5)
+    k = 1 + noise.noise(c * 0.9) * 0.06                     # low-poly speckle
+    return tuple(min(1, x * k) for x in col)
 
 
 ROCK_BANDS = ["#9c5236", "#b8663f", "#cd8150", "#dc9a63"]
@@ -230,23 +233,58 @@ def bake_face_colors(ob, fn, only_mats=None, mat_name="TerrainVC"):
 
 
 # ------------------------------------------------------------------ characters
+UPPER = {"spine", "head", "arm_L", "arm_R", "hand_L", "hand_R"}
+
+
+def _action_bones(a):
+    paths = []
+    try:
+        paths = [fc.data_path for fc in a.fcurves]
+    except AttributeError:
+        pass
+    if not paths:                                    # slotted / layered actions (Blender 4.4+)
+        for layer in getattr(a, "layers", []):
+            for strip in layer.strips:
+                for bag in getattr(strip, "channelbags", []):
+                    paths += [fc.data_path for fc in bag.fcurves]
+    return {p.split('"')[1] for p in paths if '"' in p}
+
+
+def clip_info():
+    """Per-clip frames, loop flag, layer (upper-body clips only key UPPER bones) and hit timing."""
+    out = {}
+    fps = rigs.FPS
+    for a in bpy.data.actions:
+        bones = _action_bones(a)
+        d = {"frames": a["frames"], "loop": bool(a["loop"]), "duration": round(a["frames"] / fps, 3),
+             "layer": "upper" if bones and bones <= UPPER else "full"}
+        if "hit" in a:
+            d["hit_frame"] = a["hit"]
+            d["hit_time"] = round((a["hit"] - 1) / fps, 3)
+        if "windup_end" in a:
+            d["windup_end_time"] = round((a["windup_end"] - 1) / fps, 3)
+        out[a.name] = d
+    return out
+
+
 def export_characters():
     clear_scene()
     col = L.coll("Characters")
     arm = rigs.build_person(col)
-    clips = {a.name: {"frames": a["frames"], "loop": bool(a["loop"])} for a in bpy.data.actions}
+    clips = clip_info()
     export([arm], "characters/person.glb", "character", anim=True, extra={
         "bones": [b[0] for b in rigs.PERSON_BONES],
-        "accessories": ["Beard", "Hair", "Keffiyeh", "Turban", "Veil", "Jar", "Sword"],
+        "accessories": sorted(o.name for o in bpy.data.objects if o.get("accessory")),
         "clips": clips,
         "notes": ("Body + accessory SkinnedMeshes share one skeleton; toggle accessories with .visible. "
                   "Recolour by cloning materials named P_*. Upper-body clips (Attack, Attack2, Talk, Hit) key only "
-                  "spine/arms/head so they layer over Walk/Run/Ride. Attack hit frame ~10 (0.4 s), Attack2 ~9. "
+                  "spine/arms/head so they layer over Walk/Run/Ride (see each clip's layer and hit_time). "
+                  "Thrust rotates hand_R so the upright Spear levels out; Shield sits on hand_L and faces forward in Block. "
                   "Clip ground speeds: Walk 1.5 m/s, Run 4.8 m/s. Death ends lying down (clampWhenFinished)."),
     })
     clear_scene()
     arm = rigs.build_horse(col)
-    clips = {a.name: {"frames": a["frames"], "loop": bool(a["loop"])} for a in bpy.data.actions}
+    clips = clip_info()
     export([arm], "characters/horse.glb", "character", anim=True, extra={
         "accessories": ["Saddle"], "clips": clips,
         "sockets": {"mount": "attach the rider's root here; rider plays Ride"},
@@ -254,7 +292,7 @@ def export_characters():
     })
     clear_scene()
     arm = rigs.build_camel(col)
-    clips = {a.name: {"frames": a["frames"], "loop": bool(a["loop"])} for a in bpy.data.actions}
+    clips = clip_info()
     export([arm], "characters/camel.glb", "character", anim=True, extra={
         "accessories": ["Saddle", "Cargo"], "clips": clips,
         "sockets": {"mount": "attach the rider's root here; rider plays Ride"},
@@ -604,7 +642,44 @@ def export_level():
             sp("enemy", x, y, random.uniform(-math.pi, math.pi), kind=kind, camp=camp)
     # caravan path along the big dune crest (patrol waypoints)
     crest = [L.crest_point(u) for u in range(-90, 30, 10)]
+
+    # --- v3: exits to the other maps, arrival points, dune dressing (own seed: spawns unchanged)
+    import kit as K
+    import maps as MP
+    exits = [("caravanserai", 0, -146, (3.5, -142), (0, -138, math.pi), "South along the incense road to the caravanserai"),
+             ("hegra", 196, 30, (192, 33.5), (188, 30, -math.pi / 2), "East to Hegra, the rock-cut city"),
+             ("wadi", -196, 0, (-192, 3.5), (-188, 0, math.pi / 2), "West to the wadi gardens"),
+             ("raider_fort", 40, 246, (43.5, 242), (40, 238, 0.0), "North, into raider country")]
+    for to, x, y, cairn, arrive, label in exits:
+        sp("player", arrive[0], arrive[1], arrive[2], **{"from": to})
+    random.seed(77)
+    dctx = K.Ctx()
+    dctx.keepout += [(L.TOWN.x, L.TOWN.y + 10, 66), (72, 112, 24), (60, 46, 20), (POOL.x, POOL.y, 20)]
+    for s_ in spawns:
+        dctx.keepout.append((s_["pos"][0], -s_["pos"][2], 8 if s_["role"] == "enemy" else 3))
+    dctx.keepout += [(p.x, p.y, 4) for p in crest]
+    dmb = L.MB()
+    for to, x, y, cairn, arrive, label in exits:
+        dctx.keepout.append((x, y, 12))
+        K.cairn(dmb, dctx, *cairn)
+
+    class _Oasis:
+        bounds = (TX0, TX1, TY0, TY1)
+    MP.dress(dmb, dctx, _Oasis, lambda x, y: True, rocks=60, singles=120, shrubs=260, dry=120, acacias=30, dead=12,
+             ruins=6, bones=8)
+    dob = dmb.build("Dressing", L.C_LAND)
+    export([dob], "level/dressing.glb", "level", extra={"notes": "dune dressing; colliders are in level.json"})
+    bpy.data.objects.remove(dob, do_unlink=True)
+    for c in dctx.colliders:
+        box_col(*c)
+    for k, x, y, z in dctx.lights:
+        lights.append({"type": k, "pos": to3((x, y, z))})
     level = {
+        "name": "oasis", "title": "The oasis town",
+        "dressing": "level/dressing.glb", "backdrop_ground": "level/backdrop_ground.glb",
+        "sky": {"env_hdr": "sky/sunset_env.hdr", "background_jpg": "sky/sunset_bg.jpg"},
+        "exits": [{"to": to, "pos": to3((x, y, L.height(x, y))), "radius": 6.0, "label": label}
+                  for to, x, y, cairn, arrive, label in exits],
         "terrain": "level/terrain.glb", "town": "level/town.glb", "backdrop": "level/backdrop.glb",
         "bounds": {"x": [TX0, TX1], "z": [-TY1, -TY0]},
         "heights": heights_meta,
@@ -728,6 +803,13 @@ if want("props"):
     export_props()
 if want("level"):
     export_level()
+MAP_NAMES = next((a[5:].split(",") for a in ARGS if a.startswith("maps=")), None)
+if want("maps"):
+    import maps as _maps
+    _maps.run(sys.modules[__name__], MAP_NAMES)
+if want("maps") or want("level"):
+    import maps as _maps
+    _maps.write_index(sys.modules[__name__])
 if want("sky") and "nosky" not in ARGS:
     export_sky()
 with open(MANIFEST_PATH, "w", encoding="utf8") as f:

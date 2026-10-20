@@ -5,59 +5,163 @@ import { HeightField, Obstacles, type LevelData } from './level';
 import { NavGrid } from './nav';
 import { Physics } from './physics';
 
-export interface LoadedAssets {
-  level: LevelData;
-  heights: HeightField;
-  terrain: GLTF;
-  town: GLTF;
-  backdrop: GLTF;
-  backdropGround: GLTF;
+/** Clip metadata from assets/manifest.json (layer drives animation layering). */
+export interface ClipMeta {
+  duration: number;
+  loop: boolean;
+  layer?: 'upper' | 'full';
+  hit_time?: number;
+  windup_end_time?: number;
+}
+
+export interface MapEntry {
+  name: string;
+  title: string;
+  level: string;
+}
+
+/** Loaded once: characters, sky, manifest, map list. */
+export interface CommonAssets {
   person: GLTF;
   horse: GLTF;
   camel: GLTF;
   envHdr: THREE.DataTexture;
   bg: THREE.Texture;
+  personClips: Record<string, ClipMeta>;
+  maps: { start: string; maps: MapEntry[] };
+}
+
+/** Loaded per map (and cached for revisits). */
+export interface MapAssets {
+  name: string;
+  level: LevelData;
+  heights: HeightField;
+  terrain: GLTF;
+  town: GLTF;
+  backdrop: GLTF | null;
+  backdropGround: GLTF | null;
+  dressing: GLTF | null;
 }
 
 /** Asset URL relative to the deployed base (works at / and at /sands-of-arabia/). */
 const asset = (path: string) => import.meta.env.BASE_URL + path.replace(/^\//, '');
+const gltf = new GLTFLoader();
 
-export async function loadAssets(onProgress: (f: number, label: string) => void): Promise<LoadedAssets> {
-  const gltf = new GLTFLoader();
+type Progress = (f: number, label: string) => void;
+
+function counter(total: number, onProgress: Progress) {
   let done = 0;
-  const total = 11;
-  const tick = <T>(label: string, p: Promise<T>): Promise<T> =>
+  return <T>(label: string, p: Promise<T>): Promise<T> =>
     p.then((v) => {
       onProgress(++done / total, label);
       return v;
     });
+}
 
-  const level = await tick('level', fetch(asset('/level/level.json')).then((r) => r.json() as Promise<LevelData>));
-  const [heightsBuf, terrain, town, backdrop, backdropGround, person, horse, camel, envHdr, bg] = await Promise.all([
-    tick('heights', fetch(asset(level.heights.file)).then((r) => r.arrayBuffer())),
-    tick('terrain', gltf.loadAsync(asset('/level/terrain.glb'))),
-    tick('town', gltf.loadAsync(asset('/level/town.glb'))),
-    tick('backdrop', gltf.loadAsync(asset('/level/backdrop.glb'))),
-    tick('backdrop ground', gltf.loadAsync(asset('/level/backdrop_ground.glb'))),
-    tick('person', gltf.loadAsync(asset('/characters/person.glb'))),
-    tick('horse', gltf.loadAsync(asset('/characters/horse.glb'))),
-    tick('camel', gltf.loadAsync(asset('/characters/camel.glb'))),
-    tick('sky light', new HDRLoader().loadAsync(asset('/sky/sunset_env.hdr'))),
-    tick('sky', new THREE.TextureLoader().loadAsync(asset('/sky/sunset_bg.jpg'))),
+export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
+  const tick = counter(7, onProgress);
+  const [person, horse, camel, envHdr, bg, manifest, maps] = await Promise.all([
+    tick('people', gltf.loadAsync(asset('characters/person.glb'))),
+    tick('horses', gltf.loadAsync(asset('characters/horse.glb'))),
+    tick('camels', gltf.loadAsync(asset('characters/camel.glb'))),
+    tick('sky light', new HDRLoader().loadAsync(asset('sky/sunset_env.hdr'))),
+    tick('sky', new THREE.TextureLoader().loadAsync(asset('sky/sunset_bg.jpg'))),
+    tick('manifest', fetch(asset('manifest.json')).then((r) => r.json())),
+    tick(
+      'maps',
+      fetch(asset('level/maps.json'))
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ),
   ]);
+  bg.mapping = THREE.EquirectangularReflectionMapping;
+  bg.colorSpace = THREE.SRGBColorSpace;
+  envHdr.mapping = THREE.EquirectangularReflectionMapping;
   return {
-    level,
-    heights: new HeightField(new Float32Array(heightsBuf), level.heights),
-    terrain,
-    town,
-    backdrop,
-    backdropGround,
     person,
     horse,
     camel,
     envHdr,
     bg,
+    personClips: manifest?.assets?.person?.clips ?? {},
+    maps: maps ?? { start: 'oasis', maps: [{ name: 'oasis', title: 'The oasis town', level: 'level/level.json' }] },
   };
+}
+
+const mapCache = new Map<string, Promise<MapAssets>>();
+
+export function loadMap(entry: MapEntry, onProgress: Progress): Promise<MapAssets> {
+  let p = mapCache.get(entry.name);
+  if (!p) {
+    p = (async () => {
+      const level = (await fetch(asset(entry.level)).then((r) => r.json())) as LevelData;
+      const opt = (path: string | undefined, label: string) => (path ? tick(label, gltf.loadAsync(asset(path))) : Promise.resolve(null));
+      const files = [level.terrain, level.town, level.backdrop, level.backdrop_ground, level.dressing].filter(Boolean).length + 1;
+      const tick = counter(files, onProgress);
+      const [heightsBuf, terrain, town, backdrop, backdropGround, dressing] = await Promise.all([
+        tick('heights', fetch(asset(level.heights.file)).then((r) => r.arrayBuffer())),
+        tick('terrain', gltf.loadAsync(asset(level.terrain))),
+        tick('town', gltf.loadAsync(asset(level.town))),
+        opt(level.backdrop, 'backdrop'),
+        opt(level.backdrop_ground, 'far ground'),
+        opt(level.dressing, 'dressing'),
+      ]);
+      return { name: entry.name, level, heights: new HeightField(new Float32Array(heightsBuf), level.heights), terrain, town, backdrop, backdropGround, dressing };
+    })();
+    mapCache.set(entry.name, p);
+    p.catch(() => mapCache.delete(entry.name));
+  }
+  return p;
+}
+
+// --- See-through cutout ------------------------------------------------------------
+// Fragments of the town/dressing that are nearer to the camera than the player,
+// inside a screen circle around them and above their feet, are dither-discarded,
+// so walls, awnings and palm canopies never hide the player.
+
+export const cutout = {
+  uCutCenter: { value: new THREE.Vector2() },
+  uCutRadius: { value: 0 },
+  uCutAspect: { value: 1 },
+  uCutDepth: { value: 0 },
+  uCutFloorY: { value: -1e9 },
+  uCamWorld: { value: new THREE.Matrix4() },
+  uResolution: { value: new THREE.Vector2(1, 1) },
+};
+
+const CUT_GLSL = /* glsl */ `
+  if (uCutRadius > 0.0) {
+    vec2 ndc = gl_FragCoord.xy / uResolution * 2.0 - 1.0;
+    float r = length((ndc - uCutCenter) * vec2(uCutAspect, 1.0)) / uCutRadius;
+    if (r < 1.0 && vViewPosition.z < uCutDepth - 0.6) {
+      float wy = (uCamWorld * vec4(-vViewPosition, 1.0)).y;
+      if (wy > uCutFloorY) {
+        const float B[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);
+        ivec2 q = ivec2(mod(gl_FragCoord.xy, 4.0));
+        float t = (B[q.x + q.y * 4] + 0.5) / 16.0;
+        float keep = mix(0.12, 1.0, smoothstep(0.55, 1.0, r));
+        if (t > keep) discard;
+      }
+    }
+  }
+`;
+
+function applyCutout(mat: THREE.Material): void {
+  if (mat.userData.cutout) return;
+  mat.userData.cutout = true;
+  mat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, cutout);
+    shader.fragmentShader =
+      `uniform vec2 uCutCenter;\nuniform float uCutRadius;\nuniform float uCutAspect;\nuniform float uCutDepth;\nuniform float uCutFloorY;\nuniform mat4 uCamWorld;\nuniform vec2 uResolution;\n` +
+      shader.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + CUT_GLSL);
+  };
+  mat.customProgramCacheKey = () => 'cutout';
+  mat.needsUpdate = true;
+}
+
+interface LightSpot {
+  p: THREE.Vector3;
+  fire: boolean;
 }
 
 export class World {
@@ -70,24 +174,24 @@ export class World {
   lampFactor = 1;
   readonly obstacles: Obstacles;
   readonly nav: NavGrid;
-  private lamps: THREE.PointLight[] = [];
-  private lampSpots: THREE.Vector3[] = [];
-  private fire: THREE.PointLight | null = null;
+  readonly level: LevelData;
+  private lights: THREE.PointLight[] = [];
+  private lightFire: boolean[] = [];
+  private spots: LightSpot[] = [];
   private lampTimer = 0;
   private flameMats: THREE.MeshStandardMaterial[] = [];
+  /** Awning/limewash materials that get a faint glow at night so they don't go black. */
+  private glowMats: THREE.MeshStandardMaterial[] = [];
   private t = 0;
   private shadowHalf = 30;
 
   constructor(
-    readonly assets: LoadedAssets,
+    readonly map: MapAssets,
     readonly physics: Physics,
   ) {
-    const { level, scene } = { level: assets.level, scene: this.scene };
-
-    // Sky dome, environment map and the light keyframes are driven by DayCycle (sky.ts).
-    assets.bg.mapping = THREE.EquirectangularReflectionMapping;
-    assets.bg.colorSpace = THREE.SRGBColorSpace;
-    assets.envHdr.mapping = THREE.EquirectangularReflectionMapping;
+    const level = map.level;
+    const scene = this.scene;
+    this.level = level;
 
     this.fog = new THREE.Fog(new THREE.Color(level.fog.color), level.fog.near, level.fog.far);
     scene.fog = this.fog;
@@ -109,62 +213,69 @@ export class World {
     scene.add(this.hemi);
 
     // Static level.
-    const shadowy = (root: THREE.Object3D, cast: boolean) =>
+    const prep = (root: THREE.Object3D | undefined, cast: boolean, receive: boolean) => {
+      if (!root) return;
       root.traverse((o) => {
         const m = o as THREE.Mesh;
         if (!m.isMesh) return;
         m.castShadow = cast;
-        m.receiveShadow = true;
+        m.receiveShadow = receive;
         m.matrixAutoUpdate = false;
         m.updateMatrix();
       });
-    shadowy(assets.terrain.scene, true);
-    shadowy(assets.town.scene, true);
-    shadowy(assets.backdrop.scene, false);
-    shadowy(assets.backdropGround.scene, false);
-    assets.backdropGround.scene.traverse((o) => ((o as THREE.Mesh).receiveShadow = false));
-    scene.add(assets.terrain.scene, assets.town.scene, assets.backdrop.scene, assets.backdropGround.scene);
+      scene.add(root);
+    };
+    prep(map.terrain.scene, true, true);
+    prep(map.town.scene, true, true);
+    prep(map.dressing?.scene, true, true);
+    prep(map.backdrop?.scene, false, true);
+    prep(map.backdropGround?.scene, false, false);
 
-    assets.town.scene.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
-      for (const mat of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]) {
-        if (mat.name === 'LampFlame' || mat.name === 'Fire') {
-          mat.emissive = new THREE.Color(mat.name === 'Fire' ? 0xff7a2a : 0xffb050);
-          mat.emissiveIntensity = 2.5;
-          this.flameMats.push(mat);
+    for (const root of [map.town.scene, map.dressing?.scene]) {
+      root?.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        for (const mat of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]) {
+          if (mat.name === 'LampFlame' || mat.name === 'Fire') {
+            mat.emissive = new THREE.Color(mat.name === 'Fire' ? 0xff7a2a : 0xffb050);
+            mat.emissiveIntensity = 2.5;
+            if (!this.flameMats.includes(mat)) this.flameMats.push(mat);
+            continue;
+          }
+          if (mat.name === 'Water') {
+            mat.roughness = 0.08;
+            mat.metalness = 0.1;
+          }
+          if ((/^Aw\d/.test(mat.name) || mat.name === 'Lime') && !this.glowMats.includes(mat)) {
+            mat.emissive = mat.color.clone();
+            mat.emissiveIntensity = 0;
+            this.glowMats.push(mat);
+          }
+          applyCutout(mat);
         }
-        if (mat.name === 'Water') {
-          mat.roughness = 0.08;
-          mat.metalness = 0.1;
-        }
-      }
-    });
+      });
+    }
 
     // Physics: ground is the heightfield (same 2 m grid as terrain.glb); Rapier
     // holds the level boxes plus actor capsules.
     physics.addBoxes(level.colliders);
     physics.bounds = { x: [level.bounds.x[0] + 1, level.bounds.x[1] - 1], z: [level.bounds.z[0] + 1, level.bounds.z[1] - 1] };
-    physics.groundAt = (x, z) => assets.heights.height(x, z);
+    physics.groundAt = (x, z) => map.heights.height(x, z);
     this.obstacles = new Obstacles(level.colliders);
     this.nav = new NavGrid(level.colliders, level.bounds.x[0], level.bounds.z[0], level.bounds.x[1], level.bounds.z[1]);
 
-    // Lamps: a fixed pool of point lights moved to the lamps nearest the player
-    // (keeps the shader light count constant).
+    // Lamps and fires: a fixed pool of point lights moved to the spots nearest
+    // the player (keeps the shader light count constant).
     for (const l of level.lights) {
       const p = new THREE.Vector3(...l.pos);
-      if (l.type === 'fire') {
-        this.fire = new THREE.PointLight(0xff8a3a, 16, 14, 1.6);
-        this.fire.position.copy(p).y += 0.6;
-        scene.add(this.fire);
-      } else {
-        this.lampSpots.push(p);
-      }
+      if (l.type === 'fire') p.y += 0.6;
+      this.spots.push({ p, fire: l.type === 'fire' });
     }
     for (let i = 0; i < 6; i++) {
-      const pl = new THREE.PointLight(0xffa24a, 6, 7, 1.6);
+      const pl = new THREE.PointLight(0xffa24a, 0, 7, 1.6);
       pl.position.set(0, -100, 0);
-      this.lamps.push(pl);
+      this.lights.push(pl);
+      this.lightFire.push(false);
       scene.add(pl);
     }
   }
@@ -174,7 +285,7 @@ export class World {
     const g = new THREE.Group();
     const mat = new THREE.LineBasicMaterial({ color: 0x00ffff, fog: false, depthTest: false, transparent: true, opacity: 0.7 });
     const box = new THREE.EdgesGeometry(new THREE.BoxGeometry(2, 2, 2));
-    for (const c of this.assets.level.colliders) {
+    for (const c of this.level.colliders) {
       const l = new THREE.LineSegments(box, mat);
       l.position.set(...c.pos);
       l.scale.set(...c.half);
@@ -186,7 +297,12 @@ export class World {
   }
 
   ground(x: number, z: number): number {
-    return this.assets.heights.height(x, z);
+    return this.map.heights.height(x, z);
+  }
+
+  /** Night glow for awnings and limewash (0 by day). */
+  setNightGlow(g: number): void {
+    for (const m of this.glowMats) m.emissiveIntensity = 0.06 * g;
   }
 
   update(dt: number, focus: THREE.Vector3, viewHalf: number): void {
@@ -213,32 +329,42 @@ export class World {
     this.sun.target.position.copy(snapped);
     this.sun.position.copy(snapped).addScaledVector(this.sunDir, 250);
 
-    // Nearest lamps.
+    // Nearest lamps / fires.
     this.lampTimer -= dt;
     if (this.lampTimer <= 0) {
       this.lampTimer = 0.5;
-      const near = this.lampSpots
-        .map((p) => ({ p, d: p.distanceToSquared(focus) }))
+      const near = this.spots
+        .map((s) => ({ s, d: s.p.distanceToSquared(focus) }))
         .sort((x, y) => x.d - y.d)
-        .slice(0, this.lamps.length);
-      this.lamps.forEach((l, i) => {
+        .slice(0, this.lights.length);
+      this.lights.forEach((l, i) => {
         const n = near[i];
-        if (n && n.d < 60 * 60) l.position.copy(n.p);
-        else l.position.set(0, -100, 0);
+        if (n && n.d < 60 * 60) {
+          l.position.copy(n.s.p);
+          this.lightFire[i] = n.s.fire;
+          l.color.setHex(n.s.fire ? 0xff8a3a : 0xffa24a);
+        } else {
+          l.position.set(0, -100, 0);
+        }
       });
     }
     const flick = 1 + 0.12 * Math.sin(this.t * 13.1) + 0.08 * Math.sin(this.t * 7.3 + 1.7);
+    const fireFlick = 1 + 0.2 * Math.sin(this.t * 9.7) + 0.1 * Math.sin(this.t * 23.1);
     const lf = this.lampFactor;
-    for (const l of this.lamps) {
-      l.intensity = 6 * flick * lf;
-      l.distance = 7 + 5 * Math.max(0, lf - 1);
-    }
-    if (this.fire) this.fire.intensity = 16 * Math.min(1.3, Math.max(0.4, lf)) * (1 + 0.2 * Math.sin(this.t * 9.7) + 0.1 * Math.sin(this.t * 23.1));
+    this.lights.forEach((l, i) => {
+      if (this.lightFire[i]) {
+        l.intensity = 16 * Math.min(1.3, Math.max(0.4, lf)) * fireFlick;
+        l.distance = 9 + 3 * Math.max(0, lf - 1);
+      } else {
+        l.intensity = 6 * flick * lf;
+        l.distance = 7 + 5 * Math.max(0, lf - 1);
+      }
+    });
     for (const m of this.flameMats) m.emissiveIntensity = 2.5 * flick * Math.max(0.5, lf);
   }
 
   setFogOffset(depth: number): void {
-    const f = this.assets.level.fog;
+    const f = this.level.fog;
     this.fog.near = depth + f.near * 0.5;
     this.fog.far = depth + f.far;
   }

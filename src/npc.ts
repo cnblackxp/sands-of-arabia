@@ -11,6 +11,7 @@ import { angleTo, dampAngle, mulberry32, turnToward } from './util';
 
 type State = 'idle' | 'walk' | 'sit' | 'talk' | 'stagger' | 'flee' | 'return' | 'chase' | 'strike' | 'dead';
 
+const NOT_NPC = new Set(['player', 'camel', 'horse', 'enemy']);
 const WALK = 1.4;
 const RUN = 4.6;
 const RADIUS = 0.3;
@@ -58,7 +59,7 @@ export class Npc {
     this.title = ROLE_TITLE[role];
     this.timer = sys.rnd() * 4;
     this.overlayTimer = 2 + sys.rnd() * 8;
-    if (role === 'sitter') this.enter('sit');
+    if (role === 'sitter' || role === 'prisoner') this.enter('sit');
     else this.enter('idle');
     this.syncTransform();
   }
@@ -177,7 +178,7 @@ export class Npc {
           }
           if (this.role === 'merchant') this.yaw = dampAngle(this.yaw, this.homeYaw, 3, dt);
         }
-        if (this.timer <= 0 && (this.role === 'wanderer' || this.role === 'water_carrier')) {
+        if (this.timer <= 0 && (this.role === 'wanderer' || this.role === 'water_carrier' || this.role === 'farmer')) {
           if (this.pickTarget()) this.enter('walk');
           else this.timer = 1 + rnd() * 2;
         }
@@ -191,7 +192,7 @@ export class Npc {
         if (d < 0.3) {
           if (this.state === 'return') {
             this.yaw = this.homeYaw;
-            this.enter(this.role === 'sitter' ? 'sit' : 'idle');
+            this.enter(this.role === 'sitter' || this.role === 'prisoner' ? 'sit' : 'idle');
           } else {
             this.enter('idle');
           }
@@ -346,7 +347,7 @@ export class Npc {
       const a = base + off;
       const nx = this.pos.x + Math.sin(a) * dist;
       const nz = this.pos.z + Math.cos(a) * dist;
-      if (w.obstacles.blocked(nx, nz, RADIUS + 0.05)) continue;
+      if (w.nav.isBlocked(nx, nz)) continue;
       const b = w.physics.bounds;
       if (nx < b.x[0] || nx > b.x[1] || nz < b.z[0] || nz > b.z[1]) continue;
       this.pos.x = nx;
@@ -364,7 +365,7 @@ export class Npc {
     for (let i = 0; i < 8; i++) {
       let x: number;
       let z: number;
-      if (this.role === 'water_carrier') {
+      if (this.role === 'water_carrier' && this.sys.pool) {
         if (this.leg === 0) {
           // Edge of the pool, east side.
           x = this.sys.pool[0] + 8.2 + rnd() * 0.8;
@@ -374,7 +375,7 @@ export class Npc {
           x = p.x;
           z = p.z;
         }
-      } else if (rnd() < 0.65) {
+      } else if (this.sys.hasLane && this.role !== 'farmer' && rnd() < 0.65) {
         const p = this.sys.lanePoint(rnd);
         x = p.x;
         z = p.z;
@@ -384,8 +385,8 @@ export class Npc {
         x = this.home.x + Math.sin(a) * r;
         z = this.home.z + Math.cos(a) * r;
       }
-      if (w.obstacles.blocked(x, z, 0.6)) continue;
-      if (!w.obstacles.clear(this.pos.x, this.pos.z, x, z, RADIUS + 0.1)) continue;
+      if (w.nav.isBlocked(x, z)) continue;
+      if (!w.nav.lineClear(this.pos.x, this.pos.z, x, z)) continue;
       this.target.set(x, w.ground(x, z), z);
       if (this.role === 'water_carrier') this.leg ^= 1;
       return true;
@@ -406,7 +407,7 @@ export class Npc {
 export class NpcSystem {
   readonly npcs: Npc[] = [];
   readonly rnd = mulberry32(7);
-  readonly pool: Vec3;
+  readonly pool: Vec3 | null;
   private lane: THREE.Vector3[];
   onDeathCb: (n: Npc) => void = () => {};
   onTell: (n: Npc) => void = () => {};
@@ -417,13 +418,15 @@ export class NpcSystem {
     scene: THREE.Scene,
     readonly sfx: Sfx,
   ) {
-    const level = world.assets.level;
-    this.pool = level.landmarks.pool;
+    const level = world.level;
+    this.pool = level.landmarks.pool ?? null;
     // Market lane minus the gate ramp.
-    this.lane = level.paths.market_lane.map((p) => new THREE.Vector3(...p)).filter((p) => p.z > -15);
+    // The oasis market lane, minus the gate ramp; other maps wander locally.
+    this.lane = (level.paths.market_lane ?? []).map((p) => new THREE.Vector3(...p)).filter((p) => p.z > -15);
     for (const s of level.spawns) {
-      if (!(s.role in ROLE_TITLE)) continue;
-      const role = s.role as NpcRole;
+      if (NOT_NPC.has(s.role)) continue;
+      // Unknown roles from new maps behave as wanderers.
+      const role = (s.role in ROLE_TITLE ? s.role : 'wanderer') as NpcRole;
       const { acc, colours, female } = this.dress(role);
       const rig = factory.createPerson(acc, colours);
       const at = new THREE.Vector3(...s.pos);
@@ -473,6 +476,10 @@ export class NpcSystem {
     for (let i = 0; i < 12 && this.usedNames.has(name); i++) name = randomName(female, this.rnd);
     this.usedNames.add(name);
     return name;
+  }
+
+  get hasLane(): boolean {
+    return this.lane.length > 1;
   }
 
   lanePoint(rnd: () => number): THREE.Vector3 {

@@ -20,7 +20,9 @@ export type SpawnRole =
   | 'priest'
   | 'camel'
   | 'horse'
-  | 'enemy';
+  | 'enemy'
+  | 'farmer'
+  | 'prisoner';
 
 export interface Spawn {
   role: SpawnRole;
@@ -30,9 +32,28 @@ export interface Spawn {
   /** Enemy spawns: raider | brute | skirmisher, grouped by camp. */
   kind?: string;
   camp?: string;
+  /** Player arrival spawn: the map the player came from. */
+  from?: string;
+  /** Named enemy (e.g. "chief"). */
+  title?: string;
+}
+
+export interface Exit {
+  to: string;
+  pos: Vec3;
+  radius: number;
+  label: string;
 }
 
 export interface LevelData {
+  name?: string;
+  title?: string;
+  terrain: string;
+  town: string;
+  backdrop?: string;
+  backdrop_ground?: string;
+  dressing?: string;
+  exits?: Exit[];
   bounds: { x: [number, number]; z: [number, number] };
   heights: { file: string; cols: number; rows: number; step: number; x0: number; z0: number };
   sun: { direction_to_sun: Vec3; color: string; elevation_deg: number };
