@@ -233,11 +233,36 @@ export class Flash {
 
 // --- Synthesised audio -----------------------------------------------------------
 
+export type Surface = 'sand' | 'stone' | 'wood';
+
+/**
+ * Synthesised sound effects (WebAudio, no sample files). Every sound can be
+ * panned (-1 left … 1 right) and scaled (distance attenuation is done by the
+ * caller). Music and ambience get their own buses.
+ */
 export class Sfx {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private musicBus: GainNode | null = null;
+  private ambBus: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   volume = 0.6;
+  musicVolume = 0.45;
+  /** Called once the context exists (music and ambience start then). */
+  onReady: (ctx: AudioContext) => void = () => {};
+
+  get context(): AudioContext | null {
+    return this.ctx;
+  }
+  get music(): GainNode | null {
+    return this.musicBus;
+  }
+  get ambience(): GainNode | null {
+    return this.ambBus;
+  }
+  get noiseBuffer(): AudioBuffer | null {
+    return this.noise;
+  }
 
   /** Must be called from a user gesture (keydown, click, pad button). */
   unlock(): void {
@@ -248,10 +273,17 @@ export class Sfx {
       this.master = this.ctx.createGain();
       this.master.gain.value = this.volume;
       this.master.connect(this.ctx.destination);
-      const len = this.ctx.sampleRate;
+      this.ambBus = this.ctx.createGain();
+      this.ambBus.gain.value = 1;
+      this.ambBus.connect(this.master);
+      this.musicBus = this.ctx.createGain();
+      this.musicBus.gain.value = this.musicVolume;
+      this.musicBus.connect(this.ctx.destination);
+      const len = this.ctx.sampleRate * 2;
       this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
       const d = this.noise.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      this.onReady(this.ctx);
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
@@ -261,10 +293,27 @@ export class Sfx {
     if (this.master) this.master.gain.value = v;
   }
 
-  private noiseBurst(dur: number, f0: number, f1: number, q: number, gain: number, type: BiquadFilterType = 'bandpass'): void {
+  setMusicVolume(v: number): void {
+    this.musicVolume = v;
+    if (this.musicBus) this.musicBus.gain.value = v;
+  }
+
+  /** Output node, optionally panned. */
+  private out(pan: number): AudioNode | null {
     const c = this.ctx;
-    if (!c || !this.master || !this.noise) return;
-    const t = c.currentTime;
+    if (!c || !this.master) return null;
+    if (Math.abs(pan) < 0.02) return this.master;
+    const p = c.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    p.connect(this.master);
+    return p;
+  }
+
+  private noiseBurst(dur: number, f0: number, f1: number, q: number, gain: number, type: BiquadFilterType = 'bandpass', pan = 0, delay = 0): void {
+    const c = this.ctx;
+    const out = this.out(pan);
+    if (!c || !out || !this.noise || gain < 0.002) return;
+    const t = c.currentTime + delay;
     const src = c.createBufferSource();
     src.buffer = this.noise;
     const f = c.createBiquadFilter();
@@ -276,14 +325,15 @@ export class Sfx {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(gain, t + Math.min(0.02, dur * 0.3));
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(f).connect(g).connect(this.master);
-    src.start(t, Math.random() * 0.5);
+    src.connect(f).connect(g).connect(out);
+    src.start(t, Math.random() * 1.5);
     src.stop(t + dur + 0.05);
   }
 
-  private tone(dur: number, f0: number, f1: number, gain: number, type: OscillatorType = 'sine', delay = 0): void {
+  private tone(dur: number, f0: number, f1: number, gain: number, type: OscillatorType = 'sine', delay = 0, pan = 0): void {
     const c = this.ctx;
-    if (!c || !this.master) return;
+    const out = this.out(pan);
+    if (!c || !out || gain < 0.002) return;
     const t = c.currentTime + delay;
     const o = c.createOscillator();
     o.type = type;
@@ -293,11 +343,12 @@ export class Sfx {
     g.gain.setValueAtTime(0.0001, t);
     g.gain.exponentialRampToValueAtTime(gain, t + 0.008);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g).connect(this.master);
+    o.connect(g).connect(out);
     o.start(t);
     o.stop(t + dur + 0.05);
   }
 
+  // --- combat -------------------------------------------------------------
   swing(heavy = false): void {
     this.noiseBurst(heavy ? 0.32 : 0.22, heavy ? 500 : 900, heavy ? 2200 : 3800, 1.4, heavy ? 0.35 : 0.25);
   }
@@ -326,14 +377,109 @@ export class Sfx {
     this.tone(0.5, 2900, 2700, 0.1, 'sine', 0.005);
     this.noiseBurst(0.08, 5000, 2000, 1.2, 0.3, 'highpass');
   }
+  /** Raider spotting you: a short gruff shout. */
+  alert(pan = 0, gain = 1): void {
+    const f = 150 + Math.random() * 50;
+    this.tone(0.22, f, f * 0.8, 0.22 * gain, 'sawtooth', 0, pan);
+    this.noiseBurst(0.18, 900, 500, 3, 0.25 * gain, 'bandpass', pan);
+  }
+
+  // --- movement -----------------------------------------------------------------
   land(): void {
     this.noiseBurst(0.12, 600, 150, 0.7, 0.3, 'lowpass');
     this.tone(0.1, 110, 60, 0.35, 'triangle');
+  }
+  /** One footstep. `gain` < 1 for other people's feet. */
+  step(surface: Surface, run: boolean, pan = 0, gain = 1): void {
+    const g = (run ? 0.2 : 0.13) * gain * (0.85 + Math.random() * 0.3);
+    if (surface === 'sand') {
+      // Soft crunch.
+      this.noiseBurst(run ? 0.09 : 0.075, 1600 + Math.random() * 600, 400, 0.8, g, 'lowpass', pan);
+    } else if (surface === 'wood') {
+      this.tone(0.07, 230 + Math.random() * 40, 160, g * 0.9, 'triangle', 0, pan);
+      this.noiseBurst(0.04, 3000, 1200, 1, g * 0.4, 'bandpass', pan);
+    } else {
+      // Stone / packed mudbrick: a dry tap.
+      this.noiseBurst(0.05, 3500, 1500, 1.2, g * 0.9, 'bandpass', pan);
+      this.tone(0.05, 180, 120, g * 0.5, 'triangle', 0, pan);
+    }
+  }
+  hoof(gallop: boolean, pan = 0, gain = 1): void {
+    const g = (gallop ? 0.3 : 0.18) * gain;
+    this.tone(0.09, 95 + Math.random() * 20, 55, g, 'triangle', 0, pan);
+    this.noiseBurst(0.06, 1200, 300, 0.8, g * 0.6, 'lowpass', pan);
+  }
+  /** A wing beat: a big soft whoosh. */
+  wing(pan = 0, gain = 1): void {
+    const c = this.ctx;
+    const out = this.out(pan);
+    if (!c || !out || !this.noise) return;
+    const t = c.currentTime;
+    const src = c.createBufferSource();
+    src.buffer = this.noise;
+    const f = c.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 0.9;
+    f.frequency.setValueAtTime(250, t);
+    f.frequency.exponentialRampToValueAtTime(900, t + 0.12);
+    f.frequency.exponentialRampToValueAtTime(220, t + 0.34);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.45 * gain, t + 0.1);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+    src.connect(f).connect(g).connect(out);
+    src.start(t, Math.random());
+    src.stop(t + 0.4);
+  }
+  snort(pan = 0, gain = 1): void {
+    this.noiseBurst(0.35, 700, 250, 0.6, 0.22 * gain, 'lowpass', pan);
+    this.noiseBurst(0.25, 500, 200, 0.6, 0.15 * gain, 'lowpass', pan, 0.3);
+  }
+  camelGroan(pan = 0, gain = 1): void {
+    const f = 85 + Math.random() * 30;
+    this.tone(0.9, f, f * 0.7, 0.16 * gain, 'sawtooth', 0, pan);
+    this.noiseBurst(0.8, 500, 300, 2, 0.12 * gain, 'bandpass', pan);
+  }
+
+  // --- world / UI --------------------------------------------------------------------
+  coin(): void {
+    [1760, 2350, 2790].forEach((f, i) => this.tone(0.18, f, f * 0.98, 0.12, 'sine', i * 0.05));
+  }
+  pickup(): void {
+    this.tone(0.3, 660, 990, 0.16, 'triangle');
+    this.tone(0.35, 990, 1320, 0.1, 'sine', 0.08);
+  }
+  chest(): void {
+    // Creak of the hinge, then the lid knocking back.
+    this.tone(0.45, 140, 95, 0.12, 'sawtooth');
+    this.noiseBurst(0.4, 1800, 900, 6, 0.08, 'bandpass');
+    this.tone(0.12, 120, 70, 0.3, 'triangle', 0.42);
+    this.coin();
+  }
+  ignite(): void {
+    this.noiseBurst(0.7, 300, 2400, 0.7, 0.35, 'bandpass');
+    for (let i = 0; i < 6; i++) this.noiseBurst(0.03, 4000, 2000, 1, 0.12, 'highpass', (Math.random() - 0.5) * 0.4, 0.2 + Math.random() * 0.6);
+  }
+  drink(): void {
+    for (let i = 0; i < 3; i++) this.tone(0.12, 300 + i * 40, 220, 0.12, 'sine', i * 0.16);
   }
   exhausted(): void {
     this.tone(0.12, 300, 220, 0.25, 'triangle');
   }
   ui(confirm = false): void {
     this.tone(0.06, confirm ? 900 : 650, confirm ? 1200 : 640, 0.15, 'triangle');
+  }
+
+  /** Ambience helpers: one crackle pop, a bird chirp, a cricket chirp. */
+  crackle(pan: number, gain: number): void {
+    this.noiseBurst(0.025 + Math.random() * 0.03, 3000 + Math.random() * 3000, 1500, 1, 0.18 * gain, 'highpass', pan);
+  }
+  chirp(pan: number, gain: number): void {
+    const f = 2600 + Math.random() * 1600;
+    const n = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) this.tone(0.09, f, f * (1.2 + Math.random() * 0.3), 0.05 * gain, 'sine', i * 0.11, pan);
+  }
+  cricket(pan: number, gain: number): void {
+    for (let i = 0; i < 4; i++) this.tone(0.025, 4600, 4500, 0.03 * gain, 'square', i * 0.05, pan);
   }
 }

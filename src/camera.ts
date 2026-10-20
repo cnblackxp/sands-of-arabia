@@ -31,7 +31,8 @@ export class FollowCamera {
 
   constructor() {
     this.ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 1500);
-    this.persp = new THREE.PerspectiveCamera(40, 1, 0.5, 2500);
+    // Near 1.5 m keeps depth precision for distant coplanar faces (no z-fighting).
+    this.persp = new THREE.PerspectiveCamera(40, 1, 1.5, 1800);
   }
 
   /** Debug/inspection view: a free perspective camera (set from the console). */

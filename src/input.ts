@@ -8,7 +8,7 @@
  *   LB hold = block · X = healing draught · A jump / confirm · Y interact
  *   Start menu · View map · R-stick camera · LB/RB switch menu tabs
  * Keyboard: WASD · Shift sprint · LMB attack · RMB block · Space roll · F jump
- *   E interact · R heal · Tab inventory · M map · Esc menu · Z/C rotate camera
+ *   E interact · R heal · Tab inventory · M map · Esc menu · Z/C or middle-mouse drag rotate camera
  *   D-pad up/down zoom, left/right rotate (D-pad navigates menus)
  */
 
@@ -55,6 +55,9 @@ export class Input {
   private wheel = 0;
   private mouseAttack = false;
   private mouseBlock = false;
+  /** Middle mouse held: horizontal drag rotates the camera. */
+  private mmbDrag = false;
+  private dragX = 0;
   private padPrev: boolean[] = [];
   private runToggle = false;
   private bHeld = -1;
@@ -81,10 +84,18 @@ export class Input {
       this.onGesture();
       if (e.button === 0) this.mouseAttack = true;
       if (e.button === 2) this.mouseBlock = true;
+      if (e.button === 1) {
+        this.mmbDrag = true;
+        e.preventDefault(); // no browser auto-scroll
+      }
       this.device = 'keyboard';
     });
     window.addEventListener('mouseup', (e) => {
       if (e.button === 2) this.mouseBlock = false;
+      if (e.button === 1) this.mmbDrag = false;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (this.mmbDrag) this.dragX += e.movementX;
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener(
@@ -134,7 +145,7 @@ export class Input {
       pause: p.has('Escape') || p.has('KeyP'),
       map: p.has('KeyM'),
       zoom: this.wheel,
-      rotate: ((k.has('KeyZ') ? 1 : 0) - (k.has('KeyC') ? 1 : 0)) * 1.6 * dt,
+      rotate: ((k.has('KeyZ') ? 1 : 0) - (k.has('KeyC') ? 1 : 0)) * 1.6 * dt - this.dragX * 0.006,
       navX: (p.has('KeyD') || p.has('ArrowRight') ? 1 : 0) - (p.has('KeyA') || p.has('ArrowLeft') ? 1 : 0),
       navY: (p.has('KeyS') || p.has('ArrowDown') ? 1 : 0) - (p.has('KeyW') || p.has('ArrowUp') ? 1 : 0),
       confirm: p.has('Enter') || p.has('Space') || p.has('KeyE'),
@@ -142,6 +153,7 @@ export class Input {
     };
     this.pressed.clear();
     this.wheel = 0;
+    this.dragX = 0;
     this.mouseAttack = false;
 
     this.readPad(f, dt);

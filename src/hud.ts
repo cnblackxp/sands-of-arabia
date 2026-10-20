@@ -33,7 +33,7 @@ const GLYPH: Record<Device, Record<Action, string>> = {
     jump: '<kbd>F</kbd>',
     pause: '<kbd>Esc</kbd>',
     map: '<kbd>M</kbd>',
-    camera: '<kbd>Z</kbd><kbd>C</kbd>',
+    camera: '<kbd>MMB</kbd><small>drag</small> <kbd>Z</kbd><kbd>C</kbd>',
     zoom: '<kbd>Wheel</kbd>',
     next: '<kbd>E</kbd>',
     leave: '<kbd>Esc</kbd>',

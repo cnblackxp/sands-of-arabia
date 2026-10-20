@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Camel, Horse } from './animals';
+import { Ambience, Music, type Mood } from './audio';
 import { FollowCamera } from './camera';
 import { CharacterFactory, PLAYER_LOOKS } from './characters';
 import type { HitResult } from './combat';
@@ -47,6 +48,12 @@ class Game {
   input: Input;
   hud: Hud;
   sfx = new Sfx();
+  ambience = new Ambience(this.sfx);
+  music = new Music(this.sfx, import.meta.env.BASE_URL);
+  /** Per-walker footstep state (distance since the last step, last position). */
+  private steps = new Map<object, { x: number; z: number; acc: number; phase: number }>();
+  private prevEnemyState = new Map<object, string>();
+  private nextAnimal = 4;
   time = new TimeScale();
   progress = new Progress();
   quests: QuestSystem;
@@ -110,6 +117,7 @@ class Game {
       msg.textContent = `Loaded ${label}`;
     });
     const c = this.common;
+    void this.music.load();
     this.factory = new CharacterFactory(c.person, c.horse, c.camel, c.personClips);
     this.factory.setWingedHorse(c.wingedHorse);
 
@@ -345,6 +353,7 @@ class Game {
       }
     }
     this.progress.save();
+    this.sfx.chest();
     this.floatAt(c.pos, 1.2, `+${g} gold`, 'gold');
     this.particles.burst(c.pos.clone().setY(c.pos.y + 0.6), 14, { color: 0xffc94a, speed: 1.6, up: 3, size: 0.06, life: 0.8 });
     this.hud.showToast(`${c.secret ? 'A hidden chest! ' : ''}${g} gold${extra}.`, 3);
@@ -407,7 +416,7 @@ class Game {
         if (fall > 2) this.cam.addTrauma(Math.min(0.4, fall * 0.06));
       },
       heal: () => {
-        this.sfx.ui(true);
+        this.sfx.drink();
         this.floatAt(this.player.pos, 2, 'restored', 'heal');
         const p = this.player.pos;
         this.particles.burst(new THREE.Vector3(p.x, p.y + 1, p.z), 10, { color: 0x8ee08a, speed: 1, up: 1.5, size: 0.06, life: 0.8, gravity: -1 });
@@ -436,6 +445,7 @@ class Game {
     const [lo, hi] = GOLD_DROP[e.kind] ?? [15, 25];
     const g = Math.round(lo + Math.random() * (hi - lo));
     this.progress.addGold(g);
+    this.sfx.coin();
     this.floatAt(e.pos, e.headY - e.pos.y, `+${g} gold`, 'gold');
     this.particles.burst(e.pos.clone().setY(e.pos.y + 1), 8, { color: 0xffc94a, speed: 2, up: 2.5, size: 0.06, life: 0.7 });
     if (e.camp && this.enemies.campAlive(e.camp) === 0) {
@@ -499,7 +509,8 @@ class Game {
     this.enemies.resetAll();
     this.npcs.calmGuards();
     this.progress.save();
-    this.sfx.ui(true);
+    if (first) this.sfx.ignite();
+    else this.sfx.ui(true);
     this.particles.burst(b.pos.clone().setY(b.pos.y + 0.6), 24, { color: 0xffa040, speed: 2, up: 3, size: 0.07, life: 0.9, gravity: -1 });
     this.hud.showToast(first ? 'BONFIRE LIT' : 'Rested. Health and waterskins restored; enemies have returned.', 3);
   }
@@ -697,8 +708,17 @@ class Game {
             adjust: (k) => this.sfx.setVolume(Math.min(1, Math.max(0, this.sfx.volume + k * 0.1))),
             slider: { min: 0, max: 1, step: 0.01, get: () => this.sfx.volume, set: (v) => this.sfx.setVolume(v) },
           },
+          {
+            label: 'Music',
+            kind: 'slider',
+            value: () => `${Math.round(this.sfx.musicVolume * 100)}%`,
+            sub: () => (this.music.nowPlaying ? `Now playing: ${this.music.nowPlaying}` : ''),
+            adjust: (k) => this.sfx.setMusicVolume(Math.min(1, Math.max(0, this.sfx.musicVolume + k * 0.1))),
+            slider: { min: 0, max: 1, step: 0.01, get: () => this.sfx.musicVolume, set: (v) => this.sfx.setMusicVolume(v) },
+          },
           { label: 'Controls', kind: 'header' },
           ...this.controlRows(),
+          ...(this.music.credits.length ? [{ label: 'Credits', kind: 'header' as const }, ...this.music.credits.map((c) => ({ label: c, kind: 'info' as const }))] : []),
         ],
       },
       {
@@ -1064,6 +1084,8 @@ class Game {
       this.physics.step();
     }
     this.day.update(dt, this.cam.camera.position);
+    if (!paused) this.updateSounds(dt);
+    this.music.update(realDt);
     this.updateIcons(realDt);
     this.progress.update(realDt);
 
@@ -1085,6 +1107,138 @@ class Game {
     for (const b of this.beacons) (b.material as THREE.ShaderMaterial).uniforms.opacity.value = 0.26 + 0.08 * Math.sin(now / 400);
     this.renderer.render(this.world.scene, this.cam.camera);
     this.day.renderGrade(this.renderer);
+  }
+
+  /** Stereo position of a world point relative to the camera, -1 … 1. */
+  private pan(x: number, z: number): number {
+    const p = this.player.pos;
+    const r = this.cam.right;
+    return Math.max(-1, Math.min(1, ((x - p.x) * r.x + (z - p.z) * r.z) / 10));
+  }
+
+  /** Footsteps, hooves, wings, animals, raider shouts, ambience and music mood. */
+  private updateSounds(dt: number): void {
+    const p = this.player;
+    const pos = p.pos;
+    const sfx = this.sfx;
+    const onBox = (x: number, z: number, y: number) => y > this.world.ground(x, z) + 0.06;
+
+    // Generic stride tracker: returns true when a foot (or hoof) lands.
+    const stride = (key: object, x: number, z: number, len: number): boolean => {
+      let s = this.steps.get(key);
+      if (!s) {
+        s = { x, z, acc: 0, phase: 0 };
+        this.steps.set(key, s);
+      }
+      const d = Math.hypot(x - s.x, z - s.z);
+      s.x = x;
+      s.z = z;
+      if (d > 3) return false; // teleported
+      s.acc += d;
+      if (s.acc >= len) {
+        s.acc -= len;
+        return true;
+      }
+      return false;
+    };
+
+    // The player.
+    if (!p.horse && !p.dead && !p.jumping && !p.rolling) {
+      const run = p.animSpeed > 3;
+      if (stride(p, pos.x, pos.z, run ? 1.35 : 0.72)) sfx.step(onBox(pos.x, pos.z, pos.y) ? 'stone' : 'sand', run);
+    }
+    // People and raiders nearby (quieter, panned).
+    const walkers: { key: object; x: number; z: number; y: number; run: boolean }[] = [];
+    for (const n of this.npcs.npcs) if (!n.dead && (n.state === 'walk' || n.state === 'flee' || n.state === 'chase' || n.state === 'return')) walkers.push({ key: n, x: n.pos.x, z: n.pos.z, y: n.pos.y, run: n.state === 'flee' || n.state === 'chase' });
+    for (const e of this.enemies.list) if (!e.dead) walkers.push({ key: e, x: e.pos.x, z: e.pos.z, y: e.pos.y, run: e.state === 'approach' });
+    for (const w of walkers) {
+      const d = Math.hypot(w.x - pos.x, w.z - pos.z);
+      if (d > 10) {
+        this.steps.delete(w.key);
+        continue;
+      }
+      if (stride(w.key, w.x, w.z, w.run ? 1.3 : 0.7)) sfx.step(onBox(w.x, w.z, w.y) ? 'stone' : 'sand', w.run, this.pan(w.x, w.z), 0.55 * (1 - d / 10));
+    }
+    // Horses: hooves; the winged horse beats its wings in time with Flap.
+    for (const h of this.horses) {
+      const d = Math.hypot(h.pos.x - pos.x, h.pos.z - pos.z);
+      if (d > 22) continue;
+      const g = h === p.horse ? 1 : 0.6 * (1 - d / 22);
+      const pan = h === p.horse ? 0 : this.pan(h.pos.x, h.pos.z);
+      if (!h.jumping && h.speed > 0.4 && stride(h, h.pos.x, h.pos.z, h.speed > 5 ? 1.15 : 0.6)) sfx.hoof(h.speed > 5, pan, g);
+      const a = h.rig.anim;
+      if (a.base === 'Flap') {
+        const s = this.steps.get(h.rig) ?? { x: 0, z: 0, acc: 0, phase: 0 };
+        const ph = (a.baseTime() % 0.5) / 0.5;
+        // Downstroke peaks a quarter into the beat.
+        if (s.phase < 0.25 && ph >= 0.25) sfx.wing(pan, g);
+        s.phase = ph;
+        this.steps.set(h.rig, s);
+      }
+    }
+    // Animals now and then.
+    this.nextAnimal -= dt;
+    if (this.nextAnimal <= 0) {
+      this.nextAnimal = 5 + Math.random() * 10;
+      const near = [...this.camels.map((c) => ({ c, pos: c.rig.root.position })), ...this.horses.filter((h) => h !== p.horse).map((h) => ({ c: h, pos: h.pos }))].filter((x) => Math.hypot(x.pos.x - pos.x, x.pos.z - pos.z) < 18);
+      const pick = near[Math.floor(Math.random() * near.length)];
+      if (pick) {
+        const d = Math.hypot(pick.pos.x - pos.x, pick.pos.z - pos.z);
+        const g = 1 - d / 18;
+        if (pick.c instanceof Camel) sfx.camelGroan(this.pan(pick.pos.x, pick.pos.z), g);
+        else sfx.snort(this.pan(pick.pos.x, pick.pos.z), g);
+      }
+    }
+    // A raider spotting you shouts.
+    for (const e of this.enemies.list) {
+      const prev = this.prevEnemyState.get(e);
+      if (e.state === 'alert' && prev !== 'alert') {
+        const d = Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z);
+        if (d < 30) sfx.alert(this.pan(e.pos.x, e.pos.z), Math.max(0.3, 1 - d / 30));
+      }
+      this.prevEnemyState.set(e, e.state);
+    }
+
+    // Ambience from the surroundings.
+    let crowd = 0;
+    for (const n of this.npcs.npcs) if (!n.dead && Math.hypot(n.pos.x - pos.x, n.pos.z - pos.z) < 14) crowd++;
+    let water = 0;
+    let trees = 0;
+    for (const c of this.world.level.colliders) {
+      const d = Math.hypot(c.pos[0] - pos.x, c.pos[2] - pos.z) - Math.max(c.half[0], c.half[2]);
+      if (c.tag === 'water' && d < 14) water = Math.max(water, 1 - Math.max(0, d) / 14);
+      else if ((c.tag === 'palm' || c.tag === 'tree') && d < 20) trees++;
+    }
+    let fire = 0;
+    let firePan = 0;
+    const fires = [...this.bonfires.filter((b) => b.lit).map((b) => b.pos), ...this.world.level.lights.filter((l) => l.type === 'fire').map((l) => ({ x: l.pos[0], z: l.pos[2] }))];
+    for (const f of fires) {
+      const d = Math.hypot(f.x - pos.x, f.z - pos.z);
+      const k = 1 - d / 10;
+      if (k > fire) {
+        fire = k;
+        firePan = this.pan(f.x, f.z);
+      }
+    }
+    const height = Math.max(0, pos.y - this.world.ground(pos.x, pos.z));
+    this.ambience.update(dt, {
+      wind: Math.min(1, 0.25 + (crowd === 0 ? 0.3 : 0) + height / 12 + (this.mapName === 'cliffs' ? 0.3 : 0)),
+      crowd,
+      water,
+      fire,
+      firePan,
+      trees: Math.min(1, trees / 8),
+      night: this.day.grade,
+    });
+
+    // Music mood.
+    let mood: Mood = 'explore';
+    const fighting = this.enemies.list.some((e) => e.engaged && !e.dead && Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z) < 30) || this.npcs.npcs.some((n) => n.hostile);
+    if (fighting) mood = 'combat';
+    else if (this.mapName === 'raider_fort') mood = 'stronghold';
+    else if (this.day.grade > 0.6) mood = 'night';
+    else if (['oasis', 'hegra', 'caravanserai', 'rooftops'].includes(this.mapName) && crowd > 3) mood = 'town';
+    this.music.want(mood);
   }
 
   /** Enemies engaged nearby, or a living camp within reach: stamina matters. */
@@ -1110,7 +1264,7 @@ class Game {
       this.lostPile = null;
       this.floatAt(p, 2.2, `+${lg.amount} gold recovered`, 'gold');
       this.hud.showToast('You recovered your gold.', 2.5);
-      this.sfx.ui(true);
+      this.sfx.coin();
     }
   }
 
@@ -1255,7 +1409,7 @@ class Game {
           this.quests.picked(pickup.item);
           this.hud.showToast(`Took: ${pickup.label}`, 2.5);
         }
-        this.sfx.ui(true);
+        this.sfx.pickup();
       } else if (fire) {
         this.restAt(fire);
       } else if (chest) {
@@ -1275,7 +1429,7 @@ class Game {
     else if (this.player.horse)
       items = [['move', 'Ride'], ['run', 'Gallop'], ['attack', 'Attack'], ['jump', 'Jump'], ['mount', 'Dismount'], ['map', 'Map'], ['pause', 'Menu']];
     else {
-      items = [['move', 'Move'], ['run', 'Sprint'], ['attack', 'Attack'], ['dodge', 'Roll'], ['jump', P.doubleJump ? 'Jump ×2' : 'Jump']];
+      items = [['move', 'Move'], ['run', 'Sprint'], ['attack', 'Attack'], ['dodge', 'Roll'], ['jump', P.doubleJump ? 'Jump ×2' : 'Jump'], ['camera', 'Camera']];
       if (P.shield) items.push(['block', 'Block']);
       if (P.data.flasks > 0) items.push(['heal', 'Heal']);
       items.push(['talk', 'Use'], ['map', 'Map'], ['inventory', 'Menu']);

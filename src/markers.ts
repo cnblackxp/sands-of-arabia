@@ -79,8 +79,21 @@ export function beam(color: THREE.ColorRepresentation, height = 10, radius = 0.4
   const c = new THREE.Color(color);
   const mat = new THREE.ShaderMaterial({
     uniforms: { opacity: { value: 0.3 }, tint: { value: c } },
-    vertexShader: 'varying float vY; void main() { vY = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform float opacity; uniform vec3 tint; varying float vY; void main() { gl_FragColor = vec4(tint * opacity * pow(1.0 - vY, 1.6), 1.0); }',
+    // Log-depth chunks: the renderer uses a logarithmic depth buffer.
+    vertexShader: `#include <common>
+      #include <logdepthbuf_pars_vertex>
+      varying float vY;
+      void main() {
+        vY = uv.y;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        #include <logdepthbuf_vertex>
+      }`,
+    fragmentShader: `#include <logdepthbuf_pars_fragment>
+      uniform float opacity; uniform vec3 tint; varying float vY;
+      void main() {
+        #include <logdepthbuf_fragment>
+        gl_FragColor = vec4(tint * opacity * pow(1.0 - vY, 1.6), 1.0);
+      }`,
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
