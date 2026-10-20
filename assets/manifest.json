@@ -701,11 +701,11 @@
    ]
   },
   "terrain": {
-   "file": "level/raider_fort/terrain.glb",
+   "file": "level/wadi/terrain.glb",
    "kind": "terrain",
    "size": [
-    220.0,
-    11.573,
+    260.0,
+    20.339,
     220.0
    ],
    "materials": [
@@ -713,46 +713,38 @@
    ]
   },
   "town": {
-   "file": "level/raider_fort/town.glb",
+   "file": "level/wadi/town.glb",
    "kind": "level",
    "size": [
-    205.392,
-    24.999,
-    209.999
+    254.137,
+    35.296,
+    210.072
    ],
    "materials": [
     "Banner0",
-    "Banner1",
-    "Banner2",
     "Bark",
     "Bone",
-    "Brass",
     "Canopy0",
     "Canopy1",
-    "Clay",
+    "Dates",
     "DryBrush",
-    "Fire",
-    "GoatHair",
+    "Frond",
     "GreyBand0",
     "GreyBand1",
     "GreyBand2",
     "GreyBand3",
     "Lime",
+    "Mud0",
     "Mud1",
+    "Oleander",
     "Opening",
-    "Rug0",
-    "Rug1",
-    "Rug2",
-    "Rug3",
-    "Rug4",
-    "Sack",
     "Shrub0",
     "Shrub1",
     "Shrub2",
-    "Steel",
     "Stone",
     "StoneDark",
-    "TentCloth",
+    "Trunk",
+    "WaterDeep",
     "Wood"
    ]
   },
@@ -785,11 +777,11 @@
    "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
   },
   "backdrop_ground": {
-   "file": "level/raider_fort/backdrop_ground.glb",
+   "file": "level/wadi/backdrop_ground.glb",
    "kind": "backdrop",
    "size": [
-    1660.0,
-    11.343,
+    1700.0,
+    18.651,
     1660.0
    ],
    "materials": [

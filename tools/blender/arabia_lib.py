@@ -686,13 +686,14 @@ def stall(x, y, rot, kind=None, awning=None):
     return ob
 
 
-def palm(x, y, s=1.0, lean=0.0):
+def palm(x, y, s=1.0, lean=0.0, lite=False):
+    """Date palm. lite=True: ~40% of the vertices (8 fronds x 3 segments, 6-segment trunk) for dense groves."""
     trunk = mat("Trunk", "#6b4a32", 0.95)
     leaf = mat("Frond", "#4f7a2c", 0.7, sheen=0.2)
     dates = mat("Dates", "#e08a1e", 0.6)
     mb = MB()
     h = random.uniform(7, 11) * s
-    segs = 9
+    segs = 6 if lite else 9
     lean_dir = random.uniform(0, math.tau)
     top = Vector((0, 0, 0))
     for i in range(segs):
@@ -702,13 +703,13 @@ def palm(x, y, s=1.0, lean=0.0):
         r = 0.32 * s * (1 - t * 0.35)
         mb.cyl(c, r * 1.12, r, h / segs * 1.02, trunk, segs=6, rot=(0, 0, i * 0.4))
         top = off + Vector((0, 0, h))
-    n = 11
+    n = 8 if lite else 11
     for i in range(n):
         a = i / n * math.tau + random.uniform(-0.2, 0.2)
         ln = random.uniform(3.2, 4.4) * s
         droop = random.uniform(0.2, 0.7)
         prev = top.copy()
-        k = 4
+        k = 3 if lite else 4
         for j in range(k):
             t = (j + 1) / k
             pitch = droop * t * 2.2 - 0.25
@@ -718,7 +719,7 @@ def palm(x, y, s=1.0, lean=0.0):
             wdt = (0.9 - abs(t - 0.4)) * s * 1.1
             mb.box(mid, (ln / k * 1.05, wdt, 0.04), leaf, rot=(0, pitch, a))
             prev = nxt
-    for i in range(3):
+    for i in range(1 if lite else 3):
         a = random.uniform(0, math.tau)
         mb.ico(top + Vector((math.cos(a) * 0.4, math.sin(a) * 0.4, -0.6)), (0.25, 0.25, 0.4), dates, sub=1)
     return mb.build("Palm", C_LAND, loc=(x, y, height(x, y) - 0.2))

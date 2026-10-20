@@ -569,9 +569,9 @@ class Wadi(MapDef):
                 while x < 124:
                     if not any(abs(x - g) < 6 for g in gaps):
                         py = self.yc(x) + side * random.uniform(b0, b1)
-                        L.palm(x + random.uniform(-1, 1), py, random.uniform(0.85, 1.15), 0.12)
+                        L.palm(x + random.uniform(-1, 1), py, random.uniform(0.85, 1.15), 0.12, lite=True)
                         ctx.col(x, py, L.height(x, py) + 2, 0.7, 0.7, 4, 0, "palm")
-                    x += random.uniform(6.5, 9.0)
+                    x += random.uniform(8.0, 11.0)
             # low crops on the top garden terrace
             for k in range(70):
                 x = random.uniform(-122, 122)
