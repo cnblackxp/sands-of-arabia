@@ -31,8 +31,15 @@ const USE_RANGE = 2.2;
 const ROBES: (number | null)[] = [null, 0xf1ece0, 0x2c3e73, 0x7b2a24, 0xc9902e, 0x2f6d4f, 0x5b2d6e, 0x2b2622, 0xb8a48a];
 const FLOW: { label: string; on: boolean; speed: number }[] = [
   { label: 'Stopped', on: false, speed: 0 },
+  { label: 'Glacial (1 h / 10 min)', on: true, speed: 1 / 600 },
+  { label: 'Very slow (1 h / 5 min)', on: true, speed: 1 / 300 },
+  { label: 'Slower (1 h / 2 min)', on: true, speed: 1 / 120 },
   { label: 'Slow (1 h / min)', on: true, speed: 1 / 60 },
+  { label: 'Moderate (1 h / 30 s)', on: true, speed: 1 / 30 },
   { label: 'Fast (1 h / 10 s)', on: true, speed: 1 / 10 },
+  { label: 'Faster (1 h / 5 s)', on: true, speed: 1 / 5 },
+  { label: 'Very fast (1 h / 2 s)', on: true, speed: 1 / 2 },
+  { label: 'Timelapse (1 h / s)', on: true, speed: 1 },
 ];
 
 function nameHash(s: string): number {
@@ -713,6 +720,12 @@ class Game {
             label: 'Time passes',
             kind: 'choice',
             value: () => FLOW[this.flow].label,
+            sub: () => {
+              const f = FLOW[this.flow];
+              if (!f.on) return 'The sun stays where it is.';
+              const s = 24 / f.speed;
+              return `A full day takes ${s >= 3600 ? `${+(s / 3600).toFixed(1)} h` : s >= 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`}.`;
+            },
             adjust: (k) => {
               this.flow = (this.flow + k + FLOW.length) % FLOW.length;
               this.day.flowing = FLOW[this.flow].on;
