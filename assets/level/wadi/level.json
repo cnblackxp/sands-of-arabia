@@ -3878,6 +3878,20 @@
    ],
    "yaw": 0,
    "tag": "ruin"
+  },
+  {
+   "pos": [
+    -120,
+    -6.1455,
+    2.9324
+   ],
+   "half": [
+    0.55,
+    0.8,
+    0.55
+   ],
+   "yaw": 0,
+   "tag": "prop"
   }
  ],
  "spawns": [
@@ -4236,6 +4250,76 @@
     -18.7086
    ],
    "yaw": 1.6
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    108,
+    -6.9069,
+    -15.2585
+   ],
+   "yaw": 0.0,
+   "id": "wadi_east"
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    64,
+    10.8448,
+    -70
+   ],
+   "yaw": 0.0,
+   "id": "wadi_tower"
+  },
+  {
+   "role": "quest_giver",
+   "pos": [
+    25,
+    1.1611,
+    -60.8217
+   ],
+   "yaw": 3.1416,
+   "id": "wadi_farmer_elder"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    0,
+    0.2903,
+    -48.0488
+   ],
+   "yaw": 0.0,
+   "id": "falaj_sluice"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    -60,
+    -5.5,
+    7.6047
+   ],
+   "yaw": 0.0,
+   "id": "wadi_date_basket"
+  },
+  {
+   "role": "chest",
+   "pos": [
+    73,
+    12.5999,
+    -74
+   ],
+   "yaw": 0.0,
+   "id": "wadi_tower_chest"
+  },
+  {
+   "role": "player",
+   "pos": [
+    -114,
+    -7.0647,
+    9.0253
+   ],
+   "yaw": -1.5708,
+   "from": "cliffs"
   }
  ],
  "lights": [],
@@ -4457,6 +4541,16 @@
    ],
    "radius": 6,
    "label": "East along the wadi to the oasis"
+  },
+  {
+   "to": "cliffs",
+   "pos": [
+    -124,
+    -7.0132,
+    6.6579
+   ],
+   "radius": 6,
+   "label": "West, up to the aqueduct cliffs"
   }
  ]
 }

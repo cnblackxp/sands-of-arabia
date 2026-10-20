@@ -25,6 +25,10 @@ export interface CommonAssets {
   person: GLTF;
   horse: GLTF;
   camel: GLTF;
+  /** Optional newer assets (older deploys may not have them). */
+  wingedHorse: GLTF | null;
+  bonfireProp: GLTF | null;
+  chestProp: GLTF | null;
   envHdr: THREE.DataTexture;
   bg: THREE.Texture;
   personClips: Record<string, ClipMeta>;
@@ -59,8 +63,9 @@ function counter(total: number, onProgress: Progress) {
 }
 
 export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
-  const tick = counter(7, onProgress);
-  const [person, horse, camel, envHdr, bg, manifest, maps] = await Promise.all([
+  const tick = counter(10, onProgress);
+  const optional = (path: string, label: string) => tick(label, gltf.loadAsync(asset(path)).catch(() => null));
+  const [person, horse, camel, envHdr, bg, manifest, maps, wingedHorse, bonfireProp, chestProp] = await Promise.all([
     tick('people', gltf.loadAsync(asset('characters/person.glb'))),
     tick('horses', gltf.loadAsync(asset('characters/horse.glb'))),
     tick('camels', gltf.loadAsync(asset('characters/camel.glb'))),
@@ -73,6 +78,9 @@ export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
     ),
+    optional('characters/horse_winged.glb', 'winged horse'),
+    optional('props/bonfire.glb', 'bonfire'),
+    optional('props/chest.glb', 'chest'),
   ]);
   bg.mapping = THREE.EquirectangularReflectionMapping;
   bg.colorSpace = THREE.SRGBColorSpace;
@@ -81,6 +89,9 @@ export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
     person,
     horse,
     camel,
+    wingedHorse,
+    bonfireProp,
+    chestProp,
     envHdr,
     bg,
     personClips: manifest?.assets?.person?.clips ?? {},
@@ -298,6 +309,11 @@ export class World {
 
   ground(x: number, z: number): number {
     return this.map.heights.height(x, z);
+  }
+
+  /** Floor under (x, z) for something standing at height y: sand or a walkable box top. */
+  floor(x: number, z: number, y: number): number {
+    return this.physics.support(x, z, y + 0.3);
   }
 
   /** Add a lamp or fire to the pooled point lights (bonfires). */

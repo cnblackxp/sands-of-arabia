@@ -25,6 +25,21 @@
    "name": "raider_fort",
    "title": "The raider stronghold",
    "level": "level/raider_fort/level.json"
+  },
+  {
+   "name": "rooftops",
+   "title": "Rooftops of Qaryat al-Faw",
+   "level": "level/rooftops/level.json"
+  },
+  {
+   "name": "cliffs",
+   "title": "The aqueduct cliffs",
+   "level": "level/cliffs/level.json"
+  },
+  {
+   "name": "ruined_temple",
+   "title": "Ruins of the Sabaean temple",
+   "level": "level/ruined_temple/level.json"
   }
  ]
 }

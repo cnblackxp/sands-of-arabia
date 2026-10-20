@@ -3766,6 +3766,66 @@
     -33.2
    ],
    "yaw": 3.1416
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    6,
+    0.3111,
+    96
+   ],
+   "yaw": 0.0,
+   "id": "fort_road"
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    8,
+    0.5178,
+    76
+   ],
+   "yaw": 0.0,
+   "id": "fort_ramp"
+  },
+  {
+   "role": "quest_giver",
+   "pos": [
+    -20.5,
+    10.2779,
+    -31.5
+   ],
+   "yaw": 3.1416,
+   "id": "fort_prisoner"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    0,
+    10.0767,
+    -24
+   ],
+   "yaw": 0.0,
+   "id": "chief_seal"
+  },
+  {
+   "role": "chest",
+   "pos": [
+    -4,
+    10.1435,
+    -28
+   ],
+   "yaw": 0.0,
+   "id": "fort_loot_chest"
+  },
+  {
+   "role": "chest",
+   "pos": [
+    -60,
+    8.5698,
+    40
+   ],
+   "yaw": 0.0,
+   "id": "fort_lookout_chest"
   }
  ],
  "lights": [

@@ -2915,6 +2915,20 @@
   },
   {
    "pos": [
+    64,
+    0.7949,
+    -131
+   ],
+   "half": [
+    0.55,
+    0.8,
+    0.55
+   ],
+   "yaw": 0,
+   "tag": "prop"
+  },
+  {
+   "pos": [
     -30.0,
     1.2994,
     -44.0
@@ -3502,6 +3516,96 @@
    "yaw": -0.5229,
    "kind": "brute",
    "camp": "tomb_robbers"
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    5.8319,
+    0.178,
+    128
+   ],
+   "yaw": 0.0,
+   "id": "hegra_siq"
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    62,
+    0.0995,
+    -96
+   ],
+   "yaw": 0.0,
+   "id": "hegra_robbers"
+  },
+  {
+   "role": "shopkeeper",
+   "pos": [
+    -22,
+    0.1151,
+    -41.3
+   ],
+   "yaw": 0.0,
+   "id": "hegra_trader"
+  },
+  {
+   "role": "quest_giver",
+   "pos": [
+    -17.5953,
+    -0.6365,
+    25.5555
+   ],
+   "yaw": 4.197,
+   "id": "hegra_priest"
+  },
+  {
+   "role": "quest_giver",
+   "pos": [
+    45.3707,
+    0.3214,
+    -63.501
+   ],
+   "yaw": 0.0,
+   "id": "hegra_mason"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    -24.0953,
+    -0.5393,
+    24.0555
+   ],
+   "yaw": 0.0,
+   "id": "khazneh_incense"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    62.8903,
+    -0.0831,
+    -58.8352
+   ],
+   "yaw": 0.0,
+   "id": "tomb_seal"
+  },
+  {
+   "role": "chest",
+   "pos": [
+    42.3707,
+    0.3362,
+    -64.501
+   ],
+   "yaw": 0.0,
+   "id": "hegra_qasr_chest"
+  },
+  {
+   "role": "player",
+   "pos": [
+    60,
+    -0.0027,
+    -126
+   ],
+   "yaw": 0.0,
+   "from": "ruined_temple"
   }
  ],
  "lights": [
@@ -3836,6 +3940,16 @@
    ],
    "radius": 6,
    "label": "The road back to the oasis"
+  },
+  {
+   "to": "ruined_temple",
+   "pos": [
+    60,
+    0.0031,
+    -134
+   ],
+   "radius": 6,
+   "label": "North to the Sabaean temple ruins"
   }
  ]
 }

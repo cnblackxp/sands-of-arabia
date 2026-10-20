@@ -47,6 +47,16 @@
    ],
    "radius": 6.0,
    "label": "North, into raider country"
+  },
+  {
+   "to": "rooftops",
+   "pos": [
+    186,
+    23.2672,
+    -150
+   ],
+   "radius": 6.0,
+   "label": "North-east to the rooftops of Qaryat al-Faw"
   }
  ],
  "terrain": "level/terrain.glb",
@@ -6470,6 +6480,20 @@
    ],
    "yaw": 0,
    "tag": "ruin"
+  },
+  {
+   "pos": [
+    182,
+    20.9859,
+    -153.5
+   ],
+   "half": [
+    0.55,
+    0.8,
+    0.55
+   ],
+   "yaw": 0,
+   "tag": "prop"
   }
  ],
  "spawns": [
@@ -7397,6 +7421,106 @@
    ],
    "yaw": 0.0,
    "from": "raider_fort"
+  },
+  {
+   "role": "player",
+   "pos": [
+    180,
+    23.2909,
+    -144
+   ],
+   "yaw": 0.7854,
+   "from": "rooftops"
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    -4.0,
+    1.4691,
+    42.0
+   ],
+   "yaw": 0.0,
+   "id": "oasis_market"
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    54.0,
+    3.3695,
+    -70.0
+   ],
+   "yaw": 0.0,
+   "id": "oasis_tomb_approach"
+  },
+  {
+   "role": "shopkeeper",
+   "pos": [
+    -15.5,
+    -0.0838,
+    12.8
+   ],
+   "yaw": 0.4,
+   "id": "oasis_trader"
+  },
+  {
+   "role": "quest_giver",
+   "pos": [
+    9.0,
+    4.3334,
+    -47.0
+   ],
+   "yaw": 0.0,
+   "id": "oasis_priest"
+  },
+  {
+   "role": "quest_giver",
+   "pos": [
+    -19.0,
+    -0.0535,
+    -9.0
+   ],
+   "yaw": 2.0,
+   "id": "oasis_elder"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    -21.0,
+    0.1096,
+    3.0
+   ],
+   "yaw": 0.0,
+   "id": "pool_jar"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    72.0,
+    13.1396,
+    -105.0
+   ],
+   "yaw": 0.0,
+   "id": "tomb_tablet"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    -98.4771,
+    30.1472,
+    -108.563
+   ],
+   "yaw": 0.0,
+   "id": "crest_lost_bundle"
+  },
+  {
+   "role": "chest",
+   "pos": [
+    63.0,
+    2.7166,
+    -50.0
+   ],
+   "yaw": 0.0,
+   "id": "oasis_camp_chest"
   }
  ],
  "lights": [

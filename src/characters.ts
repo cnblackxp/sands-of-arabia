@@ -135,6 +135,8 @@ export class CharacterFactory {
   private personLib: ClipLibrary;
   private horseLib: ClipLibrary;
   private camelLib: ClipLibrary;
+  private wingedLib: ClipLibrary | null = null;
+  private winged: GLTF | null = null;
 
   constructor(
     private person: GLTF,
@@ -191,6 +193,20 @@ export class CharacterFactory {
 
   createHorse(colours: Record<string, number>, saddle: boolean): Rig {
     return this.build(this.horse, this.horseLib, colours, new Set(saddle ? ['Saddle'] : []), new THREE.Sphere(new THREE.Vector3(0, 1.2, 0), 2.4));
+  }
+
+  /** Use the dedicated winged-horse model when it is available. */
+  setWingedHorse(g: GLTF | null): void {
+    this.winged = g;
+    this.wingedLib = g ? new ClipLibrary(g.animations, [], null, ['Rear']) : null;
+  }
+
+  get hasWingedModel(): boolean {
+    return !!this.winged;
+  }
+
+  createWingedHorse(): Rig {
+    return this.build(this.winged!, this.wingedLib!, {}, new Set(), new THREE.Sphere(new THREE.Vector3(0, 1.3, 0), 2.8));
   }
 
   createCamel(colours: Record<string, number>, saddle: boolean, cargo: boolean): Rig {

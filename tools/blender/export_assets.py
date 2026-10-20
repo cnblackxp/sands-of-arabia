@@ -16,6 +16,8 @@ from mathutils import Vector, Matrix, noise
 import arabia_lib as L
 import rigs
 
+R = math.radians
+
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 ONLY = next((a[5:].split(",") for a in ARGS if a.startswith("only=")), None)
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
@@ -291,6 +293,16 @@ def export_characters():
         "notes": "Clip ground speeds: Walk 1.7 m/s, Gallop 9 m/s. Recolour H_Coat / H_Mane / H_Blanket.",
     })
     clear_scene()
+    arm = rigs.build_horse(col, winged=True)
+    clips = clip_info()
+    export([arm], "characters/horse_winged.glb", "character", anim=True, extra={
+        "accessories": sorted(o.name for o in bpy.data.objects if o.get("accessory")), "clips": clips,
+        "sockets": {"mount": "attach the rider's root here; rider plays Ride"},
+        "notes": ("Winged horse (spawn role winged_horse). Wings live on the Body mesh, skinned to wing_L/wing_R: "
+                  "folded flat on the back in Idle/Walk/Gallop/Rear, spread in Flap (loop, one beat = 0.5 s, the "
+                  "downstroke peaks at frame 7) and Glide (loop). Legs tuck in both. Bareback (no saddle)."),
+    })
+    clear_scene()
     arm = rigs.build_camel(col)
     clips = clip_info()
     export([arm], "characters/camel.glb", "character", anim=True, extra={
@@ -351,6 +363,53 @@ def export_props():
         fn(mb)
         ob = mb.build(name, L.C_LAND)
         export([ob], f"props/{name}.glb", "prop")
+
+    # bonfire: rest point. Separate "Flame" node so the game can light it.
+    clear_scene()
+    mb = L.MB()
+    stone = L.mat("StoneDark", "#9a8466", 0.9)
+    for k in range(9):
+        a = k / 9 * math.tau
+        mb.ico((math.cos(a) * 0.75, math.sin(a) * 0.75, 0.12), (0.22, 0.18, 0.15), stone, sub=1, jitter=0.03)
+    mb.cyl((0, 0, 0.03), 0.62, 0.62, 0.05, L.mat("Ash", "#2e2620", 1.0), segs=10)
+    for a in (0.2, 1.4, 2.6, 3.8, 5.0):
+        mb.box((math.cos(a) * 0.22, math.sin(a) * 0.22, 0.14), (0.6, 0.11, 0.11), L.mat("Charred", "#2a1d14", 1.0),
+               rot=(0, -0.5, a))
+    steel = rigs.mat("P_Steel", "#c9cdd2", 0.25, metallic=1.0)
+    brass = rigs.mat("P_Brass", "#c99a3a", 0.35, metallic=1.0)
+    lean = (0.18, 0.12, 0.4)
+    mb.box((0, 0, 0.45), (0.025, 0.08, 0.9), steel, rot=lean)                 # blade, buried in the embers
+    mb.box((0.075, -0.04, 0.95), (0.06, 0.3, 0.05), brass, rot=lean)         # guard
+    mb.box((0.1, -0.06, 1.08), (0.05, 0.05, 0.2), rigs.mat("P_Grip", "#3a2414", 0.8), rot=lean)
+    mb.box((0.12, -0.07, 1.2), (0.07, 0.07, 0.06), brass, rot=lean)
+    base = mb.build("Bonfire", L.C_LAND)
+    fm = L.MB()
+    flame = L.mat("BonfireFlame", "#ffb066", 0.5, emit="#ff7a1a", strength=40)
+    fm.cyl((0, 0, 0.4), 0.38, 0.03, 0.75, flame, segs=5)
+    fm.cyl((0.12, 0.08, 0.3), 0.18, 0.02, 0.5, flame, segs=4)
+    fl = fm.build("Flame", L.C_LAND)
+    export([base, fl], "props/bonfire.glb", "prop", extra={
+        "notes": "Nodes: Bonfire (stone ring, logs, sword in the embers) and Flame (emissive; hide when unlit)."})
+
+    # chest: Lid node pivots on the back hinge; lid.rotation.x = -1.7 opens it (same sign in three.js)
+    clear_scene()
+    mb = L.MB()
+    wood = L.mat("ChestWood", "#6b4423", 0.8)
+    band = brass
+    w, d, h = 1.0, 0.62, 0.5
+    mb.box((0, 0, h / 2), (w, d, h), wood)
+    for sx in (-0.38, 0.0, 0.38):
+        mb.box((sx, 0, h / 2), (0.06, d + 0.02, h + 0.01), band)
+    mb.box((0, -d / 2 - 0.01, h - 0.08), (0.12, 0.03, 0.14), band)
+    cb = mb.build("ChestBase", L.C_LAND)
+    lm = L.MB()
+    lm.box((0, -d / 2, 0.12), (w, d, 0.24), wood)
+    for sx in (-0.38, 0.0, 0.38):
+        lm.box((sx, -d / 2, 0.12), (0.06, d + 0.02, 0.25), band)
+    lm.box((0, -d - 0.01, 0.06), (0.12, 0.03, 0.12), band)
+    lid = lm.build("ChestLid", L.C_LAND, loc=(0, d / 2, h))
+    export([cb, lid], "props/chest.glb", "prop", extra={
+        "notes": "Nodes: ChestBase and ChestLid (origin on the back hinge). Open with lid.rotation.x = -1.7."})
 
     # standalone sword (pickups / racks): grip at origin, blade along +Y (three.js)
     clear_scene()
@@ -667,6 +726,20 @@ def export_level():
         bounds = (TX0, TX1, TY0, TY1)
     MP.dress(dmb, dctx, _Oasis, lambda x, y: True, rocks=60, singles=120, shrubs=260, dry=120, acacias=30, dead=12,
              ruins=6, bones=8)
+    # v4: exit to the rooftop town, gameplay markers (after the dressing pass, so it is unchanged)
+    exits.append(("rooftops", 186, 150, (182, 153.5), (180, 144, R(45)), "North-east to the rooftops of Qaryat al-Faw"))
+    K.cairn(dmb, dctx, 182, 153.5)
+    sp("player", 180, 144, R(45), **{"from": "rooftops"})
+    sp("bonfire", -4.0, -42.0, 0.0, id="oasis_market")
+    sp("bonfire", 54.0, 70.0, 0.0, id="oasis_tomb_approach")
+    sp("shopkeeper", -15.5, -12.8, 0.4, id="oasis_trader")
+    sp("quest_giver", 9.0, 47.0, 0.0, id="oasis_priest")
+    sp("quest_giver", -19.0, 9.0, 2.0, id="oasis_elder")
+    sp("pickup", -21.0, -3.0, 0.0, id="pool_jar")
+    sp("pickup", 72.0, 105.0, 0.0, id="tomb_tablet")
+    cb = L.crest_point(-30)
+    sp("pickup", cb.x, cb.y, 0.0, id="crest_lost_bundle")
+    sp("chest", 63.0, 50.0, 0.0, id="oasis_camp_chest")
     dob = dmb.build("Dressing", L.C_LAND)
     export([dob], "level/dressing.glb", "level", extra={"notes": "dune dressing; colliders are in level.json"})
     bpy.data.objects.remove(dob, do_unlink=True)
@@ -806,9 +879,11 @@ if want("level"):
 MAP_NAMES = next((a[5:].split(",") for a in ARGS if a.startswith("maps=")), None)
 if want("maps"):
     import maps as _maps
+    import platform_maps  # noqa: F401  (registers the v4 platforming maps)
     _maps.run(sys.modules[__name__], MAP_NAMES)
 if want("maps") or want("level"):
     import maps as _maps
+    import platform_maps  # noqa: F401  (registers the v4 platforming maps)
     _maps.write_index(sys.modules[__name__])
 if want("sky") and "nosky" not in ARGS:
     export_sky()

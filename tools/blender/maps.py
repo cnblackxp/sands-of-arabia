@@ -208,8 +208,9 @@ def level_dict(m, ctx, heights, rel_dir):
     x0, x1, y0, y1 = m.bounds
 
     def sp(s):
-        d = {"role": s["role"], "pos": to3((s["x"], s["y"], L.height(s["x"], s["y"]))), "yaw": round(s["rot"], 4)}
-        d.update({k: v for k, v in s.items() if k not in ("role", "x", "y", "rot")})
+        z = s["z"] if s.get("z") is not None else L.height(s["x"], s["y"])
+        d = {"role": s["role"], "pos": to3((s["x"], s["y"], z)), "yaw": round(s["rot"], 4)}
+        d.update({k: v for k, v in s.items() if k not in ("role", "x", "y", "rot", "z") and v is not None})
         return d
     return {
         "name": m.name, "title": m.title,
@@ -415,6 +416,18 @@ class Hegra(MapDef):
                                     (-10, -34)]
         dress(mb, ctx, self, lambda x, y: self.walk_dist(x, y) < -4, rocks=34, singles=60, shrubs=110, dry=40,
               acacias=14, dead=4, ruins=2, bones=2)
+        # v4 gameplay markers + the way north to the ruined temple
+        ctx.spawn("bonfire", self.siq_x(-128), -128, 0.0, id="hegra_siq")
+        ctx.spawn("bonfire", 62, 96, 0.0, id="hegra_robbers")
+        ctx.spawn("shopkeeper", -22, 41.3, 0.0, id="hegra_trader")
+        ctx.spawn("quest_giver", door.x + 2.5, door.y - 3.0, rot + math.pi, id="hegra_priest")
+        ctx.spawn("quest_giver", q[0].x + 1.5, q[0].y - 2.0, 0.0, id="hegra_mason")
+        ctx.spawn("pickup", door.x - 4.0, door.y - 1.5, 0.0, id="khazneh_incense")
+        ctx.spawn("pickup", tombs[2].x, tombs[2].y, 0.0, id="tomb_seal")
+        ctx.spawn("chest", q[0].x - 1.5, q[0].y - 1.0, 0.0, id="hegra_qasr_chest")
+        ctx.exits.append({"to": "ruined_temple", "x": 60, "y": 134, "r": 6, "label": "North to the Sabaean temple ruins"})
+        ctx.spawn("player", 60, 126, 0.0, **{"from": "ruined_temple"})
+        K.cairn(mb, ctx, 64, 131)
 
 
 # ================================================================== Caravanserai
@@ -511,6 +524,15 @@ class Caravanserai(MapDef):
         ctx.keepout.append((85, 85, 10))
         dress(mb, ctx, self, lambda x, y: True, rocks=30, singles=50, shrubs=140, dry=60, acacias=16, dead=5,
               ruins=2, bones=4)
+        # v4 gameplay markers
+        ctx.spawn("bonfire", self.road_x(-100) + 5, -100, 0.0, id="serai_road")
+        ctx.spawn("bonfire", 70, 70, 0.0, id="serai_ridge")
+        ctx.spawn("shopkeeper", c.x - 6, c.y - 4, math.pi / 2, id="serai_trader")
+        ctx.spawn("quest_giver", c.x + 4, c.y + 8, math.pi, id="serai_innkeeper")
+        ctx.spawn("quest_giver", cc.x + 3, cc.y - 3, 0.0, id="caravan_master")
+        ctx.spawn("pickup", cp.x + 7.5, cp.y, 0.0, id="cistern_waterskin")
+        ctx.spawn("pickup", 74, -72, 0.0, id="lost_cargo")
+        ctx.spawn("chest", 77, -69, 0.0, id="serai_old_post_chest")
 
 
 # ================================================================== Wadi gardens
@@ -643,6 +665,16 @@ class Wadi(MapDef):
         ctx.keepout += [(x, self.yc(x), 6) for x in range(-125, 126, 10)]
         dress(mb, ctx, self, lambda x, y: self.depth(x, y) > 47, rocks=26, singles=50, shrubs=70, dry=40, acacias=12,
               dead=4, ruins=1, bones=1, palette=K.GREY)
+        # v4 gameplay markers + the way west up to the aqueduct cliffs
+        ctx.spawn("bonfire", 108, self.yc(108) + 3, 0.0, id="wadi_east")
+        ctx.spawn("bonfire", 64, 70, 0.0, id="wadi_tower")
+        ctx.spawn("quest_giver", 25, self.yc(25) + 48, math.pi, id="wadi_farmer_elder")
+        ctx.spawn("pickup", 0, self.yc(0) + 43, 0.0, id="falaj_sluice")
+        ctx.spawn("pickup", -60, self.yc(-60) + 10, 0.0, id="wadi_date_basket")
+        ctx.spawn("chest", 73, 74, 0.0, id="wadi_tower_chest")
+        ctx.exits.append({"to": "cliffs", "x": -124, "y": self.yc(-124), "r": 6, "label": "West, up to the aqueduct cliffs"})
+        ctx.spawn("player", -114, self.yc(-114), -math.pi / 2, **{"from": "cliffs"})
+        K.cairn(mb, ctx, -120, self.yc(-120) + 5)
 
 
 # ================================================================== Raider fort
@@ -763,6 +795,13 @@ class RaiderFort(MapDef):
         people(ctx, "prisoner", [(-20, 33, math.pi), (-19, 33.2, math.pi)])
         dress(mb, ctx, self, lambda x, y: True, rocks=46, singles=70, shrubs=40, dry=80, acacias=4, dead=6,
               ruins=1, bones=4, palette=K.GREY)
+        # v4 gameplay markers
+        ctx.spawn("bonfire", 6, -96, 0.0, id="fort_road")
+        ctx.spawn("bonfire", 8, -76, 0.0, id="fort_ramp")
+        ctx.spawn("quest_giver", -20.5, 31.5, math.pi, id="fort_prisoner")
+        ctx.spawn("pickup", 0, 24, 0.0, id="chief_seal")
+        ctx.spawn("chest", -4, 28, 0.0, id="fort_loot_chest")
+        ctx.spawn("chest", -60, -40, 0.0, id="fort_lookout_chest")
 
 
 MAPS = {m.name: m for m in (Hegra(), Caravanserai(), Wadi(), RaiderFort())}

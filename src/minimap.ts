@@ -1,7 +1,7 @@
 import type { HeightField, LevelData } from './level';
 
 export type DotKind = 'npc' | 'enemy' | 'hostile' | 'guard' | 'horse' | 'camel' | 'dead';
-export type BadgeKind = 'exit' | 'bonfire' | 'shop' | 'quest' | 'turnin' | 'objective' | 'gold' | 'camp';
+export type BadgeKind = 'exit' | 'bonfire' | 'shop' | 'quest' | 'turnin' | 'objective' | 'gold' | 'camp' | 'chest';
 
 export interface MapMarker {
   x: number;
@@ -21,6 +21,7 @@ export const BADGE: Record<BadgeKind, { fill: string; glyph: string; rim: boolea
   objective: { fill: '#c28cff', glyph: '◆', rim: true, name: 'Quest objective' },
   gold: { fill: '#ffc94a', glyph: '●', rim: true, name: 'Your lost gold' },
   camp: { fill: '#c8392b', glyph: '✖', rim: false, name: 'Raider camp' },
+  chest: { fill: '#b58a50', glyph: '▣', rim: false, name: 'Unopened chest' },
 };
 
 function isBadge(k: MapMarker['kind']): k is BadgeKind {
@@ -55,6 +56,21 @@ const TAG_COLOUR: Record<string, string> = {
   water: '#3d77b8',
   tent: '#3a2a26',
   rock: '#94603d',
+  roof: '#a87850',
+  crate: '#7a5a3a',
+  beam: '#5a3a20',
+  pillar: '#c9b48a',
+  ledge: '#9a6a48',
+  aqueduct: '#b89a70',
+  sanctuary: '#d8c8a0',
+  stair: '#a08868',
+  architrave: '#c9b48a',
+  altar: '#e0d0b0',
+  cliff: '#7f5236',
+  tower: '#7a5236',
+  ruin: '#9a7a5a',
+  tree: '#4f7a3a',
+  prop: '#7a5a3a',
 };
 
 const MARKER: Record<DotKind, [string, number]> = {

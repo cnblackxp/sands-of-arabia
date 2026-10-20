@@ -20,20 +20,28 @@ export class Horse {
   readonly winged: boolean;
   private mount: THREE.Bone;
   private groundAt: (x: number, z: number) => number;
+  private readonly hasWings: boolean;
   private vy = 0;
   private airborne = false;
+  private flapT = 0;
   private airJumps = 0;
 
   constructor(factory: CharacterFactory, private physics: Physics, spawn: Spawn, rnd: () => number, winged = false) {
     this.winged = winged;
-    this.rig = factory.createHorse(
-      winged
-        ? { H_Coat: 0xf2efe8, H_Mane: 0xd9c9a0, H_Blanket: 0x2c3e73 }
-        : { H_Coat: pick(PAL.horseCoat, rnd), H_Mane: pick(PAL.horseMane, rnd), H_Blanket: pick(PAL.blanket, rnd) },
-      true,
-    );
+    // The dedicated winged model (wings + Flap/Glide clips) when available,
+    // else a white horse standing in for it.
+    this.hasWings = winged && factory.hasWingedModel;
+    this.rig = this.hasWings
+      ? factory.createWingedHorse()
+      : factory.createHorse(
+          winged
+            ? { H_Coat: 0xf2efe8, H_Mane: 0xd9c9a0, H_Blanket: 0x2c3e73 }
+            : { H_Coat: pick(PAL.horseCoat, rnd), H_Mane: pick(PAL.horseMane, rnd), H_Blanket: pick(PAL.blanket, rnd) },
+          true,
+        );
     const feet = new THREE.Vector3(...spawn.pos);
-    feet.y = physics.groundAt(feet.x, feet.z);
+    // Markers on platforms carry their height (the winged horse waits on a plateau).
+    feet.y = physics.support(feet.x, feet.z, spawn.pos[1] + 0.3);
     this.mover = new Mover(physics, 0.7, 0.35, feet);
     this.groundAt = physics.groundAt;
     this.mover.collider.setCollisionGroups(GROUP_ACTOR);
@@ -67,6 +75,7 @@ export class Horse {
       this.airJumps++;
       this.vy = 12;
     }
+    this.flapT = 0.6;
   }
 
   /**
@@ -124,12 +133,19 @@ export class Horse {
 
   private animate(): void {
     const a = this.rig.anim;
+    if (this.hasWings && this.airborne) {
+      // Beat the wings on the way up (and just after a jump), glide down.
+      if (this.vy > 0 || this.flapT > 0) a.setBase('Flap', 1.3, 0.12);
+      else a.setBase('Glide', 1, 0.25);
+      return;
+    }
     if (this.speed < 0.25) a.setBase('Idle', 1, 0.3);
     else if (this.speed < 5) a.setBase('Walk', Math.max(0.5, this.speed / CLIP_SPEED.horseWalk), 0.25);
     else a.setBase('Gallop', this.speed / CLIP_SPEED.horseGallop, 0.25);
   }
 
   update(dt: number): void {
+    this.flapT -= dt;
     this.rig.anim.update(dt);
     this.sync();
   }

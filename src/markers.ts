@@ -102,7 +102,7 @@ const sackMat = new THREE.MeshStandardMaterial({ color: 0x8a6a48, roughness: 0.9
 export class Bonfire {
   readonly group = new THREE.Group();
   readonly pos: THREE.Vector3;
-  private flames: THREE.Mesh[] = [];
+  private flames: THREE.Object3D[] = [];
   private t = Math.random() * 10;
   lit = false;
 
@@ -111,9 +111,26 @@ export class Bonfire {
     readonly id: string,
     pos: THREE.Vector3,
     readonly yaw: number,
+    template?: THREE.Object3D | null,
   ) {
     this.pos = pos.clone();
     const g = this.group;
+    if (template) {
+      // The authored prop: `Bonfire` (stones, logs, planted sword) + `Flame`.
+      const c = template.clone(true);
+      c.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh) m.castShadow = o.name !== 'Flame';
+      });
+      const flame = c.getObjectByName('Flame');
+      if (flame) this.flames.push(flame);
+      g.add(c);
+      g.position.copy(pos);
+      g.rotation.y = yaw;
+      scene.add(g);
+      this.setLit(false);
+      return;
+    }
     for (let i = 0; i < 9; i++) {
       const a = (i / 9) * Math.PI * 2;
       const s = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.18), stoneMat);
@@ -162,12 +179,73 @@ export class Bonfire {
   update(dt: number): void {
     this.t += dt;
     if (!this.lit) return;
+    if (this.flames.length === 1) {
+      const k = 0.85 + 0.15 * Math.sin(this.t * 11) + 0.08 * Math.sin(this.t * 23);
+      this.flames[0].scale.set(1, k, 1);
+      return;
+    }
     this.flames.forEach((f, i) => {
       const k = 0.7 + 0.35 * Math.sin(this.t * (7 + i * 1.7) + i);
       f.scale.set(0.8 + 0.2 * k, 0.6 + 0.9 * k, 0.8 + 0.2 * k);
       f.position.y = 0.2 + 0.18 * k;
       f.rotation.y = this.t * (1 + i * 0.3);
     });
+  }
+}
+
+/** A chest with a hinged lid (authored prop, or a box fallback). */
+export class Chest {
+  readonly group = new THREE.Group();
+  private lid: THREE.Object3D | null = null;
+  private openT = -1;
+  opened = false;
+
+  constructor(
+    scene: THREE.Scene,
+    readonly id: string,
+    readonly pos: THREE.Vector3,
+    yaw: number,
+    readonly secret: boolean,
+    template?: THREE.Object3D | null,
+  ) {
+    if (template) {
+      const c = template.clone(true);
+      c.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
+      });
+      this.lid = c.getObjectByName('ChestLid') ?? null;
+      this.group.add(c);
+    } else {
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.6), logMat);
+      base.position.y = 0.25;
+      const lid = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.18, 0.62), logMat);
+      lid.geometry.translate(0, 0.09, 0.31);
+      lid.position.set(0, 0.5, -0.31);
+      this.lid = lid;
+      this.group.add(base, lid);
+    }
+    this.group.position.copy(pos);
+    this.group.rotation.y = yaw;
+    scene.add(this.group);
+  }
+
+  /** Open instantly (already looted on an earlier visit). */
+  setOpen(): void {
+    this.opened = true;
+    if (this.lid) this.lid.rotation.x = -1.7;
+  }
+
+  open(): void {
+    this.opened = true;
+    this.openT = 0;
+  }
+
+  update(dt: number): void {
+    if (this.openT < 0 || !this.lid) return;
+    this.openT += dt;
+    const u = Math.min(1, this.openT / 0.6);
+    this.lid.rotation.x = -1.7 * (1 - Math.pow(1 - u, 3));
+    if (u >= 1) this.openT = -1;
   }
 }
 

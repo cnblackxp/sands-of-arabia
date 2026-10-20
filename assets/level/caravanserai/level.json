@@ -4148,6 +4148,86 @@
    "yaw": -0.0143,
    "kind": "raider",
    "camp": "ridge"
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    -0.4558,
+    0.0533,
+    100
+   ],
+   "yaw": 0.0,
+   "id": "serai_road"
+  },
+  {
+   "role": "bonfire",
+   "pos": [
+    70,
+    4.3213,
+    -70
+   ],
+   "yaw": 0.0,
+   "id": "serai_ridge"
+  },
+  {
+   "role": "shopkeeper",
+   "pos": [
+    26.0,
+    0.0127,
+    -2.0
+   ],
+   "yaw": 1.5708,
+   "id": "serai_trader"
+  },
+  {
+   "role": "quest_giver",
+   "pos": [
+    36.0,
+    0.0023,
+    -14.0
+   ],
+   "yaw": 3.1416,
+   "id": "serai_innkeeper"
+  },
+  {
+   "role": "quest_giver",
+   "pos": [
+    -27.0,
+    -0.0013,
+    -29.0
+   ],
+   "yaw": 0.0,
+   "id": "caravan_master"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    -26.5,
+    -0.0265,
+    38.0
+   ],
+   "yaw": 0.0,
+   "id": "cistern_waterskin"
+  },
+  {
+   "role": "pickup",
+   "pos": [
+    74,
+    2.6469,
+    72
+   ],
+   "yaw": 0.0,
+   "id": "lost_cargo"
+  },
+  {
+   "role": "chest",
+   "pos": [
+    77,
+    2.8906,
+    69
+   ],
+   "yaw": 0.0,
+   "id": "serai_old_post_chest"
   }
  ],
  "lights": [

@@ -36,6 +36,10 @@ export interface Spawn {
   from?: string;
   /** Named enemy (e.g. "chief"). */
   title?: string;
+  /** Marker id (bonfire, shopkeeper, quest_giver, pickup, chest, winged_horse). */
+  id?: string;
+  /** Chest: hidden off the beaten path. */
+  secret?: boolean;
 }
 
 export interface Exit {

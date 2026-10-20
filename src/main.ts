@@ -9,14 +9,14 @@ import { Hud, type Action, type EnemyBar } from './hud';
 import { Input, type Frame } from './input';
 import { GOLD_DROP, ITEM_NAMES, UPGRADES, WEAPONS, upgradePrice, weapon } from './items';
 import type { Exit, Spawn, Vec3 } from './level';
-import { beam, Bonfire, GoldPile, Icon, type IconKind, Pickup } from './markers';
+import { beam, Bonfire, Chest, GoldPile, Icon, type IconKind, Pickup } from './markers';
 import { Menu, type MenuRow, type MenuTab } from './menu';
 import { BADGE, Minimap, type BadgeKind, type MapMarker } from './minimap';
 import { type Npc, NpcSystem } from './npc';
 import { Physics } from './physics';
 import { Player } from './player';
 import { Progress } from './progress';
-import { objMap, QUESTS, QuestSystem, type QuestDef } from './quests';
+import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
 import { mulberry32 } from './util';
 import { cutout, loadCommon, loadMap, World, type CommonAssets, type MapEntry } from './world';
@@ -70,6 +70,7 @@ class Game {
   horses: Horse[] = [];
   camels: Camel[] = [];
   bonfires: Bonfire[] = [];
+  chests: Chest[] = [];
   pickups: Pickup[] = [];
   lostPile: GoldPile | null = null;
   private icons = new Map<Npc, Icon>();
@@ -110,6 +111,7 @@ class Game {
     });
     const c = this.common;
     this.factory = new CharacterFactory(c.person, c.horse, c.camel, c.personClips);
+    this.factory.setWingedHorse(c.wingedHorse);
 
     const hudRoot = document.getElementById('hud')!;
     this.menu = new Menu(hudRoot, this.hud, (confirm) => this.sfx.ui(confirm));
@@ -233,6 +235,7 @@ class Game {
       scene.add(m);
     }
     this.placeBonfires(level.spawns, ps);
+    this.placeChests(level.spawns);
     this.spawnPickups();
     this.spawnLostGold();
 
@@ -268,7 +271,7 @@ class Game {
   /** Bonfires from level.json (`role: "bonfire"`), else one beside the arrival point. */
   private placeBonfires(spawns: Spawn[], arrival: Spawn): void {
     const list = spawns.filter((s) => (s.role as string) === 'bonfire');
-    const spots: { pos: THREE.Vector3; yaw: number }[] = list.map((s) => ({ pos: new THREE.Vector3(...s.pos), yaw: s.yaw }));
+    const spots: { pos: THREE.Vector3; yaw: number; id?: string }[] = list.map((s) => ({ pos: new THREE.Vector3(...s.pos), yaw: s.yaw, id: s.id }));
     if (spots.length === 0) {
       const a = new THREE.Vector3(...arrival.pos);
       for (const [dx, dz] of [[3, 2], [-3, 2], [2, -3], [-2, -3], [4, 0], [0, 4]]) {
@@ -280,10 +283,12 @@ class Game {
         }
       }
     }
+    const prop = this.common.bonfireProp?.scene ?? null;
     spots.forEach((s, i) => {
-      s.pos.y = this.world.ground(s.pos.x, s.pos.z);
-      const id = `${this.mapName}:${i}`;
-      const b = new Bonfire(this.world.scene, id, s.pos, s.yaw);
+      // Markers on platforms carry their height.
+      s.pos.y = this.world.floor(s.pos.x, s.pos.z, s.pos.y);
+      const id = `${this.mapName}:${s.id ?? i}`;
+      const b = new Bonfire(this.world.scene, id, s.pos, s.yaw, prop);
       b.setLit(this.progress.data.litBonfires.includes(id));
       this.bonfires.push(b);
       this.world.addLightSpot(s.pos.clone().setY(s.pos.y + 0.6), true);
@@ -293,14 +298,57 @@ class Game {
   private spawnPickups(): void {
     for (const p of this.pickups) p.dispose();
     this.pickups = [];
+    const markers = this.world.level.spawns.filter((x) => (x.role as string) === 'pickup');
+    const at = (id: string) => {
+      const m = markers.find((x) => x.id === id);
+      if (!m) return null;
+      return new THREE.Vector3(m.pos[0], this.world.floor(m.pos[0], m.pos[2], m.pos[1]), m.pos[2]);
+    };
     for (const o of this.quests.pickupsIn(this.mapName)) {
-      const L = this.world.level.landmarks[o.landmark];
-      if (!L) continue;
-      const x = L[0] + (o.offset?.[0] ?? 0);
-      const z = L[2] + (o.offset?.[1] ?? 0);
-      const pos = new THREE.Vector3(x, this.physics.support(x, z, L[1] + 1), z);
-      this.pickups.push(new Pickup(this.world.scene, pos, o.item, ITEM_NAMES[o.item] ?? o.item));
+      const pos = at(o.pickup);
+      if (pos) this.pickups.push(new Pickup(this.world.scene, pos, o.item, ITEM_NAMES[o.item] ?? o.item.replace(/_/g, ' ')));
     }
+    for (const [id, free] of Object.entries(FREE_PICKUPS)) {
+      if (this.progress.data.taken.includes(id)) continue;
+      const pos = at(id);
+      if (pos) this.pickups.push(new Pickup(this.world.scene, pos, `free:${id}`, free.label));
+    }
+  }
+
+  /** Chests from level.json (`role: "chest"`); opened ones stay open. */
+  private placeChests(spawns: Spawn[]): void {
+    const prop = this.common.chestProp?.scene ?? null;
+    for (const s of spawns) {
+      if ((s.role as string) !== 'chest') continue;
+      const id = `${this.mapName}:${s.id ?? `${s.pos[0]},${s.pos[2]}`}`;
+      const pos = new THREE.Vector3(s.pos[0], this.world.floor(s.pos[0], s.pos[2], s.pos[1]), s.pos[2]);
+      const c = new Chest(this.world.scene, id, pos, s.yaw, !!s.secret, prop);
+      if (this.progress.data.openedChests.includes(id)) c.setOpen();
+      this.chests.push(c);
+    }
+  }
+
+  private openChest(c: Chest): void {
+    c.open();
+    this.progress.data.openedChests.push(c.id);
+    const [lo, hi] = c.secret ? [220, 380] : [50, 120];
+    const g = Math.round(lo + Math.random() * (hi - lo));
+    this.progress.addGold(g);
+    let extra = '';
+    // Secret chests also hold a waterskin (up to the cap of extra skins).
+    if (c.secret) {
+      const u = this.progress.data.upgrades;
+      if ((u.flask ?? 0) < 3) {
+        u.flask = (u.flask ?? 0) + 1;
+        this.progress.data.flasks++;
+        extra = ' and an extra waterskin';
+      }
+    }
+    this.progress.save();
+    this.floatAt(c.pos, 1.2, `+${g} gold`, 'gold');
+    this.particles.burst(c.pos.clone().setY(c.pos.y + 0.6), 14, { color: 0xffc94a, speed: 1.6, up: 3, size: 0.06, life: 0.8 });
+    this.hud.showToast(`${c.secret ? 'A hidden chest! ' : ''}${g} gold${extra}.`, 3);
+    this.sfx.ui(true);
   }
 
   private spawnLostGold(): void {
@@ -323,6 +371,7 @@ class Game {
     for (const i of this.icons.values()) i.dispose();
     this.icons.clear();
     this.bonfires = [];
+    this.chests = [];
     this.pickups = [];
     this.lostPile = null;
     this.day.dispose();
@@ -576,8 +625,9 @@ class Game {
           if (!d.litBonfires.length) rows.push({ label: 'No bonfires lit yet', kind: 'info', sub: () => 'Rest at a bonfire to travel back to it.' });
           for (const id of d.litBonfires) {
             const [map, idx] = id.split(':');
+            const name = /^\d+$/.test(idx) ? `bonfire ${Number(idx) + 1}` : idx.replace(/^[a-z]+_/, '').replace(/_/g, ' ');
             rows.push({
-              label: `${this.mapTitle(map)} — bonfire ${Number(idx) + 1}`,
+              label: `${this.mapTitle(map)} — ${name}`,
               kind: 'button',
               activate: () => void this.travelToBonfire(id),
               disabled: () => this.player.inCombat,
@@ -916,7 +966,7 @@ class Game {
   // --- dialogue ----------------------------------------------------------------
 
   private npcRef(n: Npc) {
-    return { map: this.mapName, role: n.refRole, index: n.refIndex };
+    return { map: this.mapName, role: n.refRole, index: n.refIndex, id: n.refId || undefined };
   }
 
   private openDialogue(npc: Npc): void {
@@ -1007,6 +1057,7 @@ class Game {
       this.particles.update(dt);
       this.glints.update(dt);
       for (const b of this.bonfires) b.update(dt);
+      for (const c of this.chests) c.update(dt);
       for (const k of this.pickups) k.update(dt);
       this.lostPile?.update(dt);
       this.checkLostGold();
@@ -1171,7 +1222,8 @@ class Game {
     const npc = p.horse ? null : this.npcs.nearestTalkable(p.pos, TALK_RANGE);
     const pickup = p.horse || npc ? null : this.near(this.pickups, USE_RANGE);
     const fire = p.horse || npc || pickup ? null : this.near(this.bonfires, USE_RANGE);
-    const exit = npc || pickup || fire ? null : this.nearestExit();
+    const chest = p.horse || npc || pickup || fire ? null : this.near(this.chests.filter((c) => !c.opened), USE_RANGE);
+    const exit = npc || pickup || fire || chest ? null : this.nearestExit();
     let prompt: string | null = null;
     if (npc) {
       const icon = this.quests.iconFor(this.npcRef(npc));
@@ -1179,6 +1231,7 @@ class Game {
       prompt = `${k('talk')} ${verb} ${npc.name} <i>(${npc.title.toLowerCase()})</i>`;
     } else if (pickup) prompt = `${k('talk')} Take ${pickup.label}`;
     else if (fire) prompt = `${k('talk')} ${fire.lit ? 'Rest at the bonfire' : 'Kindle the bonfire'}`;
+    else if (chest) prompt = `${k('talk')} Open the chest`;
     else if (exit) prompt = `${k('talk')} ${exit.label}`;
     else if (p.horse) prompt = `${k('mount')} Dismount`;
     else if (horse) prompt = `${k('mount')} Mount ${horse.winged ? 'the winged horse' : 'horse'}`;
@@ -1189,13 +1242,24 @@ class Game {
         this.openDialogue(npc);
         f.attack = false;
       } else if (pickup) {
-        this.quests.picked(pickup.item);
         pickup.dispose();
         this.pickups = this.pickups.filter((x) => x !== pickup);
-        this.hud.showToast(`Took: ${pickup.label}`, 2.5);
+        if (pickup.item.startsWith('free:')) {
+          const id = pickup.item.slice(5);
+          const free = FREE_PICKUPS[id];
+          this.progress.data.taken.push(id);
+          if (free.upgrade) this.progress.data.upgrades[free.upgrade] = 1;
+          this.progress.save();
+          this.hud.showToast(free.message, 4.5);
+        } else {
+          this.quests.picked(pickup.item);
+          this.hud.showToast(`Took: ${pickup.label}`, 2.5);
+        }
         this.sfx.ui(true);
       } else if (fire) {
         this.restAt(fire);
+      } else if (chest) {
+        this.openChest(chest);
       } else if (exit) {
         void this.travel(exit.to);
       } else if (p.horse) p.dismount(this.world);
@@ -1259,6 +1323,8 @@ class Game {
     for (const c of this.camels) m.push({ x: c.rig.root.position.x, z: c.rig.root.position.z, kind: 'camel' });
     for (const e of this.exits) m.push({ x: e.pos[0], z: e.pos[2], kind: 'exit', label: full ? `To ${this.mapTitle(e.to)}` : undefined });
     for (const b of this.bonfires) m.push({ x: b.pos.x, z: b.pos.z, kind: 'bonfire', label: full ? (b.lit ? 'Bonfire' : 'Bonfire (unlit)') : undefined });
+    // Chests: only the ones on the beaten path show before they are found.
+    for (const c of this.chests) if (!c.opened && !c.secret) m.push({ x: c.pos.x, z: c.pos.z, kind: 'chest' });
     for (const k of this.pickups) m.push({ x: k.pos.x, z: k.pos.z, kind: 'objective', label: full ? k.label : undefined });
     if (this.lostPile) m.push({ x: this.lostPile.pos.x, z: this.lostPile.pos.z, kind: 'gold', label: full ? 'Your gold' : undefined });
     // Objectives in another region: mark the exit that leads there.

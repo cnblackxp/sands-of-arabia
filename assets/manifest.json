@@ -316,7 +316,7 @@
     5.625
    ],
    "materials": [
-    "Mud0",
+    "Lime",
     "Opening",
     "Wood"
    ]
@@ -358,7 +358,7 @@
     6.625
    ],
    "materials": [
-    "Mud1",
+    "Mud2",
     "Opening",
     "Wood"
    ]
@@ -373,7 +373,7 @@
    ],
    "materials": [
     "Lime",
-    "Mud1",
+    "Mud0",
     "Opening"
    ]
   },
@@ -410,19 +410,22 @@
    "file": "market/stall_spice.glb",
    "kind": "prop",
    "size": [
-    3.708,
-    3.146,
-    3.572
+    4.571,
+    3.147,
+    3.731
    ],
    "materials": [
     "Aw0a",
     "Aw0b",
     "Clay",
-    "Clay2",
-    "Rug0",
+    "LampFlame",
+    "Leather",
+    "Rug3",
+    "Sack",
+    "Spice0",
     "Spice2",
     "Spice3",
-    "Spice4",
+    "Spice5",
     "Wood"
    ]
   },
@@ -430,16 +433,16 @@
    "file": "market/stall_pots.glb",
    "kind": "prop",
    "size": [
-    4.602,
-    3.14,
-    4.119
+    4.362,
+    3.138,
+    4.109
    ],
    "materials": [
     "Aw1a",
     "Aw1b",
     "Clay",
     "Clay2",
-    "Rug1",
+    "Rug2",
     "Sack",
     "Wood"
    ]
@@ -448,17 +451,21 @@
    "file": "market/stall_cloth.glb",
    "kind": "prop",
    "size": [
-    4.262,
-    3.143,
-    3.987
+    4.725,
+    3.146,
+    3.761
    ],
    "materials": [
     "Aw2a",
     "Aw2b",
-    "Clay",
+    "Clay2",
+    "LampFlame",
+    "Leather",
     "Rug0",
     "Rug1",
     "Rug2",
+    "Rug3",
+    "Rug4",
     "Sack",
     "Wood"
    ]
@@ -467,16 +474,17 @@
    "file": "market/stall_brass.glb",
    "kind": "prop",
    "size": [
-    4.706,
-    3.144,
-    3.882
+    3.77,
+    3.15,
+    3.621
    ],
    "materials": [
     "Aw3a",
     "Aw3b",
     "Brass",
-    "Clay",
-    "Rug1",
+    "LampFlame",
+    "Leather",
+    "Rug0",
     "Sack",
     "Wood"
    ]
@@ -485,9 +493,9 @@
    "file": "nature/palm_a.glb",
    "kind": "nature",
    "size": [
-    6.656,
-    8.794,
-    7.076
+    6.649,
+    7.897,
+    6.731
    ],
    "materials": [
     "Dates",
@@ -499,9 +507,9 @@
    "file": "nature/palm_b.glb",
    "kind": "nature",
    "size": [
-    8.54,
-    11.194,
-    9.236
+    7.266,
+    11.679,
+    8.007
    ],
    "materials": [
     "Dates",
@@ -513,9 +521,9 @@
    "file": "nature/palm_c.glb",
    "kind": "nature",
    "size": [
-    5.729,
-    8.697,
-    5.805
+    6.319,
+    8.187,
+    6.337
    ],
    "materials": [
     "Dates",
@@ -533,7 +541,7 @@
    ],
    "materials": [
     "GoatHair",
-    "Rug3",
+    "Rug4",
     "Wood"
    ]
   },
@@ -701,24 +709,24 @@
    ]
   },
   "terrain": {
-   "file": "level/wadi/terrain.glb",
+   "file": "level/ruined_temple/terrain.glb",
    "kind": "terrain",
    "size": [
-    260.0,
-    20.339,
-    220.0
+    180.0,
+    11.082,
+    184.0
    ],
    "materials": [
     "SandVC"
    ]
   },
   "town": {
-   "file": "level/wadi/town.glb",
+   "file": "level/ruined_temple/town.glb",
    "kind": "level",
    "size": [
-    254.137,
-    35.296,
-    210.072
+    170.568,
+    15.92,
+    174.409
    ],
    "materials": [
     "Banner0",
@@ -726,25 +734,18 @@
     "Bone",
     "Canopy0",
     "Canopy1",
-    "Dates",
     "DryBrush",
-    "Frond",
-    "GreyBand0",
-    "GreyBand1",
-    "GreyBand2",
-    "GreyBand3",
+    "Leather",
     "Lime",
-    "Mud0",
-    "Mud1",
-    "Oleander",
-    "Opening",
+    "RockBand0",
+    "RockBand1",
+    "RockBand2",
+    "RockBand3",
     "Shrub0",
     "Shrub1",
     "Shrub2",
     "Stone",
     "StoneDark",
-    "Trunk",
-    "WaterDeep",
     "Wood"
    ]
   },
@@ -777,12 +778,12 @@
    "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
   },
   "backdrop_ground": {
-   "file": "level/wadi/backdrop_ground.glb",
+   "file": "level/ruined_temple/backdrop_ground.glb",
    "kind": "backdrop",
    "size": [
-    1700.0,
-    18.651,
-    1660.0
+    1620.0,
+    10.19,
+    1620.0
    ],
    "materials": [
     "SandVC"
@@ -835,6 +836,115 @@
    "file": "level/raider_fort/level.json",
    "kind": "level-data",
    "title": "The raider stronghold"
+  },
+  "level_rooftops": {
+   "file": "level/rooftops/level.json",
+   "kind": "level-data",
+   "title": "Rooftops of Qaryat al-Faw"
+  },
+  "level_cliffs": {
+   "file": "level/cliffs/level.json",
+   "kind": "level-data",
+   "title": "The aqueduct cliffs"
+  },
+  "level_ruined_temple": {
+   "file": "level/ruined_temple/level.json",
+   "kind": "level-data",
+   "title": "Ruins of the Sabaean temple"
+  },
+  "horse_winged": {
+   "file": "characters/horse_winged.glb",
+   "kind": "character",
+   "size": [
+    1.56,
+    2.435,
+    3.08
+   ],
+   "materials": [
+    "W_Blaze",
+    "W_Coat",
+    "W_Eyes",
+    "W_Feather",
+    "W_FeatherTip",
+    "W_Hoof",
+    "W_Mane"
+   ],
+   "accessories": [],
+   "clips": {
+    "Flap": {
+     "frames": 12,
+     "loop": true,
+     "duration": 0.5,
+     "layer": "full"
+    },
+    "Gallop": {
+     "frames": 12,
+     "loop": true,
+     "duration": 0.5,
+     "layer": "full"
+    },
+    "Glide": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full"
+    },
+    "Idle": {
+     "frames": 48,
+     "loop": true,
+     "duration": 2.0,
+     "layer": "full"
+    },
+    "Rear": {
+     "frames": 30,
+     "loop": false,
+     "duration": 1.25,
+     "layer": "full"
+    },
+    "Walk": {
+     "frames": 32,
+     "loop": true,
+     "duration": 1.333,
+     "layer": "full"
+    }
+   },
+   "sockets": {
+    "mount": "attach the rider's root here; rider plays Ride"
+   },
+   "notes": "Winged horse (spawn role winged_horse). Wings live on the Body mesh, skinned to wing_L/wing_R: folded flat on the back in Idle/Walk/Gallop/Rear, spread in Flap (loop, one beat = 0.5 s, the downstroke peaks at frame 7) and Glide (loop). Legs tuck in both. Bareback (no saddle)."
+  },
+  "bonfire": {
+   "file": "props/bonfire.glb",
+   "kind": "prop",
+   "size": [
+    1.871,
+    1.295,
+    1.805
+   ],
+   "materials": [
+    "Ash",
+    "BonfireFlame",
+    "Charred",
+    "P_Brass",
+    "P_Grip",
+    "P_Steel",
+    "StoneDark"
+   ],
+   "notes": "Nodes: Bonfire (stone ring, logs, sword in the embers) and Flame (emissive; hide when unlit)."
+  },
+  "chest": {
+   "file": "props/chest.glb",
+   "kind": "prop",
+   "size": [
+    1.0,
+    0.75,
+    0.655
+   ],
+   "materials": [
+    "ChestWood",
+    "P_Brass"
+   ],
+   "notes": "Nodes: ChestBase and ChestLid (origin on the back hinge). Open with lid.rotation.x = -1.7."
   }
  },
  "conventions": {

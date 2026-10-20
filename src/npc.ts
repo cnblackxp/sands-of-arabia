@@ -11,7 +11,7 @@ import { angleTo, dampAngle, mulberry32, turnToward } from './util';
 
 type State = 'idle' | 'walk' | 'sit' | 'talk' | 'stagger' | 'flee' | 'return' | 'chase' | 'strike' | 'dead';
 
-const NOT_NPC = new Set(['player', 'camel', 'horse', 'enemy']);
+const NOT_NPC = new Set(['player', 'camel', 'horse', 'enemy', 'bonfire', 'pickup', 'chest', 'winged_horse']);
 const WALK = 1.4;
 const RUN = 4.6;
 const RADIUS = 0.3;
@@ -28,6 +28,10 @@ export class Npc {
   /** Spawn role and index among that role's spawns in this map (quest references). */
   refRole = '';
   refIndex = 0;
+  /** Small-talk pool override (quest givers placed as generic NPCs). */
+  linesRole: NpcRole | null = null;
+  /** Spawn id from level.json (quest givers, shopkeepers). */
+  refId = '';
   /** Sells wares (opens the shop instead of small talk). */
   shop = false;
   private home: THREE.Vector3;
@@ -111,7 +115,7 @@ export class Npc {
     if (this.state !== 'sit') this.enter('talk');
     else this.state = 'talk';
     this.rig.anim.playOverlay('Talk', { loop: true, fade: 0.25 });
-    return conversation(this.role, this.sys.rnd);
+    return conversation(this.linesRole ?? this.role, this.sys.rnd);
   }
 
   endTalk(): void {
@@ -296,7 +300,7 @@ export class Npc {
       const nx = this.pos.x + k.x * dt;
       const nz = this.pos.z + k.z * dt;
       if (!this.sys.world.nav.isBlocked(nx, nz)) {
-        this.pos.set(nx, this.sys.world.ground(nx, nz), nz);
+        this.pos.set(nx, this.sys.world.floor(nx, nz, this.pos.y), nz);
         moving = true;
       }
       k.multiplyScalar(Math.max(0, 1 - dt * 7));
@@ -338,7 +342,7 @@ export class Npc {
     const nx = this.pos.x + dir[0] * step;
     const nz = this.pos.z + dir[1] * step;
     if (nav.isBlocked(nx, nz)) return this.step(dir[0], dir[1], step, dt, true);
-    this.pos.set(nx, this.sys.world.ground(nx, nz), nz);
+    this.pos.set(nx, this.sys.world.floor(nx, nz, this.pos.y), nz);
     this.yaw = dampAngle(this.yaw, Math.atan2(dir[0], dir[1]), 12, dt);
     return true;
   }
@@ -357,7 +361,7 @@ export class Npc {
       if (nx < b.x[0] || nx > b.x[1] || nz < b.z[0] || nz > b.z[1]) continue;
       this.pos.x = nx;
       this.pos.z = nz;
-      this.pos.y = w.ground(nx, nz);
+      this.pos.y = w.floor(nx, nz, this.pos.y);
       this.yaw = dampAngle(this.yaw, a, 12, dt);
       return true;
     }
@@ -392,7 +396,7 @@ export class Npc {
       }
       if (w.nav.isBlocked(x, z)) continue;
       if (!w.nav.lineClear(this.pos.x, this.pos.z, x, z)) continue;
-      this.target.set(x, w.ground(x, z), z);
+      this.target.set(x, w.floor(x, z, this.pos.y), z);
       if (this.role === 'water_carrier') this.leg ^= 1;
       return true;
     }
@@ -407,6 +411,15 @@ export class Npc {
     this.rig.root.position.copy(this.pos);
     this.rig.root.rotation.y = this.yaw;
   }
+}
+
+/** "oasis_elder" → "Elder", "caravan_master" → "Caravan master". */
+function giverTitle(id: string): string {
+  const parts = id.split('_');
+  const known = ['oasis', 'hegra', 'serai', 'wadi', 'fort', 'rooftops', 'cliffs', 'temple'];
+  const rest = known.includes(parts[0]) && parts.length > 1 ? parts.slice(1) : parts;
+  const t = rest.join(' ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
 }
 
 export class NpcSystem {
@@ -433,17 +446,25 @@ export class NpcSystem {
     for (const s of level.spawns) {
       if (NOT_NPC.has(s.role)) continue;
       const shop = (s.role as string) === 'shopkeeper';
+      const giver = (s.role as string) === 'quest_giver';
       explicitShop ||= shop;
-      // Unknown roles from new maps behave as wanderers; shopkeepers as merchants.
-      const role = (shop ? 'merchant' : s.role in ROLE_TITLE ? s.role : 'wanderer') as NpcRole;
+      // Unknown roles from new maps behave as wanderers; shopkeepers as merchants;
+      // quest givers stand where they were placed.
+      const role = (shop ? 'merchant' : giver ? 'priest' : s.role in ROLE_TITLE ? s.role : 'wanderer') as NpcRole;
       const { acc, colours, female } = this.dress(role);
       const rig = factory.createPerson(acc, colours);
       const at = new THREE.Vector3(...s.pos);
-      at.y = world.ground(at.x, at.z);
+      at.y = world.floor(at.x, at.z, s.pos[1]);
       s.pos[1] = at.y;
       const col = world.physics.addActor(RADIUS, HALF, at);
       const npc = new Npc(role, rig, s, female, col, this);
       npc.refRole = s.role;
+      npc.refId = s.id ?? '';
+      if (giver && s.id) {
+        npc.title = giverTitle(s.id);
+        const id = s.id;
+        npc.linesRole = /priest|scholar/.test(id) ? 'priest' : /farmer/.test(id) ? 'farmer' : /prisoner/.test(id) ? 'prisoner' : 'wanderer';
+      }
       npc.refIndex = counts[s.role] ?? 0;
       counts[s.role] = npc.refIndex + 1;
       if (shop) npc.shop = true;

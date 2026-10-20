@@ -25,6 +25,9 @@ export interface ProgressData {
   quests: Record<string, QuestState>;
   items: Record<string, number>;
   trackedQuest: string | null;
+  openedChests: string[];
+  /** Free (non-quest) pickups already taken, e.g. the white feather. */
+  taken: string[];
 }
 
 const KEY = 'sands-of-arabia.save.v1';
@@ -43,6 +46,8 @@ export function freshProgress(): ProgressData {
     quests: {},
     items: {},
     trackedQuest: null,
+    openedChests: [],
+    taken: [],
   };
 }
 

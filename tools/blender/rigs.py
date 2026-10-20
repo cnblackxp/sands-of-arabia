@@ -532,8 +532,8 @@ def person_clips(arm):
 
 
 # ------------------------------------------------------------------ quadrupeds
-def build_horse(col):
-    arm = make_armature("Horse", [
+def build_horse(col, winged=False):
+    bones = [
         ("root", None, (0, 0, 0)),
         ("body", "root", (0, 0, 1.3)),
         ("leg_FL", "body", (-0.2, -0.72, 1.05)),
@@ -544,12 +544,24 @@ def build_horse(col):
         ("head", "neck", (0, -1.28, 2.15)),
         ("tail", "body", (0, 0.95, 1.6)),
         ("mount", "body", (0, 0.05, 0.96)),        # rider root goes here (seat - 0.88)
-    ], col)
-    coat = mat("H_Coat", "#7a4a2a", 0.9)
-    mane = mat("H_Mane", "#1e1410", 0.9)
-    hoof = mat("H_Hoof", "#2a2420", 0.8)
-    eyes = mat("H_Eyes", "#0e0a08", 0.4)
-    blaze = mat("H_Blaze", "#efe6d8", 0.9)
+    ]
+    if winged:
+        bones += [("wing_L", "body", (-0.27, -0.52, 1.79)), ("wing_R", "body", (0.27, -0.52, 1.83))]
+    arm = make_armature("HorseWinged" if winged else "Horse", bones, col)
+    if winged:
+        for b in ("wing_L", "wing_R"):
+            arm.pose.bones[b].rotation_mode = "YZX"   # spread about the vertical first, then flap about the body axis
+        coat = mat("W_Coat", "#efe9df", 0.85)
+        mane = mat("W_Mane", "#d9b25a", 0.6)
+        hoof = mat("W_Hoof", "#b8913e", 0.4, metallic=0.6)
+        eyes = mat("W_Eyes", "#1a2a4a", 0.3)
+        blaze = mat("W_Blaze", "#fffaf0", 0.8)
+    else:
+        coat = mat("H_Coat", "#7a4a2a", 0.9)
+        mane = mat("H_Mane", "#1e1410", 0.9)
+        hoof = mat("H_Hoof", "#2a2420", 0.8)
+        eyes = mat("H_Eyes", "#0e0a08", 0.4)
+        blaze = mat("H_Blaze", "#efe6d8", 0.9)
     mb = RigMB()
     mb.grp("body")
     mb.box((0, 0, 1.32), (0.6, 1.6, 0.72), coat)
@@ -573,8 +585,33 @@ def build_horse(col):
     mb.box((0, -1.3, 2.3), (0.1, 0.12, 0.1), mane)
     mb.grp("tail")
     mb.box((0, 1.05, 1.28), (0.12, 0.13, 0.7), mane, rot=(R(18), 0, 0))
+    if winged:
+        # wings modelled spread (left along -X, feathers trailing +Y), then folded flat on the back:
+        # folded = rotate -90 deg about Z for the left wing (+90 for the right) around the shoulder joint
+        feather = mat("W_Feather", "#f6f2ea", 0.7)
+        tip = mat("W_FeatherTip", "#d9b25a", 0.4, metallic=0.5)
+        from mathutils import Matrix as _Mx
+        for side, jx, jz in (("L", -0.27, 1.79), ("R", 0.27, 1.83)):
+            sgn = -1 if side == "L" else 1
+            fold = _Mx.Rotation(R(-90 if side == "L" else 90), 3, "Z")
+            J = Vector((jx, -0.52, jz))
+            mb.grp("wing_" + side)
+
+            def put(c, s, m, j=J, f=fold, sg=sgn):
+                p = j + f @ Vector((sg * c[0], c[1], c[2]))
+                mb.box(tuple(p), s, m, rot=(0, 0, R(-90 if sg < 0 else 90)))
+            put((0.75, 0.0, 0.03), (1.5, 0.14, 0.1), feather)                       # leading edge
+            for k in range(7):
+                x = 0.18 + k * 0.21
+                ln = 0.45 + k * 0.08
+                put((x, ln / 2, 0.0), (0.2, ln, 0.04), feather)
+                put((x, ln + 0.06, 0.0), (0.18, 0.12, 0.045), tip)
+            put((1.55, 0.25, 0.0), (0.16, 0.5, 0.04), tip)
     mb.skinned("Body", col, arm)
 
+    if winged:
+        horse_clips(arm, winged=True)
+        return arm
     tack = RigMB()
     blanket = mat("H_Blanket", "#8b2a1f", 0.9)
     trim = mat("H_Trim", "#d39a2c", 0.8)
@@ -593,6 +630,11 @@ def build_horse(col):
     o = tack.skinned("Saddle", col, arm)
     o["accessory"] = True
 
+    horse_clips(arm)
+    return arm
+
+
+def horse_clips(arm, winged=False):
     def legs(t, amp, phases, reach=0.0):
         return {f"leg_{k}": {"rot": (-amp * S(t, ph) - reach, 0, 0)} for k, ph in phases.items()}
 
@@ -628,7 +670,29 @@ def build_horse(col):
              "neck": {"rot": (-20, 0, 0)}, "head": {"rot": (-12, 0, 0)}},
         31: {},
     }, loop=False)
-    return arm
+    if not winged:
+        return
+    tuck = {"leg_FL": {"rot": (-62, 0, 0)}, "leg_FR": {"rot": (-55, 0, 0)},
+            "leg_BL": {"rot": (48, 0, 0)}, "leg_BR": {"rot": (54, 0, 0)}}
+    # Flap: one wingbeat per 12 frames; up-stroke peaks at frame 1, down-stroke at frame 7
+    clip(arm, "Flap", 12, cyc(12, 1, lambda t: {
+        **tuck,
+        "wing_L": {"rot": (0, 90, -45 * math.cos(math.tau * t) + 5)},
+        "wing_R": {"rot": (0, -90, 45 * math.cos(math.tau * t) - 5)},
+        "body": {"loc": (0, -0.06 * math.cos(math.tau * t), 0), "rot": (-6 + 3 * S(t), 0, 0)},
+        "neck": {"rot": (-12 + 4 * S(t, 0.25), 0, 0)},
+        "head": {"rot": (6, 0, 0)},
+        "tail": {"rot": (55 + 6 * S(t), 0, 0)},
+    }))
+    # Glide: wings spread with a slight upward dihedral, gentle sway
+    clip(arm, "Glide", 24, cyc(24, 2, lambda t: {
+        **tuck,
+        "wing_L": {"rot": (0, 92, -8 + 3 * S(t))},
+        "wing_R": {"rot": (0, -92, 8 - 3 * S(t))},
+        "body": {"loc": (0, 0.03 * S(t), 0), "rot": (-3, 0, 2 * S(t, 0.25))},
+        "neck": {"rot": (-14, 0, 0)},
+        "tail": {"rot": (62, 0, 4 * S(t))},
+    }))
 
 
 def build_camel(col):

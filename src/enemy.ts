@@ -236,7 +236,7 @@ export class Enemy {
     this.def = KINDS[kind] ?? KINDS.raider;
     this.hp = this.def.hp;
     this.pos.set(...spawn.pos);
-    this.pos.y = world.ground(this.pos.x, this.pos.z);
+    this.pos.y = world.floor(this.pos.x, this.pos.z, spawn.pos[1]);
     this.yaw = spawn.yaw;
     this.home = this.pos.clone();
     this.homeYaw = spawn.yaw;
@@ -681,7 +681,7 @@ export class Enemy {
     if (this.world.nav.isBlocked(nx, nz)) return;
     this.pos.x = nx;
     this.pos.z = nz;
-    this.pos.y = this.world.ground(nx, nz);
+    this.pos.y = this.world.floor(nx, nz, this.pos.y);
   }
 
   private stepDir(dx: number, dz: number, dist: number, dt: number, face: boolean, override?: number): void {
@@ -694,7 +694,7 @@ export class Enemy {
     if (nx < b.x[0] || nx > b.x[1] || nz < b.z[0] || nz > b.z[1]) return;
     this.pos.x = nx;
     this.pos.z = nz;
-    this.pos.y = this.world.ground(nx, nz);
+    this.pos.y = this.world.floor(nx, nz, this.pos.y);
     if (face) this.yaw = dampAngle(this.yaw, Math.atan2(dx, dz), 12, dt);
   }
 
@@ -717,7 +717,7 @@ export class EnemySystem {
       const def = KINDS[kind] ?? KINDS.raider;
       const rig = factory.createPerson(def.acc, def.colours, def.scale);
       const at = new THREE.Vector3(...s.pos);
-      at.y = world.ground(at.x, at.z);
+      at.y = world.floor(at.x, at.z, s.pos[1]);
       const col = world.physics.addActor(RADIUS * def.scale, 0.55 * def.scale, at);
       const e = new Enemy(kind, rig, s, s.camp ?? '', col, world, sfx, seed++);
       scene.add(rig.root);
