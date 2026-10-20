@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "blender": {
+      "command": "C:\\Users\\LENOVO\\.local\\bin\\uvx.exe",
+      "args": ["--python", "3.12", "mcp-for-blender"],
+      "env": {
+        "UV_CACHE_DIR": "D:\\uv-cache",
+        "UV_LINK_MODE": "copy",
+        "DISABLE_TELEMETRY": "true"
+      }
+    }
+  }
+}

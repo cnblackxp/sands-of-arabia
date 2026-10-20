@@ -1,0 +1,704 @@
+{
+ "assets": {
+  "person": {
+   "file": "characters/person.glb",
+   "kind": "character",
+   "size": [
+    0.83,
+    2.39,
+    1.116
+   ],
+   "materials": [
+    "P_Brass",
+    "P_Clay",
+    "P_Eyes",
+    "P_Grip",
+    "P_Hair",
+    "P_Leather",
+    "P_Pants",
+    "P_Robe",
+    "P_Sash",
+    "P_Skin",
+    "P_Steel",
+    "P_Wrap"
+   ],
+   "bones": [
+    "root",
+    "hips",
+    "leg_L",
+    "leg_R",
+    "spine",
+    "head",
+    "arm_L",
+    "arm_R",
+    "hand_L",
+    "hand_R"
+   ],
+   "accessories": [
+    "Beard",
+    "Hair",
+    "Keffiyeh",
+    "Turban",
+    "Veil",
+    "Jar",
+    "Sword"
+   ],
+   "clips": {
+    "Attack": {
+     "frames": 18,
+     "loop": false
+    },
+    "Attack2": {
+     "frames": 16,
+     "loop": false
+    },
+    "Death": {
+     "frames": 30,
+     "loop": false
+    },
+    "Hit": {
+     "frames": 12,
+     "loop": false
+    },
+    "Idle": {
+     "frames": 48,
+     "loop": true
+    },
+    "Ride": {
+     "frames": 12,
+     "loop": true
+    },
+    "Run": {
+     "frames": 16,
+     "loop": true
+    },
+    "Sit": {
+     "frames": 48,
+     "loop": true
+    },
+    "Talk": {
+     "frames": 48,
+     "loop": true
+    },
+    "Walk": {
+     "frames": 24,
+     "loop": true
+    }
+   },
+   "notes": "Body + accessory SkinnedMeshes share one skeleton; toggle accessories with .visible. Recolour by cloning materials named P_*. Upper-body clips (Attack, Attack2, Talk, Hit) key only spine/arms/head so they layer over Walk/Run/Ride. Attack hit frame ~10 (0.4 s), Attack2 ~9. Clip ground speeds: Walk 1.5 m/s, Run 4.8 m/s. Death ends lying down (clampWhenFinished)."
+  },
+  "horse": {
+   "file": "characters/horse.glb",
+   "kind": "character",
+   "size": [
+    0.75,
+    2.435,
+    3.08
+   ],
+   "materials": [
+    "H_Blanket",
+    "H_Blaze",
+    "H_Coat",
+    "H_Eyes",
+    "H_Hoof",
+    "H_Leather",
+    "H_Mane",
+    "H_Trim"
+   ],
+   "accessories": [
+    "Saddle"
+   ],
+   "clips": {
+    "Gallop": {
+     "frames": 12,
+     "loop": true
+    },
+    "Idle": {
+     "frames": 48,
+     "loop": true
+    },
+    "Rear": {
+     "frames": 30,
+     "loop": false
+    },
+    "Walk": {
+     "frames": 32,
+     "loop": true
+    }
+   },
+   "sockets": {
+    "mount": "attach the rider's root here; rider plays Ride"
+   },
+   "notes": "Clip ground speeds: Walk 1.7 m/s, Gallop 9 m/s. Recolour H_Coat / H_Mane / H_Blanket."
+  },
+  "camel": {
+   "file": "characters/camel.glb",
+   "kind": "character",
+   "size": [
+    1.76,
+    2.93,
+    3.062
+   ],
+   "materials": [
+    "C_Bale",
+    "C_Bundle",
+    "C_Dark",
+    "C_Eyes",
+    "C_Fur",
+    "C_Leather",
+    "C_Saddlecloth",
+    "C_Tassel",
+    "C_Wood"
+   ],
+   "accessories": [
+    "Saddle",
+    "Cargo"
+   ],
+   "clips": {
+    "Idle": {
+     "frames": 48,
+     "loop": true
+    },
+    "Run": {
+     "frames": 16,
+     "loop": true
+    },
+    "Sit": {
+     "frames": 48,
+     "loop": true
+    },
+    "Walk": {
+     "frames": 32,
+     "loop": true
+    }
+   },
+   "sockets": {
+    "mount": "attach the rider's root here; rider plays Ride"
+   },
+   "notes": "Clip ground speeds: Walk 1.8 m/s, Run 6 m/s. Sit is a lying-down loop."
+  },
+  "house_a": {
+   "file": "buildings/house_a.glb",
+   "kind": "building",
+   "size": [
+    5.1,
+    5.0,
+    5.625
+   ],
+   "materials": [
+    "Mud1",
+    "Opening",
+    "Wood"
+   ]
+  },
+  "house_b": {
+   "file": "buildings/house_b.glb",
+   "kind": "building",
+   "size": [
+    6.6,
+    9.2,
+    6.125
+   ],
+   "materials": [
+    "Lime",
+    "Opening",
+    "Wood"
+   ]
+  },
+  "house_c": {
+   "file": "buildings/house_c.glb",
+   "kind": "building",
+   "size": [
+    4.3,
+    4.6,
+    4.825
+   ],
+   "materials": [
+    "Mud1",
+    "Opening",
+    "Wood"
+   ]
+  },
+  "house_d": {
+   "file": "buildings/house_d.glb",
+   "kind": "building",
+   "size": [
+    7.1,
+    7.6,
+    6.625
+   ],
+   "materials": [
+    "Mud1",
+    "Opening",
+    "Wood"
+   ]
+  },
+  "tower_house_a": {
+   "file": "buildings/tower_house_a.glb",
+   "kind": "building",
+   "size": [
+    5.0,
+    12.1,
+    4.85
+   ],
+   "materials": [
+    "Lime",
+    "Mud2",
+    "Opening"
+   ]
+  },
+  "tower_house_b": {
+   "file": "buildings/tower_house_b.glb",
+   "kind": "building",
+   "size": [
+    5.0,
+    15.6,
+    4.85
+   ],
+   "materials": [
+    "Lime",
+    "Mud2",
+    "Opening"
+   ]
+  },
+  "temple": {
+   "file": "buildings/temple.glb",
+   "kind": "building",
+   "size": [
+    16.0,
+    10.4,
+    12.8
+   ],
+   "materials": [
+    "Betyl",
+    "Lime",
+    "Opening",
+    "Stone"
+   ]
+  },
+  "stall_spice": {
+   "file": "market/stall_spice.glb",
+   "kind": "prop",
+   "size": [
+    4.875,
+    3.138,
+    4.23
+   ],
+   "materials": [
+    "Aw0a",
+    "Aw0b",
+    "Clay2",
+    "LampFlame",
+    "Leather",
+    "Rug3",
+    "Sack",
+    "Spice0",
+    "Spice1",
+    "Spice2",
+    "Spice4",
+    "Wood"
+   ]
+  },
+  "stall_pots": {
+   "file": "market/stall_pots.glb",
+   "kind": "prop",
+   "size": [
+    4.379,
+    3.142,
+    4.017
+   ],
+   "materials": [
+    "Aw1a",
+    "Aw1b",
+    "Clay",
+    "Clay2",
+    "LampFlame",
+    "Leather",
+    "Rug0",
+    "Wood"
+   ]
+  },
+  "stall_cloth": {
+   "file": "market/stall_cloth.glb",
+   "kind": "prop",
+   "size": [
+    4.436,
+    3.145,
+    3.894
+   ],
+   "materials": [
+    "Aw2a",
+    "Aw2b",
+    "Clay",
+    "Clay2",
+    "Rug0",
+    "Rug1",
+    "Rug2",
+    "Rug3",
+    "Sack",
+    "Wood"
+   ]
+  },
+  "stall_brass": {
+   "file": "market/stall_brass.glb",
+   "kind": "prop",
+   "size": [
+    4.724,
+    3.147,
+    3.868
+   ],
+   "materials": [
+    "Aw3a",
+    "Aw3b",
+    "Brass",
+    "Clay",
+    "Clay2",
+    "LampFlame",
+    "Leather",
+    "Rug3",
+    "Wood"
+   ]
+  },
+  "palm_a": {
+   "file": "nature/palm_a.glb",
+   "kind": "nature",
+   "size": [
+    6.92,
+    7.387,
+    7.858
+   ],
+   "materials": [
+    "Dates",
+    "Frond",
+    "Trunk"
+   ]
+  },
+  "palm_b": {
+   "file": "nature/palm_b.glb",
+   "kind": "nature",
+   "size": [
+    9.064,
+    12.623,
+    8.605
+   ],
+   "materials": [
+    "Dates",
+    "Frond",
+    "Trunk"
+   ]
+  },
+  "palm_c": {
+   "file": "nature/palm_c.glb",
+   "kind": "nature",
+   "size": [
+    6.346,
+    9.773,
+    7.208
+   ],
+   "materials": [
+    "Dates",
+    "Frond",
+    "Trunk"
+   ]
+  },
+  "tent": {
+   "file": "nature/tent.glb",
+   "kind": "prop",
+   "size": [
+    7.0,
+    1.889,
+    4.16
+   ],
+   "materials": [
+    "GoatHair",
+    "Rug3",
+    "Wood"
+   ]
+  },
+  "jar_large": {
+   "file": "props/jar_large.glb",
+   "kind": "prop",
+   "size": [
+    0.56,
+    0.89,
+    0.56
+   ],
+   "materials": [
+    "Clay"
+   ]
+  },
+  "jar_small": {
+   "file": "props/jar_small.glb",
+   "kind": "prop",
+   "size": [
+    0.292,
+    0.48,
+    0.285
+   ],
+   "materials": [
+    "Clay2"
+   ]
+  },
+  "sack": {
+   "file": "props/sack.glb",
+   "kind": "prop",
+   "size": [
+    0.5,
+    0.6,
+    0.45
+   ],
+   "materials": [
+    "Sack"
+   ]
+  },
+  "crate": {
+   "file": "props/crate.glb",
+   "kind": "prop",
+   "size": [
+    0.72,
+    0.72,
+    0.7
+   ],
+   "materials": [
+    "Leather",
+    "Wood"
+   ]
+  },
+  "lantern": {
+   "file": "props/lantern.glb",
+   "kind": "prop",
+   "size": [
+    0.2,
+    0.26,
+    0.2
+   ],
+   "materials": [
+    "Brass",
+    "LampFlame"
+   ]
+  },
+  "campfire": {
+   "file": "props/campfire.glb",
+   "kind": "prop",
+   "size": [
+    1.341,
+    0.6,
+    1.37
+   ],
+   "materials": [
+    "Fire",
+    "Wood"
+   ]
+  },
+  "spice_pile": {
+   "file": "props/spice_pile.glb",
+   "kind": "prop",
+   "size": [
+    0.4,
+    0.38,
+    0.4
+   ],
+   "materials": [
+    "Spice0",
+    "Wood"
+   ]
+  },
+  "rug": {
+   "file": "props/rug.glb",
+   "kind": "prop",
+   "size": [
+    1.6,
+    0.04,
+    2.4
+   ],
+   "materials": [
+    "Rug0"
+   ]
+  },
+  "sword": {
+   "file": "props/sword.glb",
+   "kind": "prop",
+   "size": [
+    0.26,
+    1.145,
+    0.07
+   ],
+   "materials": [
+    "P_Brass",
+    "P_Grip",
+    "P_Steel"
+   ],
+   "notes": "origin = grip; blade points +Y"
+  },
+  "butte_a": {
+   "file": "nature/butte_a.glb",
+   "kind": "nature",
+   "size": [
+    24.768,
+    16.135,
+    27.853
+   ],
+   "materials": [
+    "Rock",
+    "RockBand0",
+    "RockBand1",
+    "RockBand2",
+    "RockBand3"
+   ]
+  },
+  "butte_b": {
+   "file": "nature/butte_b.glb",
+   "kind": "nature",
+   "size": [
+    39.87,
+    26.487,
+    40.871
+   ],
+   "materials": [
+    "Rock",
+    "RockBand0",
+    "RockBand1",
+    "RockBand2",
+    "RockBand3"
+   ]
+  },
+  "butte_c": {
+   "file": "nature/butte_c.glb",
+   "kind": "nature",
+   "size": [
+    18.704,
+    23.266,
+    19.321
+   ],
+   "materials": [
+    "Rock",
+    "RockBand0",
+    "RockBand1",
+    "RockBand2",
+    "RockBand3"
+   ]
+  },
+  "terrain": {
+   "file": "level/terrain.glb",
+   "kind": "terrain",
+   "size": [
+    400.0,
+    30.931,
+    400.0
+   ],
+   "materials": [
+    "SandVC"
+   ],
+   "notes": "vertex colours, no normals: GLTFLoader enables flatShading automatically"
+  },
+  "town": {
+   "file": "level/town.glb",
+   "kind": "level",
+   "size": [
+    141.796,
+    29.957,
+    169.465
+   ],
+   "materials": [
+    "Aw1a",
+    "Aw1b",
+    "Aw2a",
+    "Aw2b",
+    "Aw3a",
+    "Aw3b",
+    "Aw4a",
+    "Aw4b",
+    "Aw5a",
+    "Aw5b",
+    "Betyl",
+    "Brass",
+    "Clay",
+    "Clay2",
+    "Dates",
+    "Fire",
+    "Frond",
+    "GoatHair",
+    "Grass",
+    "LampFlame",
+    "Leather",
+    "Lime",
+    "Mud0",
+    "Mud1",
+    "Mud2",
+    "Opening",
+    "RockBand0",
+    "RockBand1",
+    "RockBand2",
+    "RockBand3",
+    "Rug0",
+    "Rug1",
+    "Rug2",
+    "Rug3",
+    "Rug4",
+    "Sack",
+    "Spice0",
+    "Spice1",
+    "Spice2",
+    "Spice3",
+    "Spice4",
+    "Spice5",
+    "Stone",
+    "TombDoor",
+    "TombFace",
+    "TombRock",
+    "Trunk",
+    "Water",
+    "Wood"
+   ]
+  },
+  "backdrop": {
+   "file": "level/backdrop.glb",
+   "kind": "backdrop",
+   "size": [
+    1039.153,
+    255.886,
+    492.113
+   ],
+   "materials": [
+    "FarRock",
+    "Rock.001",
+    "RockBand0",
+    "RockBand1",
+    "RockBand2",
+    "RockBand3"
+   ]
+  },
+  "level": {
+   "file": "level/level.json",
+   "kind": "level-data",
+   "notes": "colliders: yaw-rotated boxes (pos centre, half extents); spawns by role"
+  },
+  "sky": {
+   "kind": "sky",
+   "env_hdr": "sky/sunset_env.hdr",
+   "background_jpg": "sky/sunset_bg.jpg",
+   "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
+  },
+  "backdrop_ground": {
+   "file": "level/backdrop_ground.glb",
+   "kind": "backdrop",
+   "size": [
+    1800.0,
+    30.206,
+    1800.0
+   ],
+   "materials": [
+    "SandVC"
+   ],
+   "notes": "coarse ground ring around the playable terrain (hole in the middle)"
+  }
+ },
+ "conventions": {
+  "units": "metres",
+  "up": "+Y",
+  "forward": "+Z (models face +Z; rotate a model by yaw about +Y)",
+  "origin": "bottom centre of the model at ground level",
+  "blender_to_three": "(x, y, z)_blender -> (x, z, -y)_three",
+  "fps": 24
+ }
+}

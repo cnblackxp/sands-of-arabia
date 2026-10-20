@@ -1,0 +1,197 @@
+:root {
+  --ink: #2a1a10;
+  --parchment: rgba(246, 232, 205, 0.94);
+  --edge: #8a5a2b;
+  --gold: #e3a443;
+  --hp: #c8432c;
+  --hp-low: #ff3b1f;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #1b120c;
+  font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', serif;
+  color: #fff;
+  user-select: none;
+}
+
+#game {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  outline: none;
+}
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.hp {
+  position: absolute;
+  left: 18px;
+  top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 1px 2px #000;
+}
+.hp-label {
+  font-weight: bold;
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+.hp-bar {
+  width: 220px;
+  height: 14px;
+  background: rgba(20, 10, 5, 0.6);
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.hp-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(#e2664b, var(--hp));
+  transition: width 0.15s;
+}
+.hp-fill.low {
+  background: linear-gradient(#ff6a4b, var(--hp-low));
+}
+.hp-text {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.fps {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  font: 12px monospace;
+  opacity: 0.6;
+  text-shadow: 0 1px 2px #000;
+}
+
+.prompt {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  background: rgba(30, 18, 10, 0.75);
+  border: 1px solid var(--gold);
+  border-radius: 4px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.prompt b,
+.hint b {
+  color: var(--gold);
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
+  font-size: 22px;
+  color: #ffe2b0;
+  text-shadow: 0 2px 6px #000;
+}
+
+.dialogue {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  width: min(680px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 14px 20px 10px;
+  background: var(--parchment);
+  color: var(--ink);
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+.dlg-name {
+  font-weight: bold;
+  color: #7a2f17;
+  margin-bottom: 6px;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+}
+.dlg-text {
+  font-size: 17px;
+  line-height: 1.4;
+  min-height: 2.8em;
+}
+.dlg-more {
+  text-align: right;
+  font-size: 12px;
+  opacity: 0.7;
+  margin-top: 6px;
+  white-space: pre;
+}
+
+.hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  text-align: center;
+  font-size: 13px;
+  opacity: 0.85;
+  text-shadow: 0 1px 3px #000;
+  padding: 0 16px;
+}
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(180, 20, 10, 0.75) 100%);
+}
+
+#loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: radial-gradient(#4a2c18, #1b120c);
+}
+#loading .title {
+  font-size: 34px;
+  color: var(--gold);
+  letter-spacing: 2px;
+}
+#loading .bar {
+  width: 280px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+#loading .bar div {
+  height: 100%;
+  width: 0;
+  background: var(--gold);
+  transition: width 0.2s;
+}
+#loading .msg {
+  font-size: 13px;
+  opacity: 0.7;
+}
+#loading.done {
+  display: none;
+}
