@@ -16,7 +16,10 @@ export type Action =
   | 'leave'
   | 'confirm'
   | 'back'
-  | 'adjust';
+  | 'adjust'
+  | 'block'
+  | 'heal'
+  | 'inventory';
 
 /** Button glyphs per device. Gamepad uses Xbox-style labels on a standard pad. */
 const GLYPH: Record<Device, Record<Action, string>> = {
@@ -30,13 +33,16 @@ const GLYPH: Record<Device, Record<Action, string>> = {
     jump: '<kbd>F</kbd>',
     pause: '<kbd>Esc</kbd>',
     map: '<kbd>M</kbd>',
-    camera: '<kbd>Q</kbd><kbd>R</kbd>',
+    camera: '<kbd>Z</kbd><kbd>C</kbd>',
     zoom: '<kbd>Wheel</kbd>',
     next: '<kbd>E</kbd>',
     leave: '<kbd>Esc</kbd>',
     confirm: '<kbd>Enter</kbd>',
     back: '<kbd>Esc</kbd>',
     adjust: '<kbd>A</kbd><kbd>D</kbd>',
+    block: '<kbd>RMB</kbd>',
+    heal: '<kbd>R</kbd>',
+    inventory: '<kbd>Tab</kbd>',
   },
   gamepad: {
     move: '<span class="pad stick">L</span>',
@@ -55,6 +61,9 @@ const GLYPH: Record<Device, Record<Action, string>> = {
     confirm: '<span class="pad a">A</span>',
     back: '<span class="pad b">B</span>',
     adjust: '<span class="pad dpad">◀▶</span>',
+    block: '<span class="pad bumper">LB</span>',
+    heal: '<span class="pad x">X</span>',
+    inventory: '<span class="pad menu">☰</span>',
   },
 };
 
@@ -84,6 +93,11 @@ export class Hud {
   private lowHp: HTMLDivElement;
   private bars: HTMLDivElement;
   private barPool: HTMLDivElement[] = [];
+  private goldEl: HTMLSpanElement;
+  private flaskEl: HTMLSpanElement;
+  private trackerEl: HTMLDivElement;
+  private floaters: HTMLDivElement;
+  private shownGold = -1;
   private toastTimer = 0;
   private flash = 0;
   private hpLagValue = 1;
@@ -98,7 +112,10 @@ export class Hud {
       <div class="bars-top">
         <div class="hp-bar"><div class="hp-lag"></div><div class="hp-fill"></div></div>
         <div class="st-bar"><div class="st-fill"></div></div>
+        <div class="purse"><span class="coin">◉</span><span class="gold">0</span><span class="flasks"></span></div>
       </div>
+      <div class="tracker hidden"></div>
+      <div class="floaters"></div>
       <div class="fps"></div>
       <div class="enemy-bars"></div>
       <div class="prompt hidden"></div>
@@ -123,6 +140,10 @@ export class Hud {
     this.vignette = q('.vignette');
     this.lowHp = q('.lowhp');
     this.bars = q('.enemy-bars');
+    this.goldEl = q('.gold');
+    this.flaskEl = q('.flasks');
+    this.trackerEl = q('.tracker');
+    this.floaters = q('.floaters');
   }
 
   /** HTML glyph for an action on the current device. */
@@ -155,6 +176,36 @@ export class Hud {
     this.stFill.style.width = `${Math.max(0, st / maxSt) * 100}%`;
     this.stBar.classList.toggle('exhausted', exhausted);
     this.lowHp.style.opacity = f < 0.3 ? String(0.35 + 0.25 * Math.sin(performance.now() / 180)) : '0';
+  }
+
+  setPurse(gold: number, flasks: number, maxFlasks: number): void {
+    if (gold !== this.shownGold) {
+      if (this.shownGold >= 0 && gold > this.shownGold) {
+        this.goldEl.classList.remove('pulse');
+        void this.goldEl.offsetWidth;
+        this.goldEl.classList.add('pulse');
+      }
+      this.shownGold = gold;
+      this.goldEl.textContent = String(gold);
+    }
+    const f = '<span class="flask full">▮</span>'.repeat(flasks) + '<span class="flask">▯</span>'.repeat(Math.max(0, maxFlasks - flasks));
+    if (this.flaskEl.innerHTML !== f) this.flaskEl.innerHTML = f;
+  }
+
+  setTracker(text: string | null): void {
+    this.trackerEl.classList.toggle('hidden', !text);
+    if (text && this.trackerEl.textContent !== '◆ ' + text) this.trackerEl.textContent = '◆ ' + text;
+  }
+
+  /** Rising text at a screen position (gold gained, etc.). */
+  floatText(x: number, y: number, text: string, cls = 'gold'): void {
+    const el = document.createElement('div');
+    el.className = `floater ${cls}`;
+    el.textContent = text;
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+    this.floaters.appendChild(el);
+    setTimeout(() => el.remove(), 1400);
   }
 
   /** Flash the stamina bar when an action is refused. */

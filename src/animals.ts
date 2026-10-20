@@ -16,12 +16,20 @@ export class Horse {
   ridden = false;
   pitch = 0;
   roll = 0;
+  /** Winged horse: huge jumps and a mid-air second jump, glides down. */
+  readonly winged: boolean;
   private mount: THREE.Bone;
   private groundAt: (x: number, z: number) => number;
+  private vy = 0;
+  private airborne = false;
+  private airJumps = 0;
 
-  constructor(factory: CharacterFactory, physics: Physics, spawn: Spawn, rnd: () => number) {
+  constructor(factory: CharacterFactory, private physics: Physics, spawn: Spawn, rnd: () => number, winged = false) {
+    this.winged = winged;
     this.rig = factory.createHorse(
-      { H_Coat: pick(PAL.horseCoat, rnd), H_Mane: pick(PAL.horseMane, rnd), H_Blanket: pick(PAL.blanket, rnd) },
+      winged
+        ? { H_Coat: 0xf2efe8, H_Mane: 0xd9c9a0, H_Blanket: 0x2c3e73 }
+        : { H_Coat: pick(PAL.horseCoat, rnd), H_Mane: pick(PAL.horseMane, rnd), H_Blanket: pick(PAL.blanket, rnd) },
       true,
     );
     const feet = new THREE.Vector3(...spawn.pos);
@@ -45,6 +53,22 @@ export class Horse {
     if (!on) this.speed = 0;
   }
 
+  get jumping(): boolean {
+    return this.airborne;
+  }
+
+  /** Jump (ridden). Winged horses can jump again in mid-air. */
+  jump(): void {
+    if (!this.airborne) {
+      this.airborne = true;
+      this.vy = this.winged ? 13 : 7;
+      this.airJumps = 0;
+    } else if (this.winged && this.airJumps < 1) {
+      this.airJumps++;
+      this.vy = 12;
+    }
+  }
+
   /**
    * Ridden update. `dirX/dirZ` is the camera-relative input direction (world),
    * `mag` 0..1. The horse turns toward the input and moves along its heading.
@@ -63,7 +87,27 @@ export class Horse {
     this.speed = want > this.speed ? Math.min(want, this.speed + accel * dt) : Math.max(want, this.speed - accel * dt);
     const fx = Math.sin(this.yaw);
     const fz = Math.cos(this.yaw);
-    const moved = this.mover.move(fx * this.speed * dt, fz * this.speed * dt);
+    let moved: { x: number; z: number; falling: boolean };
+    if (this.airborne) {
+      // Winged horses glide down slowly.
+      const g = this.winged && this.vy < 0 ? 9 : 26;
+      this.vy = Math.max(this.winged ? -6 : -28, this.vy - g * dt);
+      const prevY = this.mover.feet.y;
+      moved = this.mover.move(fx * this.speed * dt, fz * this.speed * dt, prevY + this.vy * dt);
+      const f = this.mover.feet;
+      const floor = this.physics.support(f.x, f.z, prevY + 0.05);
+      if (this.vy <= 0 && f.y <= floor + 0.02) {
+        this.airborne = false;
+        this.vy = 0;
+        this.mover.move(0, 0, floor);
+      }
+    } else {
+      moved = this.mover.move(fx * this.speed * dt, fz * this.speed * dt);
+      if (moved.falling) {
+        this.airborne = true;
+        this.vy = 0;
+      }
+    }
     // If a wall stopped us, bleed speed so the gallop animation doesn't run in place.
     if (dt > 0 && this.speed > 0.5) {
       const actual = Math.hypot(moved.x, moved.z) / dt;
@@ -94,9 +138,11 @@ export class Horse {
     // Lean with the dunes so hooves stay on the sand.
     const f = this.mover.feet;
     const t = fitGround(this.groundAt, f.x, f.z, this.yaw, 1.1, 0.35);
-    this.pitch += (t.pitch - this.pitch) * 0.25;
-    this.roll += (t.roll * 0.6 - this.roll) * 0.25;
-    this.rig.root.position.set(f.x, t.y, f.z);
+    // On sand, lean with the dunes; on a box top or in the air, stay level.
+    const onSand = !this.airborne && Math.abs(f.y - this.groundAt(f.x, f.z)) < 0.05;
+    this.pitch += ((onSand ? t.pitch : this.airborne ? -Math.min(0.35, this.vy * 0.03) : 0) - this.pitch) * 0.25;
+    this.roll += ((onSand ? t.roll * 0.6 : 0) - this.roll) * 0.25;
+    this.rig.root.position.set(f.x, onSand ? t.y : f.y, f.z);
     this.rig.root.rotation.set(this.pitch, this.yaw, this.roll, 'YXZ');
     this.rig.root.updateMatrixWorld(true);
   }

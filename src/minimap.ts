@@ -1,9 +1,48 @@
 import type { HeightField, LevelData } from './level';
 
+export type DotKind = 'npc' | 'enemy' | 'hostile' | 'guard' | 'horse' | 'camel' | 'dead';
+export type BadgeKind = 'exit' | 'bonfire' | 'shop' | 'quest' | 'turnin' | 'objective' | 'gold' | 'camp';
+
 export interface MapMarker {
   x: number;
   z: number;
-  kind: 'npc' | 'enemy' | 'hostile' | 'guard' | 'horse' | 'camel' | 'dead' | 'exit';
+  kind: DotKind | BadgeKind;
+  /** Shown on the full map (exit destinations, camp names). */
+  label?: string;
+}
+
+/** Icon badges: fill colour, glyph, and whether it stays pinned to the minimap rim when off-screen. */
+export const BADGE: Record<BadgeKind, { fill: string; glyph: string; rim: boolean; name: string }> = {
+  exit: { fill: '#ffd04a', glyph: '➜', rim: true, name: 'Exit to another region' },
+  bonfire: { fill: '#ff8a3a', glyph: '▲', rim: true, name: 'Bonfire (rest, respawn point)' },
+  shop: { fill: '#e9d27a', glyph: '◉', rim: false, name: 'Trader' },
+  quest: { fill: '#f2b233', glyph: '!', rim: false, name: 'Quest available' },
+  turnin: { fill: '#f2b233', glyph: '?', rim: true, name: 'Quest ready to hand in' },
+  objective: { fill: '#c28cff', glyph: '◆', rim: true, name: 'Quest objective' },
+  gold: { fill: '#ffc94a', glyph: '●', rim: true, name: 'Your lost gold' },
+  camp: { fill: '#c8392b', glyph: '✖', rim: false, name: 'Raider camp' },
+};
+
+function isBadge(k: MapMarker['kind']): k is BadgeKind {
+  return k in BADGE;
+}
+
+function badge(c: CanvasRenderingContext2D, x: number, y: number, size: number, k: BadgeKind): void {
+  const b = BADGE[k];
+  c.fillStyle = 'rgba(25,14,8,0.85)';
+  c.beginPath();
+  c.arc(x, y, size, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = b.fill;
+  c.beginPath();
+  c.arc(x, y, size * 0.78, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = '#2a1608';
+  c.font = `bold ${Math.round(size * 1.15)}px "Segoe UI Symbol", Georgia, sans-serif`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.fillText(b.glyph, x, y + size * 0.06);
+  c.textBaseline = 'alphabetic';
 }
 
 const PX_PER_M = 2;
@@ -18,7 +57,7 @@ const TAG_COLOUR: Record<string, string> = {
   rock: '#94603d',
 };
 
-const MARKER: Record<MapMarker['kind'], [string, number]> = {
+const MARKER: Record<DotKind, [string, number]> = {
   npc: ['#f3e6c8', 1.6],
   guard: ['#6ea0ff', 2.0],
   hostile: ['#ff5a3a', 2.2],
@@ -26,7 +65,6 @@ const MARKER: Record<MapMarker['kind'], [string, number]> = {
   horse: ['#c58a4a', 2.2],
   camel: ['#d8b483', 2.2],
   dead: ['#6a5a50', 1.4],
-  exit: ['#ffd04a', 3.6],
 };
 
 /** Corner minimap: pre-rendered terrain + colliders, rotated to the camera. */
@@ -104,6 +142,85 @@ export class Minimap {
     this.applyMode();
   }
 
+  /**
+   * The whole map, north up, fitted into `canvas` (pause-menu map tab), with
+   * every marker, landmark and label.
+   */
+  drawFull(canvas: HTMLCanvasElement, px: number, pz: number, playerYaw: number, markers: MapMarker[]): void {
+    const c = canvas.getContext('2d')!;
+    const W = canvas.width;
+    const H = canvas.height;
+    const bw = this.base.width;
+    const bh = this.base.height;
+    const k = Math.min(W / bw, H / bh);
+    const ox = (W - bw * k) / 2;
+    const oy = (H - bh * k) / 2;
+    const toS = (x: number, z: number): [number, number] => [ox + (x - this.x0) * PX_PER_M * k, oy + (z - this.z0) * PX_PER_M * k];
+    c.fillStyle = '#3a2618';
+    c.fillRect(0, 0, W, H);
+    c.drawImage(this.base, ox, oy, bw * k, bh * k);
+    c.strokeStyle = '#8a5a2b';
+    c.lineWidth = 2;
+    c.strokeRect(ox, oy, bw * k, bh * k);
+    const dpr = W / 560;
+    for (const m of markers) {
+      if (isBadge(m.kind)) continue;
+      const [sx, sy] = toS(m.x, m.z);
+      const [col, size] = MARKER[m.kind];
+      c.fillStyle = col;
+      c.beginPath();
+      c.arc(sx, sy, size * 0.9 * dpr, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.font = `${12 * dpr}px Georgia, serif`;
+    c.textAlign = 'center';
+    for (const [name, lx, lz] of this.landmarks) {
+      const [sx, sy] = toS(lx, lz);
+      const t = name.replace(/_/g, ' ');
+      c.fillStyle = 'rgba(20,10,5,0.75)';
+      c.fillText(t, sx + 1, sy + 1);
+      c.fillStyle = '#f6e2bd';
+      c.fillText(t, sx, sy);
+    }
+    for (const m of markers) {
+      if (!isBadge(m.kind)) continue;
+      const [sx, sy] = toS(m.x, m.z);
+      badge(c, sx, sy, 9 * dpr, m.kind);
+      if (m.label) {
+        c.font = `bold ${11 * dpr}px Georgia, serif`;
+        // Keep labels inside the canvas (exits sit on the map edge).
+        const tw = c.measureText(m.label).width;
+        const lx = Math.min(W - tw / 2 - 4 * dpr, Math.max(tw / 2 + 4 * dpr, sx));
+        const ly = sy < 20 * dpr ? sy + 22 * dpr : sy - 13 * dpr;
+        c.textAlign = 'center';
+        c.fillStyle = 'rgba(20,10,5,0.8)';
+        c.fillText(m.label, lx + 1, ly + 1);
+        c.fillStyle = BADGE[m.kind].fill;
+        c.fillText(m.label, lx, ly);
+      }
+    }
+    // Player arrow (north up).
+    const [ppx, ppy] = toS(px, pz);
+    c.save();
+    c.translate(ppx, ppy);
+    c.rotate(Math.PI - playerYaw);
+    c.fillStyle = '#ffffff';
+    c.strokeStyle = '#2a1a10';
+    c.lineWidth = 2 * dpr;
+    c.beginPath();
+    c.moveTo(0, -9 * dpr);
+    c.lineTo(6 * dpr, 7 * dpr);
+    c.lineTo(0, 3.5 * dpr);
+    c.lineTo(-6 * dpr, 7 * dpr);
+    c.closePath();
+    c.fill();
+    c.stroke();
+    c.restore();
+    c.fillStyle = '#e3a443';
+    c.font = `bold ${14 * dpr}px Georgia, serif`;
+    c.fillText('N', W - 18 * dpr, 22 * dpr);
+  }
+
   dispose(): void {
     this.canvas.remove();
   }
@@ -153,6 +270,7 @@ export class Minimap {
     const toMap = (x: number, z: number): [number, number] => [(x - this.x0) * PX_PER_M, (z - this.z0) * PX_PER_M];
     const unit = dpr / scale;
     for (const m of markers) {
+      if (isBadge(m.kind)) continue;
       const [mx, my] = toMap(m.x, m.z);
       const [col, size] = MARKER[m.kind];
       c.fillStyle = col;
@@ -161,6 +279,24 @@ export class Minimap {
       c.fill();
     }
     c.restore();
+
+    // Icon badges, upright; important ones stick to the rim when off-screen.
+    const rim = r - 11 * dpr;
+    const bs = (this.mode === 1 ? 8 : 6.5) * dpr;
+    for (const m of markers) {
+      if (!isBadge(m.kind)) continue;
+      const dx = (m.x - px) * PX_PER_M * scale;
+      const dz = (m.z - pz) * PX_PER_M * scale;
+      let sx = dx * Math.cos(camYaw) - dz * Math.sin(camYaw);
+      let sy = dx * Math.sin(camYaw) + dz * Math.cos(camYaw);
+      const d = Math.hypot(sx, sy);
+      if (d > rim) {
+        if (!BADGE[m.kind].rim) continue;
+        sx *= rim / d;
+        sy *= rim / d;
+      }
+      badge(c, r + sx, r + sy, bs, m.kind);
+    }
 
     // Landmark labels (kept upright).
     if (this.mode === 1) {

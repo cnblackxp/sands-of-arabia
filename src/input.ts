@@ -3,10 +3,12 @@
  * The last device that produced input becomes `device`, which drives every
  * on-screen prompt.
  *
- * Gamepad (standard mapping), Dark Souls style:
- *   L-stick move · B tap = roll, B hold = sprint (or L3 / LT) · RB / X / RT attack
- *   A jump / confirm · Y interact (talk, mount) · Start pause · View minimap · R-stick camera
- *   (Elden Ring layout; keyboard: Space roll, F jump, E interact)
+ * Gamepad (standard mapping), Elden Ring style:
+ *   L-stick move · B tap = roll, B hold = sprint (or L3 / LT) · RB / RT attack
+ *   LB hold = block · X = healing draught · A jump / confirm · Y interact
+ *   Start menu · View map · R-stick camera · LB/RB switch menu tabs
+ * Keyboard: WASD · Shift sprint · LMB attack · RMB block · Space roll · F jump
+ *   E interact · R heal · Tab inventory · M map · Esc menu · Z/C rotate camera
  *   D-pad up/down zoom, left/right rotate (D-pad navigates menus)
  */
 
@@ -20,6 +22,15 @@ export interface Frame {
   attack: boolean;
   dodge: boolean;
   jump: boolean;
+  /** Jump button still held (variable jump height). */
+  jumpHeld: boolean;
+  /** Shield held up. */
+  block: boolean;
+  heal: boolean;
+  /** Open the menu on the inventory / map tab. */
+  inventory: boolean;
+  /** Menu tab switching: -1 / +1. */
+  tab: number;
   /** Talk / mount / dismount, whichever is in reach. */
   interact: boolean;
   /** Back / leave dialogue (Esc, B). */
@@ -43,6 +54,7 @@ export class Input {
   private pressed = new Set<string>();
   private wheel = 0;
   private mouseAttack = false;
+  private mouseBlock = false;
   private padPrev: boolean[] = [];
   private runToggle = false;
   private bHeld = -1;
@@ -68,7 +80,11 @@ export class Input {
     canvas.addEventListener('mousedown', (e) => {
       this.onGesture();
       if (e.button === 0) this.mouseAttack = true;
+      if (e.button === 2) this.mouseBlock = true;
       this.device = 'keyboard';
+    });
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 2) this.mouseBlock = false;
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener(
@@ -79,6 +95,16 @@ export class Input {
       },
       { passive: false },
     );
+  }
+
+  /**
+   * Forget buttons that are mid-press (a menu or dialogue just closed), so the
+   * release of the B that closed it doesn't also fire a dodge roll.
+   */
+  cancelHolds(): void {
+    this.bHeld = -2;
+    this.pressed.clear();
+    this.mouseAttack = false;
   }
 
   read(dt: number): Frame {
@@ -98,12 +124,17 @@ export class Input {
       attack: this.mouseAttack || p.has('KeyJ'),
       dodge: p.has('Space'),
       jump: p.has('KeyF'),
+      jumpHeld: k.has('KeyF'),
+      block: this.mouseBlock,
+      heal: p.has('KeyR'),
+      inventory: p.has('Tab'),
+      tab: (p.has('BracketRight') || (p.has('Tab') && !k.has('ShiftLeft')) ? 1 : 0) - (p.has('BracketLeft') || (p.has('Tab') && k.has('ShiftLeft')) ? 1 : 0),
       interact: p.has('KeyE'),
       cancel: p.has('Escape') || p.has('Backspace'),
       pause: p.has('Escape') || p.has('KeyP'),
       map: p.has('KeyM'),
       zoom: this.wheel,
-      rotate: ((k.has('KeyQ') ? 1 : 0) - (k.has('KeyR') ? 1 : 0)) * 1.6 * dt,
+      rotate: ((k.has('KeyZ') ? 1 : 0) - (k.has('KeyC') ? 1 : 0)) * 1.6 * dt,
       navX: (p.has('KeyD') || p.has('ArrowRight') ? 1 : 0) - (p.has('KeyA') || p.has('ArrowLeft') ? 1 : 0),
       navY: (p.has('KeyS') || p.has('ArrowDown') ? 1 : 0) - (p.has('KeyW') || p.has('ArrowUp') ? 1 : 0),
       confirm: p.has('Enter') || p.has('Space') || p.has('KeyE'),
@@ -143,22 +174,32 @@ export class Input {
 
     // B: tap = roll, hold = sprint.
     if (b(1)) {
-      if (this.bHeld < 0) this.bHeld = 0;
+      // -2: this press belongs to a menu that just closed; ignore until released.
+      if (this.bHeld === -2) {
+        // swallow
+      } else if (this.bHeld < 0) this.bHeld = 0;
       else this.bHeld += dt;
       if (this.bHeld > SPRINT_HOLD) f.run = true;
     } else if (this.bHeld >= 0) {
       if (this.bHeld <= SPRINT_HOLD) f.dodge = true;
+      this.bHeld = -1;
+    } else {
       this.bHeld = -1;
     }
     if (edge(10)) this.runToggle = !this.runToggle;
     if (mag < DEAD) this.runToggle = false;
     if (this.runToggle || (gp.buttons[6]?.value ?? 0) > 0.4) f.run = true;
 
-    if (edge(2) || edge(5) || edge(7)) f.attack = true;
+    if (edge(5) || edge(7)) f.attack = true;
+    if (edge(2)) f.heal = true;
+    if (b(4)) f.block = true;
+    if (edge(4)) f.tab -= 1;
+    if (edge(5)) f.tab += 1;
     if (edge(0)) {
       f.jump = true;
       f.confirm = true;
     }
+    if (b(0)) f.jumpHeld = true;
     if (edge(3)) f.interact = true;
     if (edge(1)) f.cancel = true;
     if (edge(9)) f.pause = true;

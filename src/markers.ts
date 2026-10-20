@@ -1,0 +1,234 @@
+import * as THREE from 'three';
+
+/**
+ * In-world markers: icons floating over NPCs (quest "!" / "?", shop coin),
+ * light beams over objectives, the bonfire, the gold you dropped on death and
+ * quest pickups. All are cheap sprites / a few boxes.
+ */
+
+export type IconKind = 'quest' | 'turnin' | 'shop' | 'objective';
+
+const ICON_STYLE: Record<IconKind, { fill: string; ring: string; glyph: string }> = {
+  quest: { fill: '#f2b233', ring: '#5a3410', glyph: '!' },
+  turnin: { fill: '#f2b233', ring: '#5a3410', glyph: '?' },
+  shop: { fill: '#e9d27a', ring: '#5a4410', glyph: '◉' },
+  objective: { fill: '#c28cff', ring: '#3a1a5a', glyph: '◆' },
+};
+
+const iconTextures = new Map<IconKind, THREE.CanvasTexture>();
+
+export function iconTexture(kind: IconKind): THREE.CanvasTexture {
+  let t = iconTextures.get(kind);
+  if (t) return t;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const st = ICON_STYLE[kind];
+  g.fillStyle = st.ring;
+  g.beginPath();
+  g.arc(32, 32, 28, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = st.fill;
+  g.beginPath();
+  g.arc(32, 32, 23, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = st.ring;
+  g.font = 'bold 34px Georgia, serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(st.glyph, 32, 34);
+  t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  iconTextures.set(kind, t);
+  return t;
+}
+
+/** A floating icon that tracks something (an NPC's head). */
+export class Icon {
+  readonly sprite: THREE.Sprite;
+  private t = Math.random() * 5;
+  constructor(
+    scene: THREE.Scene,
+    public kind: IconKind,
+  ) {
+    this.sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTexture(kind), depthWrite: false, fog: false, transparent: true }));
+    this.sprite.scale.setScalar(0.75);
+    this.sprite.renderOrder = 15;
+    scene.add(this.sprite);
+  }
+  setKind(k: IconKind): void {
+    if (k === this.kind) return;
+    this.kind = k;
+    this.sprite.material.map = iconTexture(k);
+    this.sprite.material.needsUpdate = true;
+  }
+  place(x: number, y: number, z: number, dt: number): void {
+    this.t += dt;
+    this.sprite.position.set(x, y + 0.15 * Math.sin(this.t * 2.6), z);
+  }
+  dispose(): void {
+    this.sprite.removeFromParent();
+    this.sprite.material.dispose();
+  }
+}
+
+/** A vertical shaft of light that fades upward. */
+export function beam(color: THREE.ColorRepresentation, height = 10, radius = 0.4): THREE.Mesh {
+  const geo = new THREE.CylinderGeometry(radius * 0.6, radius, height, 12, 1, true);
+  geo.translate(0, height / 2, 0);
+  const c = new THREE.Color(color);
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { opacity: { value: 0.3 }, tint: { value: c } },
+    vertexShader: 'varying float vY; void main() { vY = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform float opacity; uniform vec3 tint; varying float vY; void main() { gl_FragColor = vec4(tint * opacity * pow(1.0 - vY, 1.6), 1.0); }',
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  return new THREE.Mesh(geo, mat);
+}
+
+const stoneMat = new THREE.MeshStandardMaterial({ color: 0x5a5048, roughness: 0.95 });
+const ashMat = new THREE.MeshStandardMaterial({ color: 0x2a2420, roughness: 1 });
+const logMat = new THREE.MeshStandardMaterial({ color: 0x3a2618, roughness: 0.9 });
+const bladeMat = new THREE.MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.3, metalness: 0.9 });
+const flameMat = new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+const emberMat = new THREE.MeshBasicMaterial({ color: 0xff5a20, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+const goldMat = new THREE.MeshStandardMaterial({ color: 0xffc94a, emissive: 0x7a4a00, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.9 });
+const sackMat = new THREE.MeshStandardMaterial({ color: 0x8a6a48, roughness: 0.95 });
+
+/** Rest point: a ring of stones, a few logs and a blade planted in the embers. */
+export class Bonfire {
+  readonly group = new THREE.Group();
+  readonly pos: THREE.Vector3;
+  private flames: THREE.Mesh[] = [];
+  private t = Math.random() * 10;
+  lit = false;
+
+  constructor(
+    scene: THREE.Scene,
+    readonly id: string,
+    pos: THREE.Vector3,
+    readonly yaw: number,
+  ) {
+    this.pos = pos.clone();
+    const g = this.group;
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      const s = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, 0.18), stoneMat);
+      s.position.set(Math.cos(a) * 0.55, 0.07, Math.sin(a) * 0.55);
+      s.rotation.y = a;
+      g.add(s);
+    }
+    const ash = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.48, 0.05, 10), ashMat);
+    ash.position.y = 0.03;
+    g.add(ash);
+    for (let i = 0; i < 4; i++) {
+      const log = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.75), logMat);
+      log.position.set(0, 0.16, 0);
+      log.rotation.set(0.55, (i / 4) * Math.PI * 2, 0);
+      log.translateZ(0.15);
+      g.add(log);
+    }
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.85, 0.12), bladeMat);
+    blade.position.set(0.05, 0.55, 0);
+    blade.rotation.z = 0.12;
+    g.add(blade);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.32), bladeMat);
+    guard.position.set(0.1, 1.0, 0);
+    g.add(guard);
+    for (let i = 0; i < 5; i++) {
+      const f = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.3, 0.14), i % 2 ? emberMat : flameMat);
+      f.position.set((Math.random() - 0.5) * 0.3, 0.25, (Math.random() - 0.5) * 0.3);
+      this.flames.push(f);
+      g.add(f);
+    }
+    g.position.copy(pos);
+    g.rotation.y = yaw;
+    g.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.material !== flameMat && m.material !== emberMat) m.castShadow = true;
+    });
+    scene.add(g);
+    this.setLit(false);
+  }
+
+  setLit(on: boolean): void {
+    this.lit = on;
+    for (const f of this.flames) f.visible = on;
+  }
+
+  update(dt: number): void {
+    this.t += dt;
+    if (!this.lit) return;
+    this.flames.forEach((f, i) => {
+      const k = 0.7 + 0.35 * Math.sin(this.t * (7 + i * 1.7) + i);
+      f.scale.set(0.8 + 0.2 * k, 0.6 + 0.9 * k, 0.8 + 0.2 * k);
+      f.position.y = 0.2 + 0.18 * k;
+      f.rotation.y = this.t * (1 + i * 0.3);
+    });
+  }
+}
+
+/** A glowing pile of gold coins with a golden beam (your lost gold / loot). */
+export class GoldPile {
+  readonly group = new THREE.Group();
+  private beamMesh: THREE.Mesh;
+  private t = 0;
+  constructor(
+    scene: THREE.Scene,
+    readonly pos: THREE.Vector3,
+  ) {
+    for (let i = 0; i < 7; i++) {
+      const c = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 8), goldMat);
+      c.position.set((Math.random() - 0.5) * 0.4, 0.03 + i * 0.03, (Math.random() - 0.5) * 0.4);
+      c.rotation.set(Math.random() * 0.4, 0, Math.random() * 0.4);
+      this.group.add(c);
+    }
+    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), sackMat);
+    bag.position.set(0.15, 0.15, -0.1);
+    this.group.add(bag);
+    this.beamMesh = beam(0xffc94a, 7, 0.35);
+    this.group.add(this.beamMesh);
+    this.group.position.copy(pos);
+    scene.add(this.group);
+  }
+  update(dt: number): void {
+    this.t += dt;
+    (this.beamMesh.material as THREE.ShaderMaterial).uniforms.opacity.value = 0.3 + 0.1 * Math.sin(this.t * 3);
+    this.group.rotation.y += dt * 0.5;
+  }
+  dispose(): void {
+    this.group.removeFromParent();
+  }
+}
+
+/** A quest item lying in the world (a sack / skin) with a violet beam. */
+export class Pickup {
+  readonly group = new THREE.Group();
+  private beamMesh: THREE.Mesh;
+  private t = 0;
+  constructor(
+    scene: THREE.Scene,
+    readonly pos: THREE.Vector3,
+    readonly item: string,
+    readonly label: string,
+  ) {
+    const bag = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.45, 0.3), sackMat);
+    bag.position.y = 0.22;
+    bag.castShadow = true;
+    this.group.add(bag);
+    this.beamMesh = beam(0xc28cff, 8, 0.35);
+    this.group.add(this.beamMesh);
+    this.group.position.copy(pos);
+    scene.add(this.group);
+  }
+  update(dt: number): void {
+    this.t += dt;
+    (this.beamMesh.material as THREE.ShaderMaterial).uniforms.opacity.value = 0.3 + 0.1 * Math.sin(this.t * 3);
+  }
+  dispose(): void {
+    this.group.removeFromParent();
+  }
+}

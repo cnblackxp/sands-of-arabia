@@ -300,6 +300,12 @@ export class World {
     return this.map.heights.height(x, z);
   }
 
+  /** Add a lamp or fire to the pooled point lights (bonfires). */
+  addLightSpot(p: THREE.Vector3, fire: boolean): void {
+    this.spots.push({ p: p.clone(), fire });
+    this.lampTimer = 0;
+  }
+
   /** Night glow for awnings and limewash (0 by day). */
   setNightGlow(g: number): void {
     for (const m of this.glowMats) m.emissiveIntensity = 0.06 * g;

@@ -1,161 +1,91 @@
 import type { Action, Hud } from './hud';
 import type { Frame } from './input';
 
-/** What the pause menu can read and change. */
-export interface MenuHost {
-  getTime(): number;
-  timeLabel(): string;
-  setTime(h: number): void;
-  flowLabel(): string;
-  cycleFlow(d: number): void;
-  lookName(): string;
-  cycleLook(d: number): void;
-  robeColour(): string;
-  cycleRobe(d: number): void;
-  cameraLabel(): string;
-  toggleCamera(): void;
-  mapLabel(): string;
-  cycleMap(d: number): void;
-  volume(): number;
-  setVolume(v: number): void;
-  uiSound(confirm: boolean): void;
-}
+/**
+ * Tabbed menu (pause menu, shop). Each tab is a list of rows rebuilt on every
+ * refresh, or a custom panel (the full map). Works with mouse (hover / click /
+ * sliders), keyboard (arrows or WASD, Enter, Esc, Tab / [ ]) and gamepad
+ * (D-pad or stick, A, B, LB / RB, Start).
+ */
 
-interface Row {
-  id: string;
+export interface MenuRow {
   label: string;
-  kind: 'button' | 'choice' | 'slider';
+  kind: 'button' | 'choice' | 'slider' | 'info' | 'header';
   value?: () => string;
+  /** Small secondary line under the label. */
+  sub?: () => string;
   adjust?: (d: number) => void;
   activate?: () => void;
   slider?: { min: number; max: number; step: number; get: () => number; set: (v: number) => void };
+  disabled?: () => boolean;
 }
 
-const CONTROLS: [Action, string][] = [
-  ['move', 'Move'],
-  ['run', 'Sprint (uses stamina)'],
-  ['attack', 'Attack (chain by pressing again)'],
-  ['dodge', 'Dodge roll (i-frames, uses stamina)'],
-  ['jump', 'Jump (uses stamina)'],
-  ['talk', 'Talk / mount / dismount'],
-  ['next', 'Next dialogue line'],
-  ['camera', 'Rotate camera'],
-  ['zoom', 'Zoom'],
-  ['map', 'Minimap size'],
-  ['pause', 'Pause menu'],
-];
+export interface MenuTab {
+  id: string;
+  label: string;
+  rows?: () => MenuRow[];
+  /** Custom panel content (e.g. the map); called on every refresh. */
+  render?: (el: HTMLElement) => void;
+  /** Wider panel for this tab. */
+  wide?: boolean;
+}
 
-export class PauseMenu {
+export class Menu {
   isOpen = false;
   private root: HTMLDivElement;
+  private titleEl: HTMLDivElement;
+  private subEl: HTMLDivElement;
+  private tabBar: HTMLDivElement;
   private list: HTMLDivElement;
-  private help: HTMLDivElement;
+  private custom: HTMLDivElement;
   private foot: HTMLDivElement;
-  private rows: Row[];
+  private panel: HTMLDivElement;
+  private tabs: MenuTab[] = [];
+  private tabIdx = 0;
+  private rows: MenuRow[] = [];
   private els: HTMLDivElement[] = [];
   private focus = 0;
-  private showHelp = false;
   private lastDevice = '';
+  onClose: () => void = () => {};
 
   constructor(
     parent: HTMLElement,
-    private host: MenuHost,
     private hud: Hud,
-    private onResume: () => void,
+    private sound: (confirm: boolean) => void,
   ) {
-    this.rows = [
-      { id: 'resume', label: 'Resume', kind: 'button', activate: () => this.close() },
-      {
-        id: 'time',
-        label: 'Time of day',
-        kind: 'slider',
-        value: () => host.timeLabel(),
-        adjust: (d) => host.setTime(host.getTime() + d * 0.5),
-        slider: { min: 0, max: 23.99, step: 0.05, get: () => host.getTime(), set: (v) => host.setTime(v) },
-      },
-      { id: 'flow', label: 'Time passes', kind: 'choice', value: () => host.flowLabel(), adjust: (d) => host.cycleFlow(d), activate: () => host.cycleFlow(1) },
-      { id: 'look', label: 'Character', kind: 'choice', value: () => host.lookName(), adjust: (d) => host.cycleLook(d), activate: () => host.cycleLook(1) },
-      {
-        id: 'robe',
-        label: 'Robe colour',
-        kind: 'choice',
-        value: () => `<span class="swatch" style="background:${host.robeColour()}"></span>`,
-        adjust: (d) => host.cycleRobe(d),
-        activate: () => host.cycleRobe(1),
-      },
-      { id: 'camera', label: 'Camera', kind: 'choice', value: () => host.cameraLabel(), adjust: () => host.toggleCamera(), activate: () => host.toggleCamera() },
-      { id: 'map', label: 'Minimap', kind: 'choice', value: () => host.mapLabel(), adjust: (d) => host.cycleMap(d), activate: () => host.cycleMap(1) },
-      {
-        id: 'volume',
-        label: 'Volume',
-        kind: 'slider',
-        value: () => `${Math.round(host.volume() * 100)}%`,
-        adjust: (d) => host.setVolume(Math.min(1, Math.max(0, host.volume() + d * 0.1))),
-        slider: { min: 0, max: 1, step: 0.01, get: () => host.volume(), set: (v) => host.setVolume(v) },
-      },
-      { id: 'controls', label: 'Controls', kind: 'button', activate: () => this.toggleHelp() },
-    ];
-
     this.root = document.createElement('div');
     this.root.className = 'pause hidden';
     this.root.innerHTML = `
       <div class="pause-panel">
-        <div class="pause-title">Paused</div>
-        <div class="pause-sub">The Oasis at Sunset</div>
+        <div class="pause-title"></div>
+        <div class="pause-sub"></div>
+        <div class="pause-tabs"></div>
         <div class="pause-list"></div>
-        <div class="pause-help hidden"></div>
+        <div class="pause-custom hidden"></div>
         <div class="pause-foot"></div>
       </div>`;
     parent.appendChild(this.root);
-    this.list = this.root.querySelector('.pause-list') as HTMLDivElement;
-    this.help = this.root.querySelector('.pause-help') as HTMLDivElement;
-    this.foot = this.root.querySelector('.pause-foot') as HTMLDivElement;
-
-    this.rows.forEach((row, i) => {
-      const el = document.createElement('div');
-      el.className = `prow prow-${row.kind}`;
-      let inner = `<div class="prow-label">${row.label}</div>`;
-      if (row.kind === 'choice' || row.kind === 'slider') {
-        inner += `<div class="prow-ctl"><button class="arrow" data-d="-1">◀</button><div class="prow-value"></div><button class="arrow" data-d="1">▶</button></div>`;
-      }
-      if (row.slider) {
-        const s = row.slider;
-        inner += `<input class="prow-range" type="range" min="${s.min}" max="${s.max}" step="${s.step}">`;
-      }
-      el.innerHTML = inner;
-      el.addEventListener('mouseenter', () => this.setFocus(i));
-      el.addEventListener('click', (e) => {
-        const t = e.target as HTMLElement;
-        if (t.classList.contains('arrow')) {
-          row.adjust?.(Number(t.dataset.d));
-          host.uiSound(false);
-        } else if (!t.classList.contains('prow-range')) {
-          row.activate?.();
-          if (row.activate) host.uiSound(true);
-        }
-        this.refresh();
-      });
-      const range = el.querySelector('.prow-range') as HTMLInputElement | null;
-      if (range && row.slider) {
-        range.addEventListener('input', () => {
-          row.slider!.set(Number(range.value));
-          this.refresh();
-        });
-      }
-      this.list.appendChild(el);
-      this.els.push(el);
-    });
-    this.help.addEventListener('click', () => this.toggleHelp());
+    const q = (s: string) => this.root.querySelector(s) as HTMLDivElement;
+    this.panel = q('.pause-panel');
+    this.titleEl = q('.pause-title');
+    this.subEl = q('.pause-sub');
+    this.tabBar = q('.pause-tabs');
+    this.list = q('.pause-list');
+    this.custom = q('.pause-custom');
+    this.foot = q('.pause-foot');
   }
 
-  open(): void {
+  /** Open with a set of tabs. */
+  open(title: string, sub: string, tabs: MenuTab[], tabId?: string): void {
+    this.tabs = tabs;
+    this.tabIdx = Math.max(0, tabs.findIndex((t) => t.id === tabId));
+    this.titleEl.textContent = title;
+    this.subEl.textContent = sub;
     this.isOpen = true;
-    this.showHelp = false;
     this.focus = 0;
     this.root.classList.remove('hidden');
-    this.help.classList.add('hidden');
-    this.list.classList.remove('hidden');
-    this.host.uiSound(true);
+    this.sound(true);
+    this.buildTabs();
     this.refresh();
   }
 
@@ -163,73 +93,185 @@ export class PauseMenu {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.root.classList.add('hidden');
-    this.host.uiSound(false);
-    this.onResume();
+    this.sound(false);
+    this.onClose();
   }
 
-  private toggleHelp(): void {
-    this.showHelp = !this.showHelp;
-    this.help.classList.toggle('hidden', !this.showHelp);
-    this.list.classList.toggle('hidden', this.showHelp);
+  get tabId(): string {
+    return this.tabs[this.tabIdx]?.id ?? '';
+  }
+
+  setTab(i: number): void {
+    const n = this.tabs.length;
+    if (n === 0) return;
+    this.tabIdx = ((i % n) + n) % n;
+    this.focus = 0;
+    this.sound(false);
+    this.buildTabs();
     this.refresh();
   }
 
-  private setFocus(i: number): void {
-    if (i === this.focus) return;
-    this.focus = i;
-    this.host.uiSound(false);
-    this.refresh();
+  private buildTabs(): void {
+    this.tabBar.classList.toggle('hidden', this.tabs.length < 2);
+    this.tabBar.innerHTML = '';
+    const glyph = this.hud.device === 'gamepad';
+    if (this.tabs.length > 1) {
+      const l = document.createElement('span');
+      l.className = 'tab-key';
+      l.innerHTML = glyph ? '<span class="pad bumper">LB</span>' : '<kbd>Tab</kbd>';
+      this.tabBar.appendChild(l);
+    }
+    this.tabs.forEach((t, i) => {
+      const b = document.createElement('button');
+      b.className = 'tab' + (i === this.tabIdx ? ' active' : '');
+      b.textContent = t.label;
+      b.addEventListener('click', () => this.setTab(i));
+      this.tabBar.appendChild(b);
+    });
+    if (this.tabs.length > 1 && glyph) {
+      const r = document.createElement('span');
+      r.className = 'tab-key';
+      r.innerHTML = '<span class="pad bumper">RB</span>';
+      this.tabBar.appendChild(r);
+    }
+    this.panel.classList.toggle('wide', !!this.tabs[this.tabIdx]?.wide);
   }
 
-  /** Per-frame input while open. */
+  private selectable(i: number): boolean {
+    const r = this.rows[i];
+    return !!r && r.kind !== 'info' && r.kind !== 'header';
+  }
+
+  private moveFocus(d: number): void {
+    const n = this.rows.length;
+    for (let k = 0; k < n; k++) {
+      this.focus = (this.focus + d + n) % n;
+      if (this.selectable(this.focus)) return;
+    }
+  }
+
   update(f: Frame): void {
     if (!this.isOpen) return;
-    if (f.device !== this.lastDevice) this.refresh();
-    if (this.showHelp) {
-      if (f.cancel || f.confirm || f.pause) {
-        this.toggleHelp();
-        this.host.uiSound(false);
-      }
-      return;
+    if (f.device !== this.lastDevice) {
+      this.lastDevice = f.device;
+      this.buildTabs();
+      this.refresh();
     }
     if (f.pause || f.cancel) {
       this.close();
       return;
     }
-    if (f.navY) {
-      this.focus = (this.focus + f.navY + this.rows.length) % this.rows.length;
-      this.host.uiSound(false);
+    if (f.tab) {
+      this.setTab(this.tabIdx + f.tab);
+      return;
+    }
+    if (f.navY && this.rows.length) {
+      this.moveFocus(f.navY);
+      this.sound(false);
       this.refresh();
     }
     const row = this.rows[this.focus];
+    if (!row || row.disabled?.()) return;
     if (f.navX && row.adjust) {
       row.adjust(f.navX);
-      this.host.uiSound(false);
+      this.sound(false);
       this.refresh();
     } else if (f.confirm && row.activate) {
       row.activate();
-      this.host.uiSound(true);
-      this.refresh();
+      this.sound(true);
+      if (this.isOpen) this.refresh();
     }
   }
 
   refresh(): void {
-    this.lastDevice = this.hud.device;
+    if (!this.isOpen) return;
+    const tab = this.tabs[this.tabIdx];
+    const k = (a: Action) => this.hud.key(a);
+    if (tab?.render) {
+      this.list.classList.add('hidden');
+      this.custom.classList.remove('hidden');
+      tab.render(this.custom);
+      this.rows = [];
+    } else {
+      this.list.classList.remove('hidden');
+      this.custom.classList.add('hidden');
+      this.rows = tab?.rows?.() ?? [];
+      if (!this.selectable(this.focus)) {
+        this.focus = Math.min(this.focus, this.rows.length - 1);
+        if (!this.selectable(this.focus)) this.moveFocus(1);
+      }
+      this.renderRows();
+    }
+    this.foot.innerHTML =
+      `<span>${this.hud.device === 'gamepad' ? '<span class="pad dpad">✚</span>' : '<kbd>↑</kbd><kbd>↓</kbd>'} select</span>` +
+      `<span>${k('adjust')} change</span><span>${k('confirm')} choose</span><span>${k('back')} close</span>`;
+  }
+
+  private renderRows(): void {
+    // Rebuild only when the row count changes; otherwise update in place.
+    if (this.els.length !== this.rows.length || this.list.dataset.tab !== this.tabId) {
+      this.list.innerHTML = '';
+      this.els = this.rows.map((_row, i) => {
+        const el = document.createElement('div');
+        this.list.appendChild(el);
+        el.addEventListener('mouseenter', () => {
+          if (this.selectable(i) && this.focus !== i) {
+            this.focus = i;
+            this.paintFocus();
+          }
+        });
+        el.addEventListener('click', (e) => {
+          const r = this.rows[i];
+          if (!r || r.disabled?.()) return;
+          const t = e.target as HTMLElement;
+          if (t.classList.contains('arrow')) r.adjust?.(Number(t.dataset.d));
+          else if (!t.classList.contains('prow-range')) r.activate?.();
+          this.sound(!!r.activate);
+          if (this.isOpen) this.refresh();
+        });
+        return el;
+      });
+      this.list.dataset.tab = this.tabId;
+    }
     this.rows.forEach((row, i) => {
       const el = this.els[i];
-      el.classList.toggle('focus', i === this.focus);
-      const v = el.querySelector('.prow-value');
-      if (v && row.value) v.innerHTML = row.value();
-      const range = el.querySelector('.prow-range') as HTMLInputElement | null;
-      if (range && row.slider && document.activeElement !== range) range.value = String(row.slider.get());
+      const val = row.value?.() ?? '';
+      const sub = row.sub?.() ?? '';
+      const ctl =
+        row.kind === 'choice' || row.kind === 'slider'
+          ? `<div class="prow-ctl"><button class="arrow" data-d="-1">◀</button><div class="prow-value">${val}</div><button class="arrow" data-d="1">▶</button></div>`
+          : val
+            ? `<div class="prow-value right">${val}</div>`
+            : '';
+      const html = `<div class="prow-main"><div class="prow-label">${row.label}</div>${sub ? `<div class="prow-sub">${sub}</div>` : ''}</div>${ctl}`;
+      const key = row.kind + html;
+      if (el.dataset.key !== key) {
+        el.dataset.key = key;
+        el.className = `prow prow-${row.kind}`;
+        el.innerHTML = html;
+        if (row.slider) {
+          const s = row.slider;
+          const range = document.createElement('input');
+          range.className = 'prow-range';
+          range.type = 'range';
+          range.min = String(s.min);
+          range.max = String(s.max);
+          range.step = String(s.step);
+          range.value = String(s.get());
+          range.addEventListener('input', () => {
+            s.set(Number(range.value));
+            this.refresh();
+          });
+          el.appendChild(range);
+        }
+      }
+      el.classList.toggle('disabled', !!row.disabled?.());
     });
-    const k = (a: Action) => this.hud.key(a);
-    this.help.innerHTML =
-      `<div class="help-title">Controls — ${this.hud.device === 'gamepad' ? 'Controller' : 'Keyboard & mouse'}</div>` +
-      CONTROLS.map(([a, l]) => `<div class="help-row"><span class="help-key">${k(a)}</span><span>${l}</span></div>`).join('') +
-      `<div class="help-note">Stamina: attacks, rolls and sprinting drain the green bar. When it is empty you cannot act — back off and let it refill. Watch for the red flash: an enemy is about to strike. Roll through the blow.</div>`;
-    this.foot.innerHTML = this.showHelp
-      ? `${k('back')} back`
-      : `<span>${this.hud.device === 'gamepad' ? '<span class="pad dpad">✚</span>' : '<kbd>↑</kbd><kbd>↓</kbd>'} select</span><span>${k('adjust')} change</span><span>${k('confirm')} choose</span><span>${k('back')} resume</span>`;
+    this.paintFocus();
+  }
+
+  private paintFocus(): void {
+    this.els.forEach((el, i) => el.classList.toggle('focus', i === this.focus));
+    this.els[this.focus]?.scrollIntoView({ block: 'nearest' });
   }
 }

@@ -198,6 +198,8 @@ export class Enemy {
   hasToken = false;
   /** Assigned angle around the player (atan2(dx, dz) from the player), NaN = none. */
   slotAngle = NaN;
+  /** Called once when this enemy dies (gold, quests). */
+  onKilled: (e: Enemy) => void = () => {};
   /** Called at the telegraph moment of a windup (glint VFX). */
   onTell: (e: Enemy) => void = () => {};
   private home: THREE.Vector3;
@@ -251,6 +253,9 @@ export class Enemy {
   }
   get title(): string {
     return this.def.title;
+  }
+  get homePos(): THREE.Vector3 {
+    return this.home;
   }
   get bodyRadius(): number {
     return BODY * this.def.scale;
@@ -360,6 +365,7 @@ export class Enemy {
       this.collider.setEnabled(false);
       this.sfx.death();
       res.killed = true;
+      this.onKilled(this);
       return res;
     }
     // Poise: brutes shrug off single blows, especially mid-swing (hyper armour).
@@ -861,6 +867,30 @@ export class EnemySystem {
       best = e;
     }
     return best;
+  }
+
+  /** Hook every enemy's death. */
+  setKillHook(cb: (e: Enemy) => void): void {
+    for (const e of this.list) e.onKilled = cb;
+  }
+
+  /** Living enemies left in a camp. */
+  campAlive(camp: string): number {
+    return this.list.filter((e) => e.camp === camp && !e.dead).length;
+  }
+
+  /** Camp centres (for map icons), with how many are still alive. */
+  camps(): { camp: string; x: number; z: number; alive: number; total: number }[] {
+    const m = new Map<string, { x: number; z: number; alive: number; total: number }>();
+    for (const e of this.list) {
+      const c = m.get(e.camp) ?? { x: 0, z: 0, alive: 0, total: 0 };
+      c.x += e.homePos.x;
+      c.z += e.homePos.z;
+      c.total++;
+      if (!e.dead) c.alive++;
+      m.set(e.camp, c);
+    }
+    return [...m].map(([camp, c]) => ({ camp, x: c.x / c.total, z: c.z / c.total, alive: c.alive, total: c.total }));
   }
 
   resetAll(): void {

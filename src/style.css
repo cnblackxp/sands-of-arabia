@@ -304,6 +304,8 @@ small {
 }
 .pause-panel {
   width: min(440px, calc(100vw - 48px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
 .pause-title {
   font-size: 34px;
@@ -434,4 +436,185 @@ small {
 }
 #loading.done {
   display: none;
+}
+
+.purse {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  color: #ffe2b0;
+  text-shadow: 0 1px 2px #000;
+  margin-top: 2px;
+}
+.coin {
+  color: #ffc94a;
+}
+.gold.pulse {
+  animation: goldpulse 0.5s;
+}
+@keyframes goldpulse {
+  40% {
+    transform: scale(1.35);
+    color: #fff3a0;
+  }
+}
+.flasks {
+  margin-left: 10px;
+  letter-spacing: 1px;
+}
+.flask {
+  color: rgba(255, 255, 255, 0.35);
+}
+.flask.full {
+  color: #7ec8e8;
+}
+.tracker {
+  position: absolute;
+  left: 18px;
+  top: 74px;
+  max-width: min(420px, 60vw);
+  font-size: 13px;
+  color: #e9d8ff;
+  text-shadow: 0 1px 3px #000;
+}
+.floaters {
+  position: absolute;
+  inset: 0;
+}
+.floater {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  font: bold 16px Georgia, serif;
+  text-shadow: 0 2px 4px #000;
+  animation: floatup 1.4s ease-out forwards;
+  white-space: nowrap;
+}
+.floater.gold {
+  color: #ffd25a;
+}
+.floater.heal {
+  color: #8ee08a;
+}
+@keyframes floatup {
+  from {
+    opacity: 1;
+    margin-top: 0;
+  }
+  to {
+    opacity: 0;
+    margin-top: -46px;
+  }
+}
+.pad.x {
+  background: #2f62c0;
+}
+.pause-panel.wide {
+  width: min(900px, calc(100vw - 48px));
+}
+.pause-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -6px 0 12px;
+  flex-wrap: wrap;
+}
+.tab {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(227, 164, 67, 0.35);
+  color: #f3dcc0;
+  font: 13px Georgia, serif;
+  padding: 5px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.tab.active {
+  background: rgba(227, 164, 67, 0.3);
+  color: #fff;
+  border-color: var(--gold);
+}
+.tab-key {
+  margin: 0 4px;
+}
+.pause-list {
+  max-height: min(62vh, 560px);
+  overflow-y: auto;
+}
+.prow-main {
+  display: flex;
+  flex-direction: column;
+}
+.prow-sub {
+  font-size: 12px;
+  opacity: 0.65;
+  margin-top: 2px;
+}
+.prow-value.right {
+  min-width: 0;
+  text-align: right;
+}
+.prow-header {
+  cursor: default;
+  border-left-color: transparent !important;
+  background: none !important;
+  padding-top: 12px;
+}
+.prow-header .prow-label {
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.prow-info {
+  cursor: default;
+  opacity: 0.85;
+}
+.prow.disabled {
+  opacity: 0.45;
+}
+.map-wrap {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.map-wrap canvas {
+  width: min(560px, 64vh, 60vw);
+  height: auto;
+  flex: none;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+.legend {
+  font-size: 13px;
+  min-width: 200px;
+  max-height: min(560px, 64vh);
+  overflow-y: auto;
+}
+.legend-title {
+  color: var(--gold);
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+.legend-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: bold 11px 'Segoe UI Symbol', Georgia, sans-serif;
+  color: #2a1608;
+  border: 2px solid rgba(25, 14, 8, 0.85);
+}
+.legend-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin: 0 5px;
 }

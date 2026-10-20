@@ -24,7 +24,12 @@ export class Npc {
   state: State = 'idle';
   hostile = false;
   readonly name: string;
-  readonly title: string;
+  title: string;
+  /** Spawn role and index among that role's spawns in this map (quest references). */
+  refRole = '';
+  refIndex = 0;
+  /** Sells wares (opens the shop instead of small talk). */
+  shop = false;
   private home: THREE.Vector3;
   private homeYaw: number;
   private target = new THREE.Vector3();
@@ -423,10 +428,14 @@ export class NpcSystem {
     // Market lane minus the gate ramp.
     // The oasis market lane, minus the gate ramp; other maps wander locally.
     this.lane = (level.paths.market_lane ?? []).map((p) => new THREE.Vector3(...p)).filter((p) => p.z > -15);
+    const counts: Record<string, number> = {};
+    let explicitShop = false;
     for (const s of level.spawns) {
       if (NOT_NPC.has(s.role)) continue;
-      // Unknown roles from new maps behave as wanderers.
-      const role = (s.role in ROLE_TITLE ? s.role : 'wanderer') as NpcRole;
+      const shop = (s.role as string) === 'shopkeeper';
+      explicitShop ||= shop;
+      // Unknown roles from new maps behave as wanderers; shopkeepers as merchants.
+      const role = (shop ? 'merchant' : s.role in ROLE_TITLE ? s.role : 'wanderer') as NpcRole;
       const { acc, colours, female } = this.dress(role);
       const rig = factory.createPerson(acc, colours);
       const at = new THREE.Vector3(...s.pos);
@@ -434,9 +443,24 @@ export class NpcSystem {
       s.pos[1] = at.y;
       const col = world.physics.addActor(RADIUS, HALF, at);
       const npc = new Npc(role, rig, s, female, col, this);
+      npc.refRole = s.role;
+      npc.refIndex = counts[s.role] ?? 0;
+      counts[s.role] = npc.refIndex + 1;
+      if (shop) npc.shop = true;
       scene.add(rig.root);
       this.npcs.push(npc);
     }
+    // No explicit shopkeeper: the merchant nearest the arrival point trades.
+    if (!explicitShop) {
+      const ps = level.spawns.find((s) => s.role === 'player' && !s.from);
+      const merchants = this.npcs.filter((n) => n.role === 'merchant');
+      if (ps && merchants.length) {
+        const d = (n: Npc) => Math.hypot(n.pos.x - ps.pos[0], n.pos.z - ps.pos[2]);
+        merchants.sort((a, b) => d(a) - d(b));
+        merchants[0].shop = true;
+      }
+    }
+    for (const n of this.npcs) if (n.shop) n.title = 'Trader';
   }
 
   private dress(role: NpcRole): { acc: Accessory[]; colours: Record<string, number>; female: boolean } {
