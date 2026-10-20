@@ -83,11 +83,103 @@ def bounds(objs):
     return lo, hi
 
 
+# cap layers win over what they sit on; higher rank is lifted further (ties: the smaller face lifts)
+CAP_RANK = {"Lime": 6, "Stone": 5, "StoneDark": 4, "Mud2": 3, "Mud1": 2, "Mud0": 1}
+ZF_STEP = 0.015
+ZF_TOL = 0.006                     # faces closer than this to the same plane count as coplanar
+
+
+def fix_coplanar(ob, step=ZF_STEP):
+    """Remove z-fighting at the source: where faces of different materials lie in the same plane,
+    face the same way and overlap, push the higher-ranked face(s) out along their normal by
+    rank-index * step. Each MB primitive owns its vertices, so this just thickens the cap a few mm."""
+    from collections import defaultdict
+    me = ob.data
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bm.normal_update()
+    names = [(m.name.split(".")[0] if m else "") for m in me.materials]
+
+    def basis(n):
+        a = Vector((1, 0, 0)) if abs(n.x) < 0.9 else Vector((0, 1, 0))
+        u = n.cross(a).normalized()
+        return u, n.cross(u)
+    groups = defaultdict(list)
+    for f in bm.faces:
+        n = f.normal
+        if n.length < 0.5 or n.z < -0.9:                     # undersides are never seen
+            continue
+        dk = math.floor(n.dot(f.verts[0].co) / ZF_TOL)
+        for k in (dk, dk + 1):                                # straddle bucket edges
+            groups[(round(n.x, 2), round(n.y, 2), round(n.z, 2), k)].append(f)
+    disp = defaultdict(dict)                                  # vert -> {normal key: offset}
+    fixed = 0
+    for key, fs in groups.items():
+        if len({f.material_index for f in fs}) < 2:
+            continue
+        n = fs[0].normal.copy()
+        u, v = basis(n)
+        boxes = []
+        for f in fs:
+            us = [p.co.dot(u) for p in f.verts]
+            vs = [p.co.dot(v) for p in f.verts]
+            boxes.append((min(us), max(us), min(vs), max(vs), n.dot(f.verts[0].co)))
+        mats = sorted({f.material_index for f in fs},
+                      key=lambda i: (CAP_RANK.get(names[i] if i < len(names) else "", 0), i))
+        level = {m: k for k, m in enumerate(mats)}
+        cell = defaultdict(list)                              # spatial buckets keep big groups fast
+        for i, b in enumerate(boxes):
+            for cx in range(int(b[0] // 4), int(b[1] // 4) + 1):
+                for cy in range(int(b[2] // 4), int(b[3] // 4) + 1):
+                    cell[cx, cy].append(i)
+        lift = {}
+        for idxs in cell.values():
+            for a_ in range(len(idxs)):
+                for b_ in range(a_ + 1, len(idxs)):
+                    i, j = idxs[a_], idxs[b_]
+                    fi, fj = fs[i], fs[j]
+                    if fi.material_index == fj.material_index:
+                        continue
+                    bi, bj = boxes[i], boxes[j]
+                    if abs(bi[4] - bj[4]) > ZF_TOL:
+                        continue
+                    ox = min(bi[1], bj[1]) - max(bi[0], bj[0])
+                    oy = min(bi[3], bj[3]) - max(bi[2], bj[2])
+                    if ox <= 1e-3 or oy <= 1e-3:
+                        continue
+                    li, lj = level[fi.material_index], level[fj.material_index]
+                    if li == lj:
+                        continue
+                    hi = i if li > lj else j
+                    lift[hi] = max(lift.get(hi, 0), max(li, lj))
+        for i, lv in lift.items():
+            for p in fs[i].verts:
+                disp[p][key[:3]] = max(disp[p].get(key[:3], 0.0), lv * step)
+            fixed += 1
+    fixed = len({p for p in disp})
+    for p, offs in disp.items():
+        for nk, d in offs.items():
+            p.co += Vector(nk).normalized() * d
+    bm.to_mesh(me)
+    bm.free()
+    return fixed
+
+
 def export(objs, rel, kind, anim=False, extra=None, vcol=False, normals=True):
     """Export objs (and children) to assets/rel; record it in the manifest."""
     path = os.path.join(ASSETS, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     objs = descendants(objs)
+    if not anim and not vcol:
+        n = 0
+        for o in [o for o in objs if o.type == "MESH"]:
+            for _ in range(3):                      # a lift can land near another plane; re-check
+                k = fix_coplanar(o)
+                n += k
+                if not k:
+                    break
+        if n:
+            print("ZFIGHT", rel, n, "faces lifted")
     vl = bpy.context.view_layer
     for o in bpy.data.objects:
         if o.name in vl.objects:

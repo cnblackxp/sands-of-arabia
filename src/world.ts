@@ -236,23 +236,6 @@ export class World {
       });
       scene.add(root);
     };
-    // The joined town/dressing meshes (one mesh per material) contain faces that
-    // share a plane across materials — limewash caps on mudbrick tops, mud
-    // variants meeting flush — which z-fight (flicker) whatever the depth
-    // precision. Lift each material layer by a few millimetres so no two
-    // materials are ever coplanar; limewash on top.
-    for (const root of [map.town.scene, map.dressing?.scene]) {
-      let i = 0;
-      root?.traverse((o) => {
-        const m = o as THREE.Mesh;
-        if (!m.isMesh || m.userData.zStagger) return;
-        const name = (Array.isArray(m.material) ? m.material[0] : m.material).name;
-        const mud = /^Mud(\d)/.exec(name);
-        const k = name === 'Lime' ? 6 : mud ? 2 + Math.min(3, Number(mud[1])) : i++ % 5;
-        m.position.y += 0.004 * k;
-        m.userData.zStagger = true;
-      });
-    }
     prep(map.terrain.scene, true, true);
     prep(map.town.scene, true, true);
     prep(map.dressing?.scene, true, true);

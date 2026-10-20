@@ -316,7 +316,7 @@
     5.625
    ],
    "materials": [
-    "Lime",
+    "Mud1",
     "Opening",
     "Wood"
    ]
@@ -344,7 +344,7 @@
     4.825
    ],
    "materials": [
-    "Lime",
+    "Mud0",
     "Opening",
     "Wood"
    ]
@@ -358,7 +358,7 @@
     6.625
    ],
    "materials": [
-    "Mud2",
+    "Mud1",
     "Opening",
     "Wood"
    ]
@@ -387,7 +387,7 @@
    ],
    "materials": [
     "Lime",
-    "Mud2",
+    "Mud0",
     "Opening"
    ]
   },
@@ -410,19 +410,18 @@
    "file": "market/stall_spice.glb",
    "kind": "prop",
    "size": [
-    4.571,
-    3.147,
-    3.731
+    4.144,
+    3.139,
+    4.18
    ],
    "materials": [
     "Aw0a",
     "Aw0b",
-    "Clay",
-    "LampFlame",
-    "Leather",
-    "Rug3",
+    "Clay2",
+    "Rug0",
     "Sack",
     "Spice0",
+    "Spice1",
     "Spice2",
     "Spice3",
     "Spice5",
@@ -433,9 +432,9 @@
    "file": "market/stall_pots.glb",
    "kind": "prop",
    "size": [
-    4.362,
-    3.138,
-    4.109
+    3.943,
+    3.145,
+    3.81
    ],
    "materials": [
     "Aw1a",
@@ -451,17 +450,14 @@
    "file": "market/stall_cloth.glb",
    "kind": "prop",
    "size": [
-    4.725,
-    3.146,
-    3.761
+    4.3,
+    3.145,
+    3.856
    ],
    "materials": [
     "Aw2a",
     "Aw2b",
     "Clay2",
-    "LampFlame",
-    "Leather",
-    "Rug0",
     "Rug1",
     "Rug2",
     "Rug3",
@@ -474,18 +470,18 @@
    "file": "market/stall_brass.glb",
    "kind": "prop",
    "size": [
-    3.77,
-    3.15,
-    3.621
+    4.06,
+    3.14,
+    4.13
    ],
    "materials": [
     "Aw3a",
     "Aw3b",
     "Brass",
+    "Clay2",
     "LampFlame",
     "Leather",
-    "Rug0",
-    "Sack",
+    "Rug4",
     "Wood"
    ]
   },
@@ -493,9 +489,9 @@
    "file": "nature/palm_a.glb",
    "kind": "nature",
    "size": [
-    6.649,
-    7.897,
-    6.731
+    7.893,
+    8.322,
+    6.78
    ],
    "materials": [
     "Dates",
@@ -507,9 +503,9 @@
    "file": "nature/palm_b.glb",
    "kind": "nature",
    "size": [
-    7.266,
-    11.679,
-    8.007
+    8.039,
+    12.71,
+    8.36
    ],
    "materials": [
     "Dates",
@@ -521,9 +517,9 @@
    "file": "nature/palm_c.glb",
    "kind": "nature",
    "size": [
-    6.319,
-    8.187,
-    6.337
+    6.442,
+    7.48,
+    5.595
    ],
    "materials": [
     "Dates",
@@ -917,9 +913,9 @@
    "file": "props/bonfire.glb",
    "kind": "prop",
    "size": [
-    1.871,
-    1.295,
-    1.805
+    1.829,
+    1.297,
+    1.837
    ],
    "materials": [
     "Ash",
@@ -937,7 +933,7 @@
    "kind": "prop",
    "size": [
     1.0,
-    0.75,
+    0.765,
     0.655
    ],
    "materials": [

@@ -193,5 +193,5 @@ Decisions worth knowing:
   - `audio.ts` has `Ambience` (wind, crowd, water, fire crackle, birds by day, crickets at night, all levels driven by the surroundings) and `Music`.
   - `Music` plays tracks listed in `assets/audio/music/music.json`, by mood: explore, town, night, combat, stronghold.
   - The tracks are Kevin MacLeod's, CC BY 4.0. Keep the credits in the README and in `music.json`.
-- **Z-fighting.** The joined town and dressing meshes have faces that share a plane across materials. `World` lifts each material layer by a few millimetres; keep it until the Blender kit stops emitting coplanar faces.
+- **Z-fighting.** The Blender export runs `fix_coplanar()` on every static mesh, so faces of different materials never share a plane (Lime ranks highest). `tools/blender/check_zfight.py` counts any remaining pairs.
 - **Debug.** The backquote key toggles wireframes of the level.json colliders.
