@@ -19,6 +19,9 @@ export interface LoadedAssets {
   bg: THREE.Texture;
 }
 
+/** Asset URL relative to the deployed base (works at / and at /sands-of-arabia/). */
+const asset = (path: string) => import.meta.env.BASE_URL + path.replace(/^\//, '');
+
 export async function loadAssets(onProgress: (f: number, label: string) => void): Promise<LoadedAssets> {
   const gltf = new GLTFLoader();
   let done = 0;
@@ -29,18 +32,18 @@ export async function loadAssets(onProgress: (f: number, label: string) => void)
       return v;
     });
 
-  const level = await tick('level', fetch('/level/level.json').then((r) => r.json() as Promise<LevelData>));
+  const level = await tick('level', fetch(asset('/level/level.json')).then((r) => r.json() as Promise<LevelData>));
   const [heightsBuf, terrain, town, backdrop, backdropGround, person, horse, camel, envHdr, bg] = await Promise.all([
-    tick('heights', fetch('/' + level.heights.file).then((r) => r.arrayBuffer())),
-    tick('terrain', gltf.loadAsync('/level/terrain.glb')),
-    tick('town', gltf.loadAsync('/level/town.glb')),
-    tick('backdrop', gltf.loadAsync('/level/backdrop.glb')),
-    tick('backdrop ground', gltf.loadAsync('/level/backdrop_ground.glb')),
-    tick('person', gltf.loadAsync('/characters/person.glb')),
-    tick('horse', gltf.loadAsync('/characters/horse.glb')),
-    tick('camel', gltf.loadAsync('/characters/camel.glb')),
-    tick('sky light', new HDRLoader().loadAsync('/sky/sunset_env.hdr')),
-    tick('sky', new THREE.TextureLoader().loadAsync('/sky/sunset_bg.jpg')),
+    tick('heights', fetch(asset(level.heights.file)).then((r) => r.arrayBuffer())),
+    tick('terrain', gltf.loadAsync(asset('/level/terrain.glb'))),
+    tick('town', gltf.loadAsync(asset('/level/town.glb'))),
+    tick('backdrop', gltf.loadAsync(asset('/level/backdrop.glb'))),
+    tick('backdrop ground', gltf.loadAsync(asset('/level/backdrop_ground.glb'))),
+    tick('person', gltf.loadAsync(asset('/characters/person.glb'))),
+    tick('horse', gltf.loadAsync(asset('/characters/horse.glb'))),
+    tick('camel', gltf.loadAsync(asset('/characters/camel.glb'))),
+    tick('sky light', new HDRLoader().loadAsync(asset('/sky/sunset_env.hdr'))),
+    tick('sky', new THREE.TextureLoader().loadAsync(asset('/sky/sunset_bg.jpg'))),
   ]);
   return {
     level,
