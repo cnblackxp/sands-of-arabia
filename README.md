@@ -29,14 +29,17 @@ It runs in any modern desktop browser with WebGL 2, using keyboard and mouse or 
 | Action | Keyboard & mouse | Controller |
 |---|---|---|
 | Move | WASD | Left stick |
-| Sprint | Shift | Hold B, LT or L3 |
-| Attack | Left click or J | RB, X or RT |
+| Sprint (free out of combat) | Shift | Hold B, LT or L3 |
+| Attack | Left click or J | RB or RT |
+| Block (with a shield) | Right mouse (hold) | LB (hold) |
 | Dodge roll | Space | Tap B |
-| Jump | F | A |
-| Talk, mount, dismount | E | Y |
-| Camera rotate and zoom | Middle-mouse drag or Z / C, mouse wheel | Right stick, D-pad |
-| Minimap size | M | View |
-| Pause menu | Esc | Start |
+| Jump (hold for height, double jump with the feather) | F | A |
+| Drink a healing waterskin | R | X |
+| Talk, trade, rest, open, travel, mount | E | Y |
+| Rotate camera | Middle-mouse drag, or Z / C | Right stick |
+| Zoom | Mouse wheel | Right stick / D-pad |
+| Map | M | View |
+| Menu (inventory, quests, travel, settings) | Tab or Esc | Start |
 
 ## Running locally
 You need Node 20.19+ or 22.12+.
