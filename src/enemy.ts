@@ -62,7 +62,7 @@ const KINDS: Record<EnemyKind, KindDef> = {
     sight: 15,
     turn: 3.2,
     lunge: 2.2,
-    acc: ['Keffiyeh', 'Beard', 'Sword'],
+    acc: ['Keffiyeh', 'FaceWrap', 'Vest', 'Sword', 'Shield'],
     colours: { P_Robe: 0x2b2622, P_Sash: 0x7b2a24, P_Wrap: 0x3b3530, P_Pants: 0x2f2a26, P_Skin: 0x9a6440 },
   },
   skirmisher: {
@@ -84,7 +84,7 @@ const KINDS: Record<EnemyKind, KindDef> = {
     sight: 16,
     turn: 4.5,
     lunge: 2.6,
-    acc: ['Hair', 'Sword'],
+    acc: ['Headband', 'FaceWrap', 'Hair', 'Sword'],
     colours: { P_Robe: 0x6b4a32, P_Sash: 0x2b2622, P_Hair: 0x1d1612, P_Pants: 0x3d3128, P_Skin: 0x7d4f31 },
   },
   brute: {
@@ -106,7 +106,7 @@ const KINDS: Record<EnemyKind, KindDef> = {
     sight: 12,
     turn: 1.8,
     lunge: 2.8,
-    acc: ['Turban', 'Beard', 'Sword'],
+    acc: ['Helmet', 'BeardLong', 'Lamellar', 'Belly', 'Sword', 'Shield'],
     colours: { P_Robe: 0x4a1a14, P_Sash: 0x2b2622, P_Wrap: 0x2b2622, P_Pants: 0x2a1d17, P_Skin: 0x7d4f31 },
   },
 };
@@ -120,7 +120,15 @@ const SWINGS = [
 type EState = 'idle' | 'alert' | 'approach' | 'reposition' | 'windup' | 'strike' | 'recover' | 'stagger' | 'return' | 'dead';
 
 const RADIUS = 0.32;
+/** Body half-width for spacing (shoulders + arms), larger than the collision capsule. */
+const BODY = 0.42;
 const LEASH = 38;
+/** At most this many raiders press the attack at once; the rest wait on an outer ring. */
+const MAX_ATTACKERS = 2;
+const WAIT_RING = 3.6;
+const ATTACKING: ReadonlySet<string> = new Set(['windup', 'strike', 'recover']);
+const ENGAGED: ReadonlySet<string> = new Set(['alert', 'approach', 'reposition', 'windup', 'strike', 'recover', 'stagger']);
+const TAU = Math.PI * 2;
 
 export class Enemy {
   readonly pos = new THREE.Vector3();
@@ -132,6 +140,10 @@ export class Enemy {
   sinceHurt = 99;
   lastDamage = 0;
   readonly flash = new Flash();
+  /** Holds one of the limited attack slots (set by EnemySystem each frame). */
+  hasToken = false;
+  /** Assigned angle around the player (atan2(dx, dz) from the player), NaN = none. */
+  slotAngle = NaN;
   /** Called at the telegraph moment of a windup (glint VFX). */
   onTell: (e: Enemy) => void = () => {};
   private home: THREE.Vector3;
@@ -184,6 +196,19 @@ export class Enemy {
   get title(): string {
     return this.def.title;
   }
+  get bodyRadius(): number {
+    return BODY * this.def.scale;
+  }
+  get combatant(): boolean {
+    return ENGAGED.has(this.state);
+  }
+  get midAttack(): boolean {
+    return ATTACKING.has(this.state);
+  }
+  get readyToAttack(): boolean {
+    return this.cooldown <= 0;
+  }
+
   get engaged(): boolean {
     return !this.dead && this.state !== 'idle' && this.state !== 'return';
   }
@@ -279,7 +304,7 @@ export class Enemy {
     this.enter('alert');
   }
 
-  update(dt: number, player: PlayerView, peers: Enemy[], focusDist: number): void {
+  update(dt: number, player: PlayerView, focusDist: number): void {
     this.sinceHurt += dt;
     this.flash.update(dt);
     if (this.poiseTimer > 0 && (this.poiseTimer -= dt) <= 0) this.poiseHits = 0;
@@ -329,15 +354,31 @@ export class Enemy {
           this.goHome();
           break;
         }
-        if (dist < d.range + 0.3 && this.cooldown <= 0) {
+        if (this.hasToken && dist < d.range + 0.3 && this.cooldown <= 0) {
           this.startSwing(true);
           break;
         }
-        if (dist < d.range + 1.4 && this.cooldown > 0) {
+        if (this.hasToken && dist < d.range + 1.4 && this.cooldown > 0) {
           this.pickReposition(player.pos);
           break;
         }
-        this.moveToward(player.pos.x, player.pos.z, d.run, dt, d.range * 0.8);
+        // Go to the assigned slot: close in when holding an attack token, else wait on the ring.
+        const ring = this.hasToken ? d.range * 0.85 : WAIT_RING + (d.scale - 1) * 1.5;
+        const a = Number.isNaN(this.slotAngle) ? Math.atan2(this.pos.x - player.pos.x, this.pos.z - player.pos.z) : this.slotAngle;
+        const tx = player.pos.x + Math.sin(a) * ring;
+        const tz = player.pos.z + Math.cos(a) * ring;
+        const left = Math.hypot(tx - this.pos.x, tz - this.pos.z);
+        const anim = this.rig.anim;
+        if (left < 0.4) {
+          // In position: square up to the player and wait for an opening.
+          anim.setBase('Idle', 1, 0.2);
+          this.yaw = turnToward(this.yaw, toPlayer, d.turn, dt);
+        } else {
+          const run = left > 2.5;
+          if (run) anim.setBase('Run', d.run / CLIP_SPEED.personRun, 0.15);
+          else anim.setBase('Walk', d.walk / CLIP_SPEED.personWalk, 0.2);
+          this.moveToward(tx, tz, run ? d.run : d.walk, dt);
+        }
         break;
       }
       case 'reposition': {
@@ -440,17 +481,6 @@ export class Enemy {
       this.stepDir(k.x, k.z, 1, dt, false, k.length() * dt);
       k.multiplyScalar(Math.max(0, 1 - dt * 7));
     }
-    // Keep a little space between raiders.
-    if (!this.dead) {
-      for (const o of peers) {
-        if (o === this || o.dead) continue;
-        const ox = this.pos.x - o.pos.x;
-        const oz = this.pos.z - o.pos.z;
-        const od = Math.hypot(ox, oz);
-        if (od > 0.01 && od < 0.9) this.stepDir(ox / od, oz / od, 1, dt, false, (0.9 - od) * 0.5);
-      }
-    }
-
     this.sync();
     this.animAcc += dt;
     this.frame++;
@@ -506,6 +536,16 @@ export class Enemy {
     return d;
   }
 
+  /** Positional correction from the separation pass; ignored if it would enter a wall. */
+  nudge(dx: number, dz: number): void {
+    const nx = this.pos.x + dx;
+    const nz = this.pos.z + dz;
+    if (this.world.nav.isBlocked(nx, nz)) return;
+    this.pos.x = nx;
+    this.pos.z = nz;
+    this.pos.y = this.world.ground(nx, nz);
+  }
+
   private stepDir(dx: number, dz: number, dist: number, dt: number, face: boolean, override?: number): void {
     const len = override ?? dist;
     if (len <= 0) return;
@@ -520,7 +560,7 @@ export class Enemy {
     if (face) this.yaw = dampAngle(this.yaw, Math.atan2(dx, dz), 12, dt);
   }
 
-  private sync(): void {
+  sync(): void {
     this.rig.root.position.copy(this.pos);
     this.rig.root.rotation.y = this.yaw;
     if (!this.dead) this.collider.setTranslation({ x: this.pos.x, y: this.pos.y + 0.9 * this.def.scale, z: this.pos.z });
@@ -556,10 +596,105 @@ export class EnemySystem {
   }
 
   update(dt: number, player: PlayerView): void {
+    this.assignTokensAndSlots(player);
     for (const e of this.list) {
       const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
-      e.update(dt, player, this.list, d);
+      e.update(dt, player, d);
     }
+    this.separate(player);
+  }
+
+  /**
+   * Souls-style crowd control: only MAX_ATTACKERS raiders press the attack at
+   * once (whoever is mid-swing keeps the slot), and every engaged raider gets
+   * an angle around the player spread far enough apart that bodies don't overlap.
+   */
+  private assignTokensAndSlots(player: PlayerView): void {
+    const p = player.pos;
+    const dist = (e: Enemy) => Math.hypot(e.pos.x - p.x, e.pos.z - p.z);
+    const near = this.list.filter((e) => !e.dead && e.combatant && dist(e) < 25);
+    const nearSet = new Set(near);
+    for (const e of this.list) {
+      if (nearSet.has(e)) continue;
+      e.hasToken = false;
+      e.slotAngle = NaN;
+    }
+    // Raiders mid-swing keep their token; then the nearest ones ready to attack.
+    let tokens = 0;
+    for (const e of near) {
+      e.hasToken = e.midAttack;
+      if (e.hasToken) tokens++;
+    }
+    const ready = near.filter((e) => !e.hasToken && e.readyToAttack).sort((a, b) => dist(a) - dist(b));
+    for (const e of ready) {
+      if (tokens >= MAX_ATTACKERS) break;
+      e.hasToken = true;
+      tokens++;
+    }
+
+    // Slot angles: start from where each raider stands, then relax so that
+    // neighbours on the same ring are at least two body widths apart.
+    for (const inner of [true, false]) {
+      const items = near
+        .filter((e) => e.hasToken === inner)
+        .map((e) => {
+          const cur = Math.atan2(e.pos.x - p.x, e.pos.z - p.z);
+          const prev = Number.isNaN(e.slotAngle) ? cur : e.slotAngle;
+          // Drift toward the raider's natural position so slots stay nearby.
+          return { e, a: prev + wrapAngle(cur - prev) * 0.08 };
+        });
+      if (items.length > 1) {
+        for (let iter = 0; iter < 6; iter++) {
+          items.sort((x, y) => x.a - y.a);
+          for (let i = 0; i < items.length; i++) {
+            const A = items[i];
+            const B = items[(i + 1) % items.length];
+            const R = inner ? Math.max(A.e.def.range, B.e.def.range) * 0.85 : WAIT_RING;
+            const chord = A.e.bodyRadius + B.e.bodyRadius + 0.45;
+            const need = 2 * Math.asin(Math.min(1, chord / (2 * R)));
+            const gap = (((B.a - A.a) % TAU) + TAU) % TAU;
+            if (gap < need) {
+              const push = (need - gap) / 2;
+              A.a -= push;
+              B.a += push;
+            }
+          }
+        }
+      }
+      for (const it of items) it.e.slotAngle = wrapAngle(it.a);
+    }
+  }
+
+  /** Hard separation: raiders never overlap each other or the player. */
+  private separate(player: PlayerView): void {
+    const live = this.list.filter((e) => !e.dead);
+    for (let iter = 0; iter < 2; iter++) {
+      for (let i = 0; i < live.length; i++) {
+        const a = live[i];
+        for (let j = i + 1; j < live.length; j++) {
+          const b = live[j];
+          const dx = b.pos.x - a.pos.x;
+          const dz = b.pos.z - a.pos.z;
+          const min = a.bodyRadius + b.bodyRadius;
+          const d2 = dx * dx + dz * dz;
+          if (d2 >= min * min) continue;
+          const d = Math.sqrt(d2);
+          const nx = d > 1e-3 ? dx / d : 1;
+          const nz = d > 1e-3 ? dz / d : 0;
+          const push = (min - d) / 2;
+          a.nudge(-nx * push, -nz * push);
+          b.nudge(nx * push, nz * push);
+        }
+        if (player.dead) continue;
+        // The player doesn't move here (their own capsule handles the rest).
+        const px = a.pos.x - player.pos.x;
+        const pz = a.pos.z - player.pos.z;
+        const pmin = a.bodyRadius + 0.38;
+        const pd = Math.hypot(px, pz);
+        if (pd < pmin && pd > 1e-3) a.nudge((px / pd) * (pmin - pd), (pz / pd) * (pmin - pd));
+      }
+    }
+    for (const e of live) e.sync();
   }
 
   hitArc(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number): HitResult[] {

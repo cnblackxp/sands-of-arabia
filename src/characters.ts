@@ -13,8 +13,31 @@ export const CLIP_SPEED = {
   camelRun: 6,
 };
 
-export const PERSON_ACCESSORIES = ['Beard', 'Hair', 'Keffiyeh', 'Turban', 'Veil', 'Jar', 'Sword'] as const;
-export type Accessory = (typeof PERSON_ACCESSORIES)[number];
+/**
+ * Person accessory parts (see the manifest). Any part of a model other than
+ * `Body` is hidden unless explicitly chosen, so newly exported accessories
+ * never show up on everyone by accident.
+ */
+export type Accessory =
+  | 'Beard'
+  | 'BeardLong'
+  | 'Belly'
+  | 'Bow'
+  | 'Cloak'
+  | 'FaceWrap'
+  | 'Hair'
+  | 'Headband'
+  | 'Helmet'
+  | 'Jar'
+  | 'Keffiyeh'
+  | 'Lamellar'
+  | 'Shield'
+  | 'Spear'
+  | 'Sword'
+  | 'Turban'
+  | 'Veil'
+  | 'Vest'
+  | 'Waterskin';
 
 const PERSON_LOWER = ['root', 'hips', 'leg_L', 'leg_R'];
 
@@ -127,7 +150,6 @@ export class CharacterFactory {
     src: GLTF,
     lib: ClipLibrary,
     colours: Record<string, number>,
-    toggles: readonly string[],
     show: Set<string>,
     bounds: THREE.Sphere,
   ): Rig {
@@ -136,7 +158,9 @@ export class CharacterFactory {
     root.traverse((o) => {
       if ((o as THREE.Bone).isBone) bones.set(o.name, o as THREE.Bone);
       // Multi-material meshes load as a Group of SkinnedMeshes named after the part.
-      if (toggles.includes(o.name)) o.visible = show.has(o.name);
+      // Parts are the direct children of the model node (a mesh, or a Group of
+      // per-material meshes); everything but Body is opt-in.
+      if (o.parent?.parent === root && o.name !== 'Body' && !(o as THREE.Bone).isBone && o.name !== 'root') o.visible = show.has(o.name);
     });
     const colourOf = (m: THREE.MeshStandardMaterial) => {
       const hex = colours[m.name];
@@ -147,20 +171,20 @@ export class CharacterFactory {
   }
 
   createPerson(accessories: Iterable<Accessory>, colours: Record<string, number>, scale = 1): Rig {
-    const rig = this.build(this.person, this.personLib, colours, PERSON_ACCESSORIES, new Set(accessories), new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 1.7));
+    const rig = this.build(this.person, this.personLib, colours, new Set<string>(accessories), new THREE.Sphere(new THREE.Vector3(0, 0.9, 0), 1.7));
     if (scale !== 1) rig.root.scale.setScalar(scale);
     return rig;
   }
 
   createHorse(colours: Record<string, number>, saddle: boolean): Rig {
-    return this.build(this.horse, this.horseLib, colours, ['Saddle'], new Set(saddle ? ['Saddle'] : []), new THREE.Sphere(new THREE.Vector3(0, 1.2, 0), 2.4));
+    return this.build(this.horse, this.horseLib, colours, new Set(saddle ? ['Saddle'] : []), new THREE.Sphere(new THREE.Vector3(0, 1.2, 0), 2.4));
   }
 
   createCamel(colours: Record<string, number>, saddle: boolean, cargo: boolean): Rig {
     const show = new Set<string>();
     if (saddle) show.add('Saddle');
     if (cargo) show.add('Cargo');
-    return this.build(this.camel, this.camelLib, colours, ['Saddle', 'Cargo'], show, new THREE.Sphere(new THREE.Vector3(0, 1.4, 0), 2.6));
+    return this.build(this.camel, this.camelLib, colours, show, new THREE.Sphere(new THREE.Vector3(0, 1.4, 0), 2.6));
   }
 }
 
