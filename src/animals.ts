@@ -139,9 +139,17 @@ export class Horse {
 
   idle(dt: number): void {
     // Stray horses settle; they are not simulated otherwise.
-    this.speed = Math.max(0, this.speed - 10 * dt);
+    // A riderless gallop runs down over a couple of seconds; a walk stops at once.
+    this.speed = Math.max(0, this.speed - (this.speed > 3 ? 6 : 10) * dt);
     // Left in mid-air (the rider jumped off): drift on, then fall or glide to the ground.
-    if (this.airborne) this.fall(dt, Math.sin(this.yaw) * this.speed * dt, Math.cos(this.yaw) * this.speed * dt);
+    // Left running: carry on a few strides while slowing down.
+    const dx = Math.sin(this.yaw) * this.speed * dt;
+    const dz = Math.cos(this.yaw) * this.speed * dt;
+    if (this.airborne) this.fall(dt, dx, dz);
+    else if (this.speed > 0.05 && this.mover.move(dx, dz).falling) {
+      this.airborne = true;
+      this.vy = 0;
+    }
     this.animate();
   }
 

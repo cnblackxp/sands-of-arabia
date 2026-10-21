@@ -248,6 +248,7 @@ Decisions worth knowing:
 - **Map edges.**
   - A sand-coloured underlay sheet sits below the lowest ground, so seams between the terrain and the far ground ring never show the sky.
   - In the overhead views (orthographic and perspective), every static map material fades to black beyond `level.bounds` (`edge` uniforms, `patchWorldMaterial` in `world.ts`) and the sky dome is hidden. Third person keeps the sky and the horizon.
+- **Dismounting a moving horse** (above 3 m/s; `Player.leapOff`) leaps out of the saddle to the open side, carries 60% of the horse's speed through the air (no air drag while `leaping`) and, above 7 m/s, lands into a forward roll. The riderless horse runs on and slows over a couple of seconds (`Horse.idle`), and one left in mid-air falls or glides down.
 - **Travel.**
   - A mounted rider keeps their horse (same coat and wings) on arrival.
   - Map downloads retry 3 times. A failed travel keeps you on the current map with a toast, instead of hanging on the loading screen.

@@ -21,6 +21,8 @@ const COST = { roll: 24, jump: 10, sprintPerSec: 13 };
 const REGEN = { rate: 42, delay: 0.75, delayEmpty: 1.4 };
 
 const ROLL = { duration: 0.62, distance: 4.2, iStart: 0.06, iEnd: 0.42 };
+/** Leaping off a moving horse: above walking pace it's a leap, above a canter it ends in a roll. */
+const LEAP = { minSpeed: 3, rollSpeed: 7, saddle: 1.2, side: 1.1, vy: 6.5, carry: 0.6, maxCarry: 7.5 };
 /**
  * Platformer jump: fast rise, held jump floats higher (≈1.8 m), release cuts it
  * short, faster fall, coyote time after walking off a ledge, and an optional
@@ -145,6 +147,10 @@ export class Player implements PlayerView {
   private airJumps = 0;
   private coyote = 0;
   private fallFrom = 0;
+  /** Landing from a leap off a galloping horse rolls forward. */
+  private landRoll = false;
+  /** In the air after leaping off a horse: the horse's momentum carries on undamped. */
+  private leaping = false;
   private landT = 0;
   private readonly rollDir = new THREE.Vector3();
   private staminaDelay = 0;
@@ -415,6 +421,7 @@ export class Player implements PlayerView {
   dismount(world: World | null): void {
     const h = this.horse;
     if (!h) return;
+    if (h.speed > LEAP.minSpeed && world && this.leapOff(h, world)) return;
     // A +Z-facing model has its right-hand side at local -X.
     const right = new THREE.Vector3(-Math.cos(h.yaw), 0, Math.sin(h.yaw));
     const back = new THREE.Vector3(-Math.sin(h.yaw), 0, -Math.cos(h.yaw));
@@ -437,6 +444,49 @@ export class Player implements PlayerView {
     this.yaw = this.yawTarget = h.yaw;
     this.moveDir.set(Math.sin(h.yaw), 0, Math.cos(h.yaw));
     this.rig.anim.setBase('Idle', 1, 0.15);
+  }
+
+  /**
+   * Dismounting a moving horse (Elden Ring style): spring up out of the saddle and
+   * off to one side, carry the horse's momentum through the air, and land into a
+   * forward roll if it was galloping. The horse runs on and slows to a stop.
+   */
+  private leapOff(h: Horse, world: World): boolean {
+    const right = new THREE.Vector3(-Math.cos(h.yaw), 0, Math.sin(h.yaw));
+    const fwd = new THREE.Vector3(Math.sin(h.yaw), 0, Math.cos(h.yaw));
+    let side = 0;
+    for (const s of [1, -1]) {
+      const p = h.pos.clone().addScaledVector(right, s * LEAP.side);
+      if (!world.nav.isBlocked(p.x, p.z)) {
+        side = s;
+        break;
+      }
+    }
+    if (!side) return false;
+    // Letting go resets a horse's speed: keep it, so the horse runs on.
+    const v = h.speed;
+    const from = h.pos.clone().addScaledVector(right, side * LEAP.side);
+    from.y = Math.max(h.pos.y + LEAP.saddle, this.physics.support(from.x, from.z, h.pos.y + LEAP.saddle) + 0.1);
+    h.setRidden(false);
+    h.speed = v;
+    this.horse = null;
+    this.mover.teleport(from);
+    this.mover.setEnabled(true);
+    // Forward with the horse, a little outward, up out of the saddle.
+    this.moveDir.copy(fwd).addScaledVector(right, side * 0.2).normalize();
+    this.speed = Math.min(LEAP.maxCarry, v * LEAP.carry);
+    this.yaw = this.yawTarget = Math.atan2(this.moveDir.x, this.moveDir.z);
+    this.airborne = true;
+    this.vy = LEAP.vy;
+    this.coyote = 0;
+    this.airJumps = 1;
+    this.fallFrom = from.y;
+    this.landRoll = v > LEAP.rollSpeed;
+    this.leaping = true;
+    this.rig.anim.stopOverlay(0.05);
+    this.rig.anim.setBase('Jump', 1.4, 0.04, true);
+    this.ev.jump(false);
+    return true;
   }
 
   private spend(n: number): boolean {
@@ -538,7 +588,7 @@ export class Player implements PlayerView {
         this.moveDir.lerp(dir, 1 - Math.exp(-dt * 6)).normalize();
         this.yawTarget = Math.atan2(this.moveDir.x, this.moveDir.z);
         this.speed = Math.max(this.speed, mag * WALK_SPEED * 1.4);
-      } else {
+      } else if (!this.leaping) {
         this.speed = Math.max(0, this.speed - JUMP.air * dt);
       }
       if (this.hasBow) this.updateBow(dt, f, false);
@@ -562,6 +612,16 @@ export class Player implements PlayerView {
         // Play out the landing crouch, then locomotion takes over.
         this.rig.anim.setBase('Jump', 1.8, 0.04);
         this.ev.land(fall);
+        this.leaping = false;
+        if (this.landRoll) {
+          // Off a galloping horse: tumble forward with the momentum.
+          this.landRoll = false;
+          this.landT = 0;
+          this.rollT = 0;
+          this.rollDir.copy(this.moveDir);
+          this.rig.anim.setBase('Roll', 1, 0.05, true);
+          this.ev.roll();
+        }
       }
       if (this.vy > 0) this.fallFrom = Math.max(this.fallFrom, feet.y);
     } else if (this.staggerT > 0) {
