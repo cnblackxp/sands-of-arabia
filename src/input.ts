@@ -10,6 +10,9 @@
  * Keyboard: WASD · Shift sprint · LMB attack · RMB block · Space roll · F jump
  *   E interact · R heal · Tab inventory · M map · Esc menu · Z/C or middle-mouse drag rotate camera
  *   D-pad up/down zoom, left/right rotate (D-pad navigates menus)
+ * True third person (debug camera): mouse (pointer lock) or right stick looks
+ *   around, wheel or D-pad up/down zooms. With a bow, block (RMB / LB) aims and
+ *   attack (LMB / RB / RT) looses the arrow.
  */
 
 export type Device = 'keyboard' | 'gamepad';
@@ -39,6 +42,12 @@ export interface Frame {
   map: boolean;
   zoom: number;
   rotate: number;
+  /** Third-person look this frame, radians: yaw (+ = turn left) and pitch (+ = look down). */
+  lookYaw: number;
+  lookPitch: number;
+  /** Mouse position in normalised device coordinates (-1..1, y up). */
+  mouseX: number;
+  mouseY: number;
   // Menu navigation (edge-triggered with auto-repeat).
   navX: number;
   navY: number;
@@ -63,6 +72,22 @@ export class Input {
   private bHeld = -1;
   private navHold = { x: 0, y: 0, t: 0 };
   device: Device = 'keyboard';
+  /** Set by the game: the true third-person camera is active (changes stick and mouse mapping). */
+  thirdPerson = false;
+  /** Mouse-look sensitivity (radians per pixel) and right-stick look speed (radians per second). */
+  mouseSens = 0.0026;
+  stickSens = 2.6;
+  invertY = false;
+  private lookDX = 0;
+  private lookDY = 0;
+  private mouseNX = 0;
+  private mouseNY = 0;
+  /**
+   * A left click that asked for the pointer lock is held back: if the lock is
+   * granted it only captured the mouse; if the browser refuses (or says
+   * nothing within a moment) it counts as a normal attack.
+   */
+  private pendingClick = 0;
   /** Called on the first user gesture of any kind (used to unlock audio). */
   onGesture: () => void = () => {};
 
@@ -82,7 +107,18 @@ export class Input {
     });
     canvas.addEventListener('mousedown', (e) => {
       this.onGesture();
-      if (e.button === 0) this.mouseAttack = true;
+      if (this.thirdPerson && document.pointerLockElement !== canvas) {
+        // First click in third person captures the mouse for looking around.
+        try {
+          canvas.requestPointerLock?.()?.catch?.(() => this.releaseClick());
+        } catch {
+          // Pointer lock unsupported here: plain mouse look still works.
+        }
+        if (e.button === 0) {
+          this.pendingClick = performance.now();
+          setTimeout(() => this.releaseClick(), 250);
+        }
+      } else if (e.button === 0) this.mouseAttack = true;
       if (e.button === 2) this.mouseBlock = true;
       if (e.button === 1) {
         this.mmbDrag = true;
@@ -96,8 +132,19 @@ export class Input {
     });
     window.addEventListener('mousemove', (e) => {
       if (this.mmbDrag) this.dragX += e.movementX;
+      if (this.thirdPerson) {
+        this.lookDX += e.movementX;
+        this.lookDY += e.movementY;
+      }
+      this.mouseNX = (e.clientX / window.innerWidth) * 2 - 1;
+      this.mouseNY = -(e.clientY / window.innerHeight) * 2 + 1;
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Lock granted: that click only captured the mouse. Refused: it was an attack.
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement === canvas) this.pendingClick = 0;
+    });
+    document.addEventListener('pointerlockerror', () => this.releaseClick());
     canvas.addEventListener(
       'wheel',
       (e) => {
@@ -108,6 +155,13 @@ export class Input {
     );
   }
 
+  /** The held-back click counts after all (no pointer lock came of it). */
+  private releaseClick(): void {
+    if (!this.pendingClick) return;
+    this.pendingClick = 0;
+    this.mouseAttack = true;
+  }
+
   /**
    * Forget buttons that are mid-press (a menu or dialogue just closed), so the
    * release of the B that closed it doesn't also fire a dodge roll.
@@ -116,6 +170,7 @@ export class Input {
     this.bHeld = -2;
     this.pressed.clear();
     this.mouseAttack = false;
+    this.pendingClick = 0;
   }
 
   read(dt: number): Frame {
@@ -146,6 +201,10 @@ export class Input {
       map: p.has('KeyM'),
       zoom: this.wheel,
       rotate: ((k.has('KeyZ') ? 1 : 0) - (k.has('KeyC') ? 1 : 0)) * 1.6 * dt - this.dragX * 0.006,
+      lookYaw: -this.lookDX * this.mouseSens,
+      lookPitch: this.lookDY * this.mouseSens * (this.invertY ? -1 : 1),
+      mouseX: this.mouseNX,
+      mouseY: this.mouseNY,
       navX: (p.has('KeyD') || p.has('ArrowRight') ? 1 : 0) - (p.has('KeyA') || p.has('ArrowLeft') ? 1 : 0),
       navY: (p.has('KeyS') || p.has('ArrowDown') ? 1 : 0) - (p.has('KeyW') || p.has('ArrowUp') ? 1 : 0),
       confirm: p.has('Enter') || p.has('Space') || p.has('KeyE'),
@@ -154,6 +213,8 @@ export class Input {
     this.pressed.clear();
     this.wheel = 0;
     this.dragX = 0;
+    this.lookDX = 0;
+    this.lookDY = 0;
     this.mouseAttack = false;
 
     this.readPad(f, dt);
@@ -219,13 +280,26 @@ export class Input {
 
     const rx = ax(2);
     const ry = ax(3);
-    if (Math.abs(rx) > DEAD) {
-      f.rotate -= rx * 2.2 * dt;
-      active = true;
-    }
-    if (Math.abs(ry) > DEAD) {
-      f.zoom += ry * 6 * dt;
-      active = true;
+    if (this.thirdPerson) {
+      // Right stick looks around (both axes); zoom moves to the D-pad below.
+      const curve = (v: number) => Math.sign(v) * Math.pow(Math.min(1, (Math.abs(v) - DEAD) / (1 - DEAD)), 1.6);
+      if (Math.abs(rx) > DEAD) {
+        f.lookYaw -= curve(rx) * this.stickSens * dt;
+        active = true;
+      }
+      if (Math.abs(ry) > DEAD) {
+        f.lookPitch += curve(ry) * this.stickSens * 0.7 * dt * (this.invertY ? -1 : 1);
+        active = true;
+      }
+    } else {
+      if (Math.abs(rx) > DEAD) {
+        f.rotate -= rx * 2.2 * dt;
+        active = true;
+      }
+      if (Math.abs(ry) > DEAD) {
+        f.zoom += ry * 6 * dt;
+        active = true;
+      }
     }
     if (b(12)) f.zoom -= 4 * dt;
     if (b(13)) f.zoom += 4 * dt;

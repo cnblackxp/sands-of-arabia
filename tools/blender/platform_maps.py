@@ -262,6 +262,12 @@ class Rooftops(M.MapDef):
         ctx.landmarks.update({"plaza": (0, -72), "route_start": (0, -57.8),
                               "summit": ((top_r[0] + top_r[1]) / 2, (top_r[2] + top_r[3]) / 2)})
         print("ROOFTOPS route", len(route), "steps, summit", round(top_r[4], 2), "m, houses", len(rects))
+        # v5 enemies: slingers holding roofs along the route
+        for k in (5, 14, 20):
+            if k < len(route):
+                r = route[k]
+                ctx.spawn("enemy", (r[0] + r[1]) / 2 + 0.8, (r[2] + r[3]) / 2, math.pi, kind="slinger", camp="roofs",
+                          z=round(r[4], 3))
         M.dress(mb, ctx, self, lambda x, y: max(abs(x) / 78, abs(y - 5) / 80) > 1.05, rocks=10, singles=20,
                 shrubs=50, dry=30, acacias=6, dead=2, ruins=0, bones=1)
 
@@ -402,6 +408,14 @@ class Cliffs(M.MapDef):
         M.dress(mb, ctx, self, lambda x, y: y < Y0 - 6 or y > Y0 + 6, rocks=24, singles=50, shrubs=90, dry=40,
                 acacias=10, dead=4, ruins=1, bones=1)
         print("CLIFFS ledges", len(ledges), "top ledge", ledges[-1][2])
+        # v5 enemies: slingers on ledges and the aqueduct, vultures over the cliff face
+        for k in (7, 13):
+            if k < len(ledges):
+                lx, ly, lz, lw = ledges[k]
+                ctx.spawn("enemy", lx, ly, math.pi, kind="slinger", camp="ledges", z=round(lz, 3))
+        ctx.spawn("enemy", 10.0 + 3, 8.0, math.pi, kind="slinger", camp="aqueduct", z=7.0)
+        for (x, y, h) in [(-30, -20, 18), (20, 12, 24), (52, 30, 30)]:
+            ctx.spawn("enemy", x, y, 0.0, kind="vulture", camp="sky", z=round(L.height(x, y) + h, 3), airborne=True)
 
 
 # ================================================================== Ruined temple
@@ -513,6 +527,8 @@ class RuinedTemple(M.MapDef):
         # tomb robbers digging in the court
         for (x, y, kind) in [(-20, 0, "raider"), (-24, 6, "skirmisher"), (-16, 8, "raider"), (18, 24, "brute")]:
             ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind=kind, camp="temple_robbers")
+        for (x, y) in [(-22, 3), (-18, -2)]:
+            ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind="hound", camp="temple_robbers")
         M.dress(mb, ctx, self, lambda x, y: True, rocks=26, singles=50, shrubs=70, dry=40, acacias=8, dead=4, ruins=3,
                 bones=3)
 

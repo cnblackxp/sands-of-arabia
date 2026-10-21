@@ -511,7 +511,21 @@ def watchtower(mb, ctx, x, y, rot=0.0, h=6.0):
         lc.box((0, -1.3, 0.3 + k * 0.45), (0.7, 0.06, 0.06), L.WOOD)
     lc.box((-0.35, -1.3, (h - 1.4) / 2), (0.06, 0.06, h - 1.4), L.WOOD)
     lc.box((0.35, -1.3, (h - 1.4) / 2), (0.06, 0.06, h - 1.4), L.WOOD)
-    lc.col(ctx, (0, 0, h / 2), (2.6, 2.6, h), "tower")
+    lc.col(ctx, (0, 0, (h - 1.31) / 2), (2.6, 2.6, h - 1.31), "tower")      # top = the walkable platform
+
+
+def archery_target(mb, ctx, x, y, rot=0.0):
+    """Straw butt on a timber A-frame, painted face toward local -Y. Collider tag 'target'."""
+    z = L.height(x, y)
+    lc = Local(mb, x, y, z, rot)
+    for sx in (-0.45, 0.45):
+        lc.box((sx, 0.12, 0.7), (0.08, 0.08, 1.5), L.WOOD, rot=(R(-12), 0, 0))
+    lc.box((0, 0.45, 0.55), (0.08, 0.08, 1.2), L.WOOD, rot=(R(30), 0, 0))
+    lc.cyl((0, 0, 1.1), 0.55, 0.55, 0.3, L.mat("Straw", "#d8be7a", 0.95), segs=12, rot=(R(90), 0, 0))
+    for k, (r, hexc) in enumerate(((0.48, "#efe6d2"), (0.37, "#24201c"), (0.26, "#8b1e1e"), (0.13, "#d9b25a"))):
+        lc.cyl((0, -0.152 - k * 0.004, 1.1), r, r, 0.006, L.mat(f"TargetRing{k}", hexc, 0.9), segs=12, rot=(R(90), 0, 0))
+    lc.col(ctx, (0, 0, 1.1), (1.1, 0.32, 1.1), "target")
+    return lc.world((0, -0.17, 1.1))
 
 
 def weapon_rack(mb, ctx, x, y, rot):

@@ -40,6 +40,8 @@ export interface Spawn {
   id?: string;
   /** Chest: hidden off the beaten path. */
   secret?: boolean;
+  /** Flying enemies (vultures): `pos` is already at flight height. */
+  airborne?: boolean;
 }
 
 export interface Exit {

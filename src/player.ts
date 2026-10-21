@@ -28,6 +28,41 @@ const JUMP = { v0: 9.2, v2: 8.0, gHeld: 23, gRise: 46, gFall: 36, maxFall: 28, c
 /** Heavy blows knock the player down: fall, lie, get up (no hits while down). */
 const KNOCKDOWN = { fall: 0.75, lie: 0.35, getUp: 1.25 / 1.35 };
 const HEAL = { duration: 0.9, at: 0.55, fraction: 0.45 };
+/** Bow: walk slowly while drawn; a released shot needs a fresh nock and draw. */
+const BOW = { moveK: 0.45, relaxFade: 0.18 };
+
+/** Where the game says the bow points this frame (camera, cursor or stick). */
+export interface BowAim {
+  yaw: number;
+  /** Elevation of the shot, radians (+ = up). */
+  pitch: number;
+  from: THREE.Vector3;
+  vel: THREE.Vector3;
+}
+
+/** Procedural held bow (until the BowHeld accessory exists): grip, two recurved limbs, string. */
+function buildBowMesh(): THREE.Group {
+  const g = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.7 });
+  const horn = new THREE.MeshStandardMaterial({ color: 0xd9c9a0, roughness: 0.5 });
+  const string = new THREE.MeshBasicMaterial({ color: 0xe8dcc0 });
+  const box = (w: number, h: number, d: number, m: THREE.Material, y: number, z: number, rx: number) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    b.position.set(0, y, z);
+    b.rotation.x = rx;
+    b.castShadow = true;
+    g.add(b);
+    return b;
+  };
+  // Limbs along local +Y / -Y, bending back toward -Z (the archer), tips flicking forward.
+  box(0.045, 0.16, 0.05, wood, 0, 0, 0);
+  box(0.035, 0.36, 0.035, wood, 0.25, -0.04, 0.25);
+  box(0.035, 0.36, 0.035, wood, -0.25, -0.04, -0.25);
+  box(0.03, 0.12, 0.03, horn, 0.47, -0.06, -0.45);
+  box(0.03, 0.12, 0.03, horn, -0.47, -0.06, 0.45);
+  g.userData.string = box(0.008, 1.0, 0.008, string, 0, 0, -0.1);
+  return g;
+}
 
 interface Swing {
   clip: string;
@@ -58,6 +93,13 @@ export interface PlayerEvents {
   horseJump(winged: boolean): void;
   /** Tried to drink with no waterskins left. */
   noFlask(): void;
+  /** Bow: where it points now (the game knows the camera, cursor and targets). */
+  bowAim(quick: boolean): BowAim;
+  /** Bow: started nocking/drawing, let the string down, loosed an arrow, quiver empty. */
+  bowDraw(): void;
+  bowRelax(): void;
+  shoot(aim: BowAim): void;
+  noArrows(): void;
   /** Resolve a weapon blow against everything in the arc. */
   strike(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number): HitResult[];
   hit(results: HitResult[]): void;
@@ -113,6 +155,22 @@ export class Player implements PlayerView {
   private sinceHurt = 10;
   private deadTimer = 0;
   private _dead = false;
+  /** Bow state: aim held, draw progress (s), a quick shot (attack without aiming) pending. */
+  private aimHeld = false;
+  private drawT = -1;
+  private quickShot = false;
+  private shotQueued = false;
+  /** Authored release clip playing; the next draw starts after it. */
+  private releaseT = 0;
+  private aimW = 0;
+  private bowMesh: THREE.Group | null = null;
+  /** Last aim from the game (used for facing and the arm pose). */
+  aim: BowAim | null = null;
+  /** Gamepad + overhead camera: the stick turns the aim instead of walking. */
+  aimLocksMove = false;
+  /** Arrow model shown on the string while drawn (set by the game). */
+  nockModel: THREE.Object3D | null = null;
+  private nock: THREE.Object3D | null = null;
 
   constructor(
     private factory: CharacterFactory,
@@ -145,9 +203,29 @@ export class Player implements PlayerView {
 
   private gear(look: Look): Accessory[] {
     const acc: Accessory[] = look.acc.filter((a) => a !== 'Sword' && a !== 'Spear' && a !== 'Shield');
-    acc.push(this.wpn.mesh);
+    if (this.wpn.kind === 'bow') {
+      // Two hands on the bow: no shield. The held bow is BowHeld when the model has it.
+      acc.push('BowHeld', 'Quiver');
+      return acc;
+    }
+    if (this.wpn.mesh) acc.push(this.wpn.mesh);
     if (this.progress.shield) acc.push('Shield');
     return acc;
+  }
+
+  get hasBow(): boolean {
+    return this.wpn.kind === 'bow';
+  }
+  /** Bow drawn and aimed (HUD crosshair, camera shoulder view, aim arc). */
+  get aiming(): boolean {
+    return this.hasBow && (this.aimHeld || this.quickShot) && !this._dead;
+  }
+  /** 0..1 how far the string is drawn. */
+  get drawK(): number {
+    return this.drawT < 0 ? 0 : Math.min(1, this.drawT / (this.wpn.draw ?? 0.6));
+  }
+  get drawn(): boolean {
+    return this.drawK >= 1;
   }
 
   private buildRig(): Rig {
@@ -156,6 +234,14 @@ export class Player implements PlayerView {
     const rig = this.factory.createPerson(this.gear(base), colours);
     rig.anim.setBase('Idle', 1, 0);
     this.flash.attach(rig.root);
+    this.bowMesh = null;
+    if (this.wpn.kind === 'bow' && !this.factory.hasPart('BowHeld')) {
+      const hand = rig.bones.get('hand_L');
+      if (hand) {
+        this.bowMesh = buildBowMesh();
+        hand.add(this.bowMesh);
+      }
+    }
     return rig;
   }
 
@@ -368,6 +454,7 @@ export class Player implements PlayerView {
     this.yawTarget = Math.atan2(this.moveDir.x, this.moveDir.z);
     this.attackT = -1;
     this.blocking = false;
+    this.cancelBow();
     this.rig.anim.stopOverlay(0.05);
     // Jump clip: crouch → push off → tuck; held at the tuck while airborne.
     this.rig.anim.setBase('Jump', 1.4, 0.04, true);
@@ -394,7 +481,8 @@ export class Player implements PlayerView {
     if (mag > 0.001) dir.normalize();
 
     if (this.horse) {
-      this.updateAttack(dt, f);
+      if (this.hasBow) this.updateBow(dt, f, false);
+      else this.updateAttack(dt, f);
       const h = this.horse;
       if (f.jump && h.jump()) this.ev.horseJump(h.winged);
       h.drive(dt, dir.x, dir.z, mag, f.run);
@@ -404,6 +492,7 @@ export class Player implements PlayerView {
       this.animSpeed = h.speed;
       this.regen(dt, false);
       this.rig.anim.update(dt);
+      this.poseBow(dt);
       this.syncRoot();
       return;
     }
@@ -506,6 +595,7 @@ export class Player implements PlayerView {
         this.attackQueued = 0;
         this.blocking = false;
         this.rollT = 0;
+        this.cancelBow();
         this.rollDir.copy(mag > 0.01 ? dir : this.moveDir);
         this.moveDir.copy(this.rollDir);
         this.yaw = this.yawTarget = Math.atan2(this.rollDir.x, this.rollDir.z);
@@ -537,7 +627,7 @@ export class Player implements PlayerView {
           }
         }
         // Shield: hold to block (not while swinging or drinking).
-        const wantBlock = f.block && this.progress.shield && this.attackT < 0 && this.healT < 0 && this.stamina > 0;
+        const wantBlock = f.block && !this.hasBow && this.progress.shield && this.attackT < 0 && this.healT < 0 && this.stamina > 0;
         if (wantBlock !== this.blocking) {
           this.blocking = wantBlock;
           if (wantBlock) {
@@ -546,9 +636,10 @@ export class Player implements PlayerView {
           }
           else this.rig.anim.stopOverlay(0.12);
         }
-        if (this.healT < 0) this.updateAttack(dt, f);
+        if (this.hasBow) this.updateBow(dt, f, this.healT >= 0);
+        else if (this.healT < 0) this.updateAttack(dt, f);
         const a = this.swings[this.attackIdx];
-        const committed = this.attackT >= 0 && this.attackT < a.hit + 0.1;
+        const committed = !this.hasBow && this.attackT >= 0 && this.attackT < a.hit + 0.1;
         if (committed) {
           const lunge = this.attackT > a.hit - 0.18 && this.attackT < a.hit ? 3.2 : 0.4;
           this.speed = 0;
@@ -558,10 +649,15 @@ export class Player implements PlayerView {
         } else {
           if (this.exhausted && this.stamina > 25) this.exhausted = false;
           const canSprint = !this.exhausted && (this.stamina > 0 || !this.inCombat);
-          sprinting = f.run && mag > 0.5 && canSprint && this.attackT < 0 && !this.blocking && this.healT < 0;
-          const slow = this.attackT >= 0 ? 0.35 : this.blocking ? 0.5 : this.healT >= 0 ? 0.4 : 1;
-          const target = mag * (sprinting ? RUN_SPEED : WALK_SPEED) * slow;
-          if (mag > 0.001) {
+          const aiming = this.aiming;
+          sprinting = f.run && mag > 0.5 && canSprint && this.attackT < 0 && !this.blocking && this.healT < 0 && !aiming;
+          const slow = this.attackT >= 0 ? 0.35 : this.blocking ? 0.5 : this.healT >= 0 ? 0.4 : aiming ? BOW.moveK : 1;
+          const target = (aiming && this.aimLocksMove ? 0 : mag) * (sprinting ? RUN_SPEED : WALK_SPEED) * slow;
+          if (aiming && this.aim) {
+            // Drawn: strafe while facing the shot.
+            if (mag > 0.001 && !this.aimLocksMove) this.moveDir.copy(dir);
+            this.yawTarget = this.aim.yaw;
+          } else if (mag > 0.001) {
             // Movement and facing share one direction: the input vector itself.
             this.moveDir.copy(dir);
             this.yawTarget = Math.atan2(dir.x, dir.z);
@@ -599,7 +695,132 @@ export class Player implements PlayerView {
       else a.setBase('Run', s / CLIP_SPEED.personRun, 0.15);
     }
     this.rig.anim.update(dt);
+    this.poseBow(dt);
     this.syncRoot();
+  }
+
+  /** BowDraw spans the weapon's draw time. */
+  private playDrawClip(): void {
+    if (!this.bowClips) return;
+    const dur = this.clips.BowDraw?.duration ?? 0.542;
+    this.rig.anim.playOverlay('BowDraw', { fade: 0.06, timeScale: dur / (this.wpn.draw ?? 0.6) });
+  }
+
+  /** The model has the authored archer clips (else a procedural pose is used). */
+  private get bowClips(): boolean {
+    return this.rig.anim.hasOverlay('BowDraw') && this.rig.anim.hasOverlay('BowAim');
+  }
+
+  private cancelBow(): void {
+    if (this.drawT >= 0) this.ev.bowRelax();
+    if (this.drawT >= 0 && this.bowClips) this.rig.anim.stopOverlay(0.1);
+    this.drawT = -1;
+    this.quickShot = false;
+    this.shotQueued = false;
+    this.aimHeld = false;
+  }
+
+  /**
+   * Bow: hold block to draw and aim, attack to loose once fully drawn. Attack
+   * without aiming draws and looses on its own (a quick shot with aim assist).
+   * Each arrow needs its own nock-and-draw time.
+   */
+  private updateBow(dt: number, f: Frame, busy: boolean): void {
+    if (this.releaseT > 0 && (this.releaseT -= dt) <= 0 && this.drawT >= 0) this.playDrawClip();
+    const arrows = this.progress.data.arrows;
+    const held = f.block && !busy && !this.talking;
+    if (f.attack && !this.talking && !busy) {
+      if (arrows <= 0) this.ev.noArrows();
+      else if (this.drawn && (this.aimHeld || this.quickShot)) this.loose();
+      else if (!held) this.quickShot = true;
+      // Pressed mid-draw: loose the moment the draw is full.
+      else this.shotQueued = true;
+    }
+    if (held !== this.aimHeld) {
+      this.aimHeld = held;
+      if (!held && !this.quickShot && this.drawT >= 0) {
+        this.drawT = -1;
+        this.ev.bowRelax();
+        if (this.bowClips) this.rig.anim.stopOverlay(0.15);
+      }
+    }
+    const want = (this.aimHeld || this.quickShot) && this.progress.data.arrows > 0;
+    if (want) {
+      if (this.drawT < 0) {
+        this.drawT = 0;
+        this.ev.bowDraw();
+        this.playDrawClip();
+      } else this.drawT += dt;
+      // Authored clips: once drawn, hold the aim loop.
+      const anim = this.rig.anim;
+      if (this.bowClips && this.drawn && anim.overlay !== 'BowAim' && anim.overlay !== 'BowRelease') anim.playOverlay('BowAim', { loop: true, fade: 0.06 });
+      this.aim = this.ev.bowAim(this.quickShot && !this.aimHeld);
+      if (this.drawn && ((this.quickShot && !this.aimHeld) || this.shotQueued)) this.loose();
+    } else {
+      this.quickShot = false;
+      this.shotQueued = false;
+      this.aim = null;
+    }
+  }
+
+  private loose(): void {
+    if (!this.spend(this.inCombat ? this.wpn.stamina : 0)) return;
+    const aim = this.ev.bowAim(this.quickShot && !this.aimHeld);
+    this.progress.data.arrows = Math.max(0, this.progress.data.arrows - 1);
+    this.progress.save();
+    this.ev.shoot(aim);
+    this.yaw = this.yawTarget = aim.yaw;
+    // Next arrow: nock and draw again (if still aiming).
+    this.drawT = this.aimHeld && this.progress.data.arrows > 0 ? 0 : -1;
+    if (this.bowClips) this.rig.anim.playOverlay('BowRelease', { fade: 0.03 });
+    this.releaseT = this.bowClips ? 0.22 : 0;
+    if (this.drawT === 0) this.ev.bowDraw();
+    this.quickShot = false;
+    this.shotQueued = false;
+  }
+
+  /**
+   * Procedural archer pose layered on the animation (until BowDraw/BowAim clips
+   * exist): bow arm straight at the target, string hand drawn to the chest.
+   */
+  private poseBow(dt: number): void {
+    if (!this.hasBow) return;
+    const target = this.aiming ? 1 : 0;
+    this.aimW += (target - this.aimW) * (1 - Math.exp(-dt * (target ? 14 : 1 / BOW.relaxFade)));
+    const w = this.aimW;
+    const bones = this.rig.bones;
+    const pitch = this.aim?.pitch ?? 0;
+    const k = this.drawK;
+    if (this.bowMesh) {
+      // Limbs vertical in the hand at rest; along the raised arm's local Z when aiming.
+      this.bowMesh.position.set(0, -0.12, 0.02);
+      this.bowMesh.rotation.set((Math.PI / 2) * w, 0, 0);
+      const str = this.bowMesh.userData.string as THREE.Object3D;
+      str.position.z = -0.1 - 0.32 * k * w;
+    }
+    if (w < 0.01) return;
+    const q = new THREE.Quaternion();
+    const e = new THREE.Euler();
+    if (this.bowClips) {
+      // Authored clips aim level; lean the upper body into the shot's elevation.
+      const sp = bones.get('spine');
+      if (sp) sp.quaternion.premultiply(q.setFromEuler(e.set(-pitch * 0.85 * w, 0, 0)));
+      return;
+    }
+    const blend = (name: string, x: number, y: number, z: number) => {
+      const b = bones.get(name);
+      if (!b) return;
+      q.setFromEuler(e.set(x, y, z));
+      b.quaternion.slerp(q, w);
+    };
+    // Bones: hanging limbs point down local -Y; X = -90° levels them forward,
+    // +Z swings toward +X (arm_L sits at -X, arm_R at +X).
+    blend('arm_L', -(Math.PI / 2 + pitch), 0, 0.1);
+    // String arm: forward and across the chest, drawn further across as it fills.
+    blend('arm_R', -(Math.PI / 2 + pitch) + 0.25 * k, 0, -(0.5 + 0.45 * k));
+    blend('hand_R', -0.6 * k, 0, 0);
+    blend('spine', 0, 0.12, 0);
+    blend('head', -pitch * 0.5, 0, 0);
   }
 
   /** Walked or rolled off a ledge: fall, with a moment of coyote time to still jump. */
@@ -671,6 +892,39 @@ export class Player implements PlayerView {
       r.position.copy(this.mover.feet);
       r.rotation.set(0, this.yaw, 0, 'YXZ');
     }
+    this.updateNock();
+  }
+
+  /**
+   * The nocked arrow while the authored draw is mostly done: it lies from the
+   * string hand to the bow hand (the arms are single bones, so the hands mark
+   * the string and the grip).
+   */
+  private updateNock(): void {
+    const show = this.hasBow && this.aiming && this.drawK > 0.6 && this.releaseT <= 0 && !!this.nockModel && this.bowClips;
+    if (!show) {
+      if (this.nock) this.nock.visible = false;
+      return;
+    }
+    const r = this.rig.root;
+    if (!this.nock || this.nock.parent !== r) {
+      this.nock?.removeFromParent();
+      this.nock = this.nockModel!.clone();
+      r.add(this.nock);
+    }
+    const hr = this.rig.bones.get('hand_R');
+    const hl = this.rig.bones.get('hand_L');
+    if (!hr || !hl) return;
+    r.updateMatrixWorld(true);
+    const a = r.worldToLocal(hr.getWorldPosition(new THREE.Vector3()));
+    const b = r.worldToLocal(hl.getWorldPosition(new THREE.Vector3()));
+    const dir = b.clone().sub(a);
+    if (dir.lengthSq() < 1e-4) return;
+    dir.normalize();
+    // Nock at the string hand; the 0.83 m shaft reaches past the grip.
+    this.nock.position.copy(a).addScaledVector(dir, 0.38);
+    this.nock.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    this.nock.visible = true;
   }
 }
 

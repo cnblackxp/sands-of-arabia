@@ -322,8 +322,9 @@ small {
   background: linear-gradient(90deg, rgba(20, 10, 5, 0.85) 0%, rgba(20, 10, 5, 0.55) 45%, rgba(20, 10, 5, 0) 75%);
 }
 .pause-panel {
-  width: min(440px, calc(100vw - 48px));
-  max-height: calc(100vh - 32px);
+  /* Divided by the interface size so a zoomed panel still fits the window. */
+  width: min(440px, calc((100vw - 48px) / var(--ui, 1)));
+  max-height: calc((100vh - 32px) / var(--ui, 1));
   overflow-y: auto;
 }
 .pause-title {
@@ -529,7 +530,7 @@ small {
   background: #2f62c0;
 }
 .pause-panel.wide {
-  width: min(900px, calc(100vw - 48px));
+  width: min(900px, calc((100vw - 48px) / var(--ui, 1)));
 }
 .pause-tabs {
   display: flex;
@@ -690,6 +691,7 @@ html:lang(ar) .prompt i {
 }
 /* Bars, purse, enemy bars and the arrows of choice rows keep their left-to-right layout. */
 [dir='rtl'] .bars-top,
+[dir='rtl'] .ammo,
 [dir='rtl'] .enemy-bars,
 [dir='rtl'] .prow-ctl,
 [dir='rtl'] kbd,
@@ -722,4 +724,76 @@ html:lang(ar) .prompt i {
 [dir='rtl'] small {
   margin-left: 0;
   margin-right: 2px;
+/* Interface size (Settings): every panel zooms together; world-anchored items compensate in hud.ts. */
+#hud .bars-top,
+#hud .tracker,
+#hud .prompt,
+#hud .toast,
+#hud .dialogue,
+#hud .hint,
+#hud .pause-panel,
+#hud .minimap,
+#hud .ammo,
+#hud .crosshair,
+#hud .floater,
+#hud .ebar {
+  zoom: var(--ui, 1);
+}
+
+/* Third-person crosshair. */
+.crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+}
+.crosshair::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 240, 210, 0.9);
+  box-shadow: 0 0 2px #000;
+}
+.crosshair i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid rgba(255, 226, 176, 0.75);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.12s;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+}
+.crosshair.aiming i {
+  opacity: 1;
+}
+.crosshair.ready i {
+  border-color: #ffd25a;
+}
+
+/* Quiver counter, under the purse. */
+.ammo {
+  position: absolute;
+  left: 18px;
+  top: 96px;
+  font-size: 15px;
+  color: #ffe2b0;
+  text-shadow: 0 1px 2px #000;
+}
+.ammo small {
+  opacity: 0.65;
+}
+.ammo-icon {
+  color: #d9b58a;
+}
+.ammo.empty {
+  color: #ff8a6a;
 }

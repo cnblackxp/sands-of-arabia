@@ -4085,6 +4085,39 @@
    ],
    "yaw": 0.0,
    "id": "rooftops_lantern_maker"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -12.5376,
+    6.1,
+    57.6269
+   ],
+   "yaw": 3.1416,
+   "kind": "slinger",
+   "camp": "roofs"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -21.465,
+    8.4,
+    21.1962
+   ],
+   "yaw": 3.1416,
+   "kind": "slinger",
+   "camp": "roofs"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -8.7712,
+    11.9,
+    37.1941
+   ],
+   "yaw": 3.1416,
+   "kind": "slinger",
+   "camp": "roofs"
   }
  ],
  "lights": [

@@ -188,8 +188,8 @@ export class Glints {
 
 // --- Hit flash -----------------------------------------------------------------
 
-const FLASH = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff2e0, emissiveIntensity: 1.6, roughness: 1 });
-const TELL = new THREE.MeshStandardMaterial({ color: 0xff5a3a, emissive: 0xff2a10, emissiveIntensity: 0.9, roughness: 1 });
+export const FLASH = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff2e0, emissiveIntensity: 1.6, roughness: 1 });
+export const TELL = new THREE.MeshStandardMaterial({ color: 0xff5a3a, emissive: 0xff2a10, emissiveIntensity: 0.9, roughness: 1 });
 
 /** Temporarily swaps a rig's merged mesh materials (white = hit, red = attack tell). */
 export class Flash {
@@ -248,6 +248,12 @@ export class Sfx {
   private noise: AudioBuffer | null = null;
   volume = 0.6;
   musicVolume = 0.45;
+  /**
+   * Silent run (`?mute` in the URL, used for automated testing): everything
+   * still plays through the graph, but the outputs are at zero. The volume
+   * settings are left alone.
+   */
+  readonly muted = new URLSearchParams(location.search).has('mute');
   /** Called once the context exists (music and ambience start then). */
   onReady: (ctx: AudioContext) => void = () => {};
 
@@ -271,13 +277,13 @@ export class Sfx {
       if (!AC) return;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.volume;
+      this.master.gain.value = this.muted ? 0 : this.volume;
       this.master.connect(this.ctx.destination);
       this.ambBus = this.ctx.createGain();
       this.ambBus.gain.value = 1;
       this.ambBus.connect(this.master);
       this.musicBus = this.ctx.createGain();
-      this.musicBus.gain.value = this.musicVolume;
+      this.musicBus.gain.value = this.muted ? 0 : this.musicVolume;
       this.musicBus.connect(this.ctx.destination);
       const len = this.ctx.sampleRate * 2;
       this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -290,12 +296,12 @@ export class Sfx {
 
   setVolume(v: number): void {
     this.volume = v;
-    if (this.master) this.master.gain.value = v;
+    if (this.master) this.master.gain.value = this.muted ? 0 : v;
   }
 
   setMusicVolume(v: number): void {
     this.musicVolume = v;
-    if (this.musicBus) this.musicBus.gain.value = v;
+    if (this.musicBus) this.musicBus.gain.value = this.muted ? 0 : v;
   }
 
   /** Output node, optionally panned. */
@@ -585,6 +591,181 @@ export class Sfx {
     o.connect(bp).connect(g).connect(out);
     o.start(t);
     o.stop(t + 0.09);
+  }
+
+  // --- bow --------------------------------------------------------------------------
+  /** Nock and draw: a wooden creak rising as the string comes back. */
+  bowDraw(secs = 0.65): void {
+    const c = this.ctx;
+    const out = this.out(0);
+    if (!c || !out) return;
+    const t = c.currentTime;
+    // Arrow sliding from the quiver.
+    this.noiseBurst(0.12, 2600, 1400, 2, 0.08, 'bandpass');
+    // Creak: a buzzy low tone through a resonant filter, pitch climbing with tension.
+    const o = c.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(70, t + 0.08);
+    o.frequency.linearRampToValueAtTime(115, t + secs);
+    const f = c.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 7;
+    f.frequency.setValueAtTime(500, t);
+    f.frequency.linearRampToValueAtTime(900, t + secs);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.09, t + 0.15);
+    g.gain.linearRampToValueAtTime(0.06, t + secs);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + secs + 0.08);
+    o.connect(f).connect(g).connect(out);
+    o.start(t + 0.05);
+    o.stop(t + secs + 0.12);
+  }
+  /** String let down without shooting. */
+  bowRelax(): void {
+    this.tone(0.18, 110, 80, 0.06, 'sawtooth');
+    this.noiseBurst(0.1, 900, 500, 1.5, 0.05, 'bandpass');
+  }
+  /** Loose: the string's twang and the arrow's hiss leaving. */
+  bowRelease(): void {
+    this.tone(0.22, 196, 180, 0.28, 'triangle');
+    this.tone(0.16, 392, 370, 0.1, 'sawtooth');
+    this.noiseBurst(0.06, 5000, 2500, 1, 0.18, 'highpass');
+    this.noiseBurst(0.35, 3200, 1200, 1.2, 0.12, 'bandpass', 0, 0.03);
+  }
+  /** Where an arrow (or stone) lands. */
+  impact(kind: 'arrow' | 'rock', surface: 'flesh' | 'shield' | 'wall' | 'ground' | 'water', pan = 0, gain = 1): void {
+    if (surface === 'flesh') {
+      this.tone(0.12, 150, 70, 0.5 * gain, 'triangle', 0, pan);
+      this.noiseBurst(0.08, 1400, 500, 0.8, 0.3 * gain, 'lowpass', pan);
+    } else if (surface === 'shield') {
+      this.tone(0.12, 520, 430, 0.22 * gain, 'square', 0, pan);
+      this.noiseBurst(0.06, 3000, 1500, 1, 0.2 * gain, 'bandpass', pan);
+    } else if (surface === 'water') {
+      this.noiseBurst(0.35, 1800, 500, 0.6, 0.25 * gain, 'lowpass', pan);
+      this.tone(0.15, 600, 1200, 0.06 * gain, 'sine', 0.03, pan);
+    } else if (kind === 'rock') {
+      // Stone on stone or sand: a crack and a scatter.
+      this.noiseBurst(0.09, 4200, 1600, 1, 0.3 * gain, 'bandpass', pan);
+      this.tone(0.08, 240, 120, 0.25 * gain, 'triangle', 0, pan);
+      for (let i = 0; i < 3; i++) this.noiseBurst(0.03, 5000, 3000, 2, 0.08 * gain, 'bandpass', pan, 0.06 + i * 0.05);
+    } else if (surface === 'wall') {
+      // Arrowhead biting into mudbrick or wood: a dry "tock" with a quiver.
+      this.tone(0.06, 900, 600, 0.22 * gain, 'triangle', 0, pan);
+      this.tone(0.3, 140, 130, 0.08 * gain, 'sawtooth', 0.02, pan);
+      this.noiseBurst(0.05, 3500, 1800, 1.2, 0.15 * gain, 'bandpass', pan);
+    } else {
+      this.noiseBurst(0.1, 1200, 300, 0.7, 0.25 * gain, 'lowpass', pan);
+      this.tone(0.25, 150, 140, 0.05 * gain, 'sawtooth', 0.01, pan);
+    }
+  }
+  /** Pulling arrows back out and into the quiver. */
+  arrowPickup(): void {
+    this.noiseBurst(0.08, 2200, 1200, 2, 0.12, 'bandpass');
+    this.tone(0.05, 700, 650, 0.1, 'triangle', 0.08);
+    this.tone(0.05, 900, 850, 0.08, 'triangle', 0.13);
+  }
+  /** Reaching into an empty quiver. */
+  noArrows(): void {
+    this.noiseBurst(0.07, 1600, 900, 1.5, 0.12, 'bandpass');
+    this.tone(0.08, 260, 220, 0.12, 'triangle', 0.06);
+  }
+
+  // --- beasts --------------------------------------------------------------------------
+  /** A rumbling growl: a low buzz shaken by a fast tremolo. */
+  houndGrowl(pan = 0, gain = 1): void {
+    const c = this.ctx;
+    const out = this.out(pan);
+    if (!c || !out || !(gain >= 0.02)) return;
+    const t = c.currentTime;
+    const dur = 0.7 + Math.random() * 0.3;
+    const o = c.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(85 + Math.random() * 15, t);
+    o.frequency.linearRampToValueAtTime(70, t + dur);
+    const f = c.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 600;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.18 * gain, t + 0.1);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const trem = c.createOscillator();
+    trem.frequency.value = 22;
+    const tg = c.createGain();
+    tg.gain.value = 0.5;
+    const mix = c.createGain();
+    mix.gain.value = 0.6;
+    trem.connect(tg).connect(mix.gain);
+    o.connect(f).connect(mix).connect(g).connect(out);
+    o.start(t);
+    trem.start(t);
+    o.stop(t + dur + 0.05);
+    trem.stop(t + dur + 0.05);
+  }
+  houndBark(pan = 0, gain = 1): void {
+    const n = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < n; i++) {
+      const f = 330 + Math.random() * 60;
+      this.tone(0.11, f, f * 0.6, 0.22 * gain, 'sawtooth', i * 0.2, pan);
+      this.noiseBurst(0.09, 1400, 700, 2, 0.16 * gain, 'bandpass', pan, i * 0.2);
+    }
+  }
+  /** The snarl of the leap. */
+  houndSnarl(pan = 0, gain = 1): void {
+    this.tone(0.3, 220, 140, 0.18 * gain, 'sawtooth', 0, pan);
+    this.noiseBurst(0.3, 2000, 800, 1.5, 0.2 * gain, 'bandpass', pan);
+  }
+  houndYelp(pan = 0, gain = 1, dead = false): void {
+    this.tone(dead ? 0.6 : 0.22, 900, dead ? 300 : 600, 0.16 * gain, 'triangle', 0, pan);
+    if (dead) this.tone(0.5, 600, 250, 0.1 * gain, 'sine', 0.35, pan);
+  }
+  /** Jaws snapping shut. */
+  bite(pan = 0, gain = 1): void {
+    this.noiseBurst(0.05, 3500, 1500, 1.5, 0.3 * gain, 'bandpass', pan);
+    this.tone(0.06, 300, 150, 0.25 * gain, 'square', 0, pan);
+  }
+  /** Vulture: a hoarse hiss-screech (hurt), or a long falling croak (dying). */
+  vultureCry(pan = 0, gain = 1, dead = false): void {
+    const f0 = 700 + Math.random() * 200;
+    this.tone(dead ? 0.8 : 0.45, f0, dead ? 200 : f0 * 0.7, 0.12 * gain, 'sawtooth', 0, pan);
+    this.noiseBurst(dead ? 0.7 : 0.4, 3000, 1500, 2.5, 0.16 * gain, 'bandpass', pan);
+  }
+  diveWhoosh(pan = 0, gain = 1): void {
+    this.noiseBurst(0.9, 300, 2400, 0.8, 0.3 * gain, 'bandpass', pan);
+  }
+  talonRake(pan = 0, gain = 1): void {
+    for (let i = 0; i < 3; i++) this.noiseBurst(0.06, 4500, 2000, 2, 0.2 * gain, 'bandpass', pan, i * 0.04);
+  }
+  /** A body hitting the ground. */
+  thud(pan = 0, gain = 1): void {
+    this.tone(0.2, 90, 45, 0.5 * gain, 'triangle', 0, pan);
+    this.noiseBurst(0.25, 700, 150, 0.6, 0.3 * gain, 'lowpass', pan);
+  }
+
+  // --- slingers and clubmen -------------------------------------------------------------
+  /** The sling whirling overhead before the throw. */
+  slingWhirl(pan = 0, gain = 1): void {
+    for (let i = 0; i < 4; i++) this.noiseBurst(0.12, 600, 1400, 2, 0.12 * gain, 'bandpass', pan, i * 0.13);
+  }
+  rockThrow(pan = 0, gain = 1): void {
+    this.noiseBurst(0.25, 2200, 700, 1.2, 0.2 * gain, 'bandpass', pan);
+  }
+  clubSwing(): void {
+    this.noiseBurst(0.45, 250, 900, 1.2, 0.4, 'bandpass');
+    this.noiseBurst(0.3, 120, 300, 0.8, 0.25, 'lowpass', 0, 0.05);
+  }
+  /** Club landing on the player: a heavy wooden crack. */
+  clubHit(): void {
+    this.tone(0.3, 70, 35, 0.9, 'triangle');
+    this.noiseBurst(0.12, 2000, 400, 0.8, 0.5, 'lowpass');
+    this.tone(0.08, 400, 200, 0.2, 'square', 0.01);
+  }
+
+  // --- camera ---------------------------------------------------------------------------
+  cameraMode(on: boolean): void {
+    this.tone(0.12, on ? 500 : 700, on ? 800 : 450, 0.1, 'triangle');
+    this.noiseBurst(0.2, 400, 1400, 0.8, 0.06, 'bandpass');
   }
 
   /** Ambience helpers: one crackle pop, a bird chirp, a cricket chirp. */

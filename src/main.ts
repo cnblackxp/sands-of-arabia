@@ -3,8 +3,8 @@ import { Camel, Horse } from './animals';
 import { Ambience, Music, type Mood } from './audio';
 import { FollowCamera } from './camera';
 import { CharacterFactory, PLAYER_LOOKS } from './characters';
-import type { HitResult } from './combat';
-import { type Enemy, EnemySystem } from './enemy';
+import type { Foe, HitResult } from './combat';
+import { EnemySystem } from './enemy';
 import { Glints, Particles, Sfx, TimeScale } from './fx';
 import { Hud, type Action, type EnemyBar } from './hud';
 import { Input, type Frame } from './input';
@@ -16,7 +16,8 @@ import { Menu, type MenuRow, type MenuTab } from './menu';
 import { BADGE, Minimap, type BadgeKind, type MapMarker } from './minimap';
 import { type Npc, NpcSystem } from './npc';
 import { Physics } from './physics';
-import { Player } from './player';
+import { Player, type BowAim } from './player';
+import { ARROW, Projectiles, solveBallistic, type ProjTarget } from './projectiles';
 import { Progress } from './progress';
 import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
@@ -99,6 +100,12 @@ class Game {
   player!: Player;
   npcs!: NpcSystem;
   enemies!: EnemySystem;
+  projectiles!: Projectiles;
+  /** Interface size (Settings), applied as CSS zoom on the HUD panels. */
+  uiScale = 1;
+  private lastFrame: Frame | null = null;
+  private npcTargets = new Map<Npc, ProjTarget>();
+  private hadPointerLock = false;
   particles!: Particles;
   glints!: Glints;
   minimap!: Minimap;
@@ -145,6 +152,40 @@ class Game {
       if (this.dialogue) this.sfx.voice(this.dialogue.voice, ch);
     };
     window.addEventListener('resize', () => this.resize());
+    // Third person: losing the pointer lock (Esc) pauses, like most games.
+    document.addEventListener('pointerlockchange', () => {
+      const locked = document.pointerLockElement === this.canvas;
+      if (!locked && this.hadPointerLock && this.cam.thirdPerson && this.menu && !this.menu.isOpen && this.world) this.openMainMenu('settings');
+      this.hadPointerLock = locked;
+    });
+    try {
+      const v = Number(localStorage.getItem('sands-of-arabia.ui-scale'));
+      if (v >= 0.6 && v <= 1.8) this.uiScale = v;
+    } catch {
+      // No storage: default size.
+    }
+    this.applyUiScale();
+  }
+
+  /** Interface size: every HUD panel and the menu scale together. */
+  private applyUiScale(): void {
+    document.getElementById('hud')?.style.setProperty('--ui', String(this.uiScale));
+    this.hud.uiScale = this.uiScale;
+    try {
+      localStorage.setItem('sands-of-arabia.ui-scale', String(this.uiScale));
+    } catch {
+      // Ignore.
+    }
+  }
+
+  /** Switch the debug true third-person camera (mouse / right-stick look). */
+  private setThirdPerson(on: boolean): void {
+    this.cam.setThirdPerson(on);
+    this.input.thirdPerson = on;
+    this.hud.thirdPerson = on;
+    this.sfx.cameraMode(on);
+    if (!on && document.pointerLockElement) document.exitPointerLock();
+    this.hud.setCrosshair(on, 0, false);
   }
 
   async start(): Promise<void> {
@@ -266,10 +307,16 @@ class Game {
       this.player.stamina = prev.stamina;
     }
     if (this.player.lookIndex !== this.lookIndex || this.robe !== 0) this.player.setLook(this.lookIndex, ROBES[this.robe] ?? undefined);
+    this.player.nockModel = this.common.arrowProp?.scene ?? null;
     scene.add(this.player.rig.root);
 
     this.npcs = new NpcSystem(this.world, factory, scene, this.sfx);
-    this.enemies = new EnemySystem(this.world, factory, scene, this.sfx);
+    this.enemies = new EnemySystem(this.world, factory, scene, this.sfx, { dog: this.common.dog, bird: this.common.bird });
+    this.enemies.ear = (q) => {
+      const d = Math.hypot(q.x - this.player.pos.x, q.z - this.player.pos.z);
+      return { pan: this.pan(q.x, q.z), gain: Math.max(0, 1 - d / 32) };
+    };
+    this.setupProjectiles(scene);
     this.horses = [];
     this.camels = [];
     for (const s of level.spawns) {
@@ -324,6 +371,226 @@ class Game {
   }
 
   private lookIndex = 0;
+
+  /** Arrows and slingers' stones: targets, impacts, pickups. */
+  private setupProjectiles(scene: THREE.Scene): void {
+    const c = this.common;
+    const pr = new Projectiles(scene, this.physics, (x, z) => this.world.ground(x, z), c.arrowProp?.scene ?? null, c.rockProp?.scene ?? null);
+    this.projectiles = pr;
+    this.npcTargets.clear();
+    const player = this.player;
+    const playerTarget: ProjTarget = {
+      get pos() {
+        return player.pos;
+      },
+      get dead() {
+        return player.dead;
+      },
+      hitRadius: 0.4,
+      hitLo: 0.1,
+      hitHi: 1.8,
+      get root() {
+        return player.rig.root;
+      },
+      shot: (dmg, from) => {
+        if (player.invulnerable) return null;
+        const blocked = player.isBlocking;
+        player.hurt(dmg, from, 1.1);
+        return { pos: player.pos.clone().setY(player.pos.y + 1.2), killed: player.dead, staggered: false, blocked: blocked && player.isBlocking };
+      },
+    };
+    const npcTarget = (n: Npc): ProjTarget => {
+      let t = this.npcTargets.get(n);
+      if (!t)
+        this.npcTargets.set(
+          n,
+          (t = {
+            pos: n.pos,
+            get dead() {
+              return n.dead;
+            },
+            hitRadius: 0.36,
+            hitLo: 0.15,
+            hitHi: 1.8,
+            root: n.rig.root,
+            shot: (dmg, from) => n.damage(dmg, from),
+          }),
+        );
+      return t;
+    };
+    pr.targets = (side) => {
+      if (side === 'enemy') return [playerTarget];
+      const p = this.player.pos;
+      const out: ProjTarget[] = [];
+      for (const e of this.enemies.list) if (!e.dead && Math.abs(e.pos.x - p.x) < 90 && Math.abs(e.pos.z - p.z) < 90) out.push(e);
+      for (const n of this.npcs.npcs) if (!n.dead && Math.abs(n.pos.x - p.x) < 90 && Math.abs(n.pos.z - p.z) < 90) out.push(npcTarget(n));
+      return out;
+    };
+    pr.onImpact = (ev) => {
+      const d = Math.hypot(ev.pos.x - this.player.pos.x, ev.pos.z - this.player.pos.z);
+      const gain = Math.max(0.15, 1 - d / 40);
+      this.sfx.impact(ev.kind, ev.surface, this.pan(ev.pos.x, ev.pos.z), gain);
+      if (ev.surface === 'flesh') {
+        this.particles.burst(ev.pos, 7, { color: 0x7a1a12, speed: 2.2, up: 1.6, size: 0.06, life: 0.45 });
+        if (ev.kind === 'arrow' && ev.result) {
+          // A clean hit: a short hitstop, more if it killed.
+          this.time.hitstop(ev.result.killed ? 0.09 : 0.035);
+          if (ev.result.killed) this.sfx.hit(true);
+        }
+      } else if (ev.surface === 'shield') {
+        this.particles.burst(ev.pos, 8, { color: 0xffd27a, speed: 3.5, up: 1.5, size: 0.04, life: 0.3, gravity: 6 });
+      } else {
+        this.particles.burst(ev.pos, ev.kind === 'rock' ? 10 : 5, { color: ev.kind === 'rock' ? 0x9a8a70 : 0xd9b58a, speed: 1.6, up: 1.4, size: ev.kind === 'rock' ? 0.07 : 0.05, life: 0.45, gravity: 4 });
+      }
+    };
+    pr.onPickup = (n) => {
+      const d = this.progress.data;
+      const before = d.arrows;
+      d.arrows = Math.min(ARROW.max, d.arrows + n);
+      this.progress.save();
+      this.sfx.arrowPickup();
+      if (d.arrows > before) this.floatAt(this.player.pos, 2, t(d.arrows - before > 1 ? 'float.arrows' : 'float.arrow', { n: d.arrows - before }), 'heal');
+    };
+    this.enemies.onThrow = (e, from, dmg) => {
+      // Aim at where the player will be when the stone arrives.
+      const p = this.player;
+      const target = p.pos.clone().setY(p.pos.y + 1.1);
+      const flight = from.distanceTo(target) / 17;
+      target.addScaledVector(p.moveDir, p.speed * flight * 0.8);
+      const vel = solveBallistic(from, target, 17, 12) ?? solveBallistic(from, target, 17, 12, true);
+      if (!vel) return;
+      pr.fire('rock', from, vel, dmg, 'enemy');
+      const ear = this.enemies.ear(e.pos);
+      this.sfx.rockThrow(ear.pan, Math.max(0.3, ear.gain));
+    };
+  }
+
+  /**
+   * Where the bow points. Third person: along the crosshair. Overhead camera:
+   * at the mouse cursor (keyboard & mouse), or along the left stick with aim
+   * assist (gamepad). Returns the launch point and velocity of the arrow.
+   */
+  private bowAim(quick: boolean): BowAim {
+    const p = this.player;
+    const f = this.lastFrame;
+    const speed = ARROW.speed;
+    const g = ARROW.gravity;
+    let yaw = p.yaw;
+    const from = (y: number) => {
+      const o = p.pos.clone();
+      o.y += (p.horse ? 2.25 : 1.45);
+      o.x += Math.sin(y) * 0.4;
+      o.z += Math.cos(y) * 0.4;
+      return o;
+    };
+    p.aimLocksMove = false;
+    let target: THREE.Vector3 | null = null;
+    if (this.cam.thirdPerson) {
+      // Crosshair: the camera's centre ray, to the first thing it meets.
+      const cam = this.cam.persp;
+      const o = cam.position.clone();
+      const dir = this.cam.aimDirection(new THREE.Vector3());
+      let dist = this.physics.rayStatic(o, dir, 220);
+      for (let t = 1; t < dist; t += 1) {
+        const x = o.x + dir.x * t;
+        const z = o.z + dir.z * t;
+        if (o.y + dir.y * t < this.world.ground(x, z)) {
+          dist = t;
+          break;
+        }
+      }
+      for (const e of this.pr_targets()) {
+        // Closest approach of the ray to the target's centre line.
+        const cx = e.pos.x - o.x;
+        const cz = e.pos.z - o.z;
+        const t = cx * dir.x + cz * dir.z;
+        if (t < 2 || t > dist) continue;
+        const hx = o.x + dir.x * t - e.pos.x;
+        const hz = o.z + dir.z * t - e.pos.z;
+        const y = o.y + dir.y * t;
+        if (Math.hypot(hx, hz) < e.hitRadius && y > e.pos.y + e.hitLo && y < e.pos.y + e.hitHi) dist = t;
+      }
+      target = o.addScaledVector(dir, dist);
+      yaw = Math.atan2(dir.x, dir.z);
+      const a = from(yaw);
+      const vel = target.clone().sub(a).normalize().multiplyScalar(speed);
+      return { yaw, pitch: Math.asin(THREE.MathUtils.clamp(vel.y / speed, -1, 1)), from: a, vel };
+    }
+    if (f && f.device === 'keyboard') {
+      // Mouse cursor on the ground (or on a box top / a foe under it).
+      target = this.cursorPoint(f.mouseX, f.mouseY);
+      if (target) {
+        let best: Foe | null = null;
+        let bd = 1.6;
+        for (const e of this.enemies.list) {
+          if (e.dead) continue;
+          const d = Math.hypot(e.pos.x - target.x, e.pos.z - target.z);
+          if (d < bd) {
+            bd = d;
+            best = e;
+          }
+        }
+        if (best) target = best.pos.clone().setY(best.pos.y + (best.flying ? 0 : 1.1));
+        yaw = Math.atan2(target.x - p.pos.x, target.z - p.pos.z);
+      }
+    } else if (f) {
+      // Gamepad: the stick turns the aim; snap to a foe near that line.
+      if (!quick) p.aimLocksMove = true;
+      const m = Math.hypot(f.moveX, f.moveY);
+      if (m > 0.3) {
+        const dx = this.cam.right.x * f.moveX + this.cam.forward.x * f.moveY;
+        const dz = this.cam.right.z * f.moveX + this.cam.forward.z * f.moveY;
+        yaw = Math.atan2(dx, dz);
+      } else if (p.aim) yaw = p.aim.yaw;
+      const foe = this.enemies.aimTarget(p.pos, yaw, 45, THREE.MathUtils.degToRad(22), true);
+      if (foe) {
+        target = foe.pos.clone().setY(foe.pos.y + (foe.flying ? 0 : 1.1));
+        yaw = Math.atan2(target.x - p.pos.x, target.z - p.pos.z);
+      } else {
+        const x = p.pos.x + Math.sin(yaw) * 18;
+        const z = p.pos.z + Math.cos(yaw) * 18;
+        target = new THREE.Vector3(x, this.world.floor(x, z, p.pos.y + 1), z);
+      }
+    }
+    const a = from(yaw);
+    let vel: THREE.Vector3 | null = target ? solveBallistic(a, target, speed, g) : null;
+    if (!vel) {
+      // Out of range (or no target): loose at 40°, the longest flat shot.
+      const el = target ? THREE.MathUtils.degToRad(40) : 0.08;
+      vel = new THREE.Vector3(Math.sin(yaw) * Math.cos(el), Math.sin(el), Math.cos(yaw) * Math.cos(el)).multiplyScalar(speed);
+    }
+    return { yaw, pitch: Math.asin(THREE.MathUtils.clamp(vel.y / speed, -1, 1)), from: a, vel };
+  }
+
+  private pr_targets(): Foe[] {
+    return this.enemies.list.filter((e) => !e.dead);
+  }
+
+  /** World point under the mouse cursor (ground or a box top). */
+  private cursorPoint(nx: number, ny: number): THREE.Vector3 | null {
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(nx, ny), this.cam.camera);
+    const o = ray.ray.origin.clone();
+    const d = ray.ray.direction.clone();
+    // Start near the player's height to keep the march short.
+    const py = this.player.pos.y;
+    const t0 = d.y !== 0 ? (py + 25 - o.y) / d.y : 0;
+    const start = o.clone().addScaledVector(d, Math.max(0, t0));
+    const box = this.physics.rayStatic(start, d, 80);
+    let lo = 0;
+    let hi = Math.min(box, 80);
+    const below = (t: number) => {
+      const q = start.clone().addScaledVector(d, t);
+      return q.y < this.world.ground(q.x, q.z);
+    };
+    if (!below(hi)) return start.addScaledVector(d, hi);
+    for (let i = 0; i < 18; i++) {
+      const m = (lo + hi) / 2;
+      if (below(m)) hi = m;
+      else lo = m;
+    }
+    return start.addScaledVector(d, hi);
+  }
 
   private addHorse(s: Spawn, winged: boolean, rnd: () => number): Horse {
     const h = new Horse(this.factory, this.physics, s, rnd, winged);
@@ -439,6 +706,7 @@ class Game {
     this.chests = [];
     this.pickups = [];
     this.lostPile = null;
+    this.projectiles?.dispose();
     this.day.dispose();
     this.physics.world.free();
     this.dialogue = null;
@@ -466,6 +734,18 @@ class Game {
         this.cam.addTrauma(0.5);
       },
       horseJump: (winged: boolean) => this.sfx.horseJump(winged),
+      bowAim: (quick: boolean) => this.bowAim(quick),
+      bowDraw: () => this.sfx.bowDraw(this.player.weapon.draw ?? 0.65),
+      bowRelax: () => this.sfx.bowRelax(),
+      shoot: (aim: BowAim) => {
+        this.projectiles.fire('arrow', aim.from, aim.vel, this.player.weapon.dmg, 'player');
+        this.sfx.bowRelease();
+        this.cam.addTrauma(0.06);
+      },
+      noArrows: () => {
+        this.sfx.noArrows();
+        this.hud.showToast('The quiver is empty. Pick your arrows back up, or rest at a bonfire.', 2.5);
+      },
       noFlask: () => {
         this.sfx.denied();
         this.hud.showToast(t('toast.noFlask'), 2);
@@ -510,7 +790,7 @@ class Game {
 
   // --- economy & death ------------------------------------------------------------
 
-  private onEnemyKilled(e: Enemy): void {
+  private onEnemyKilled(e: Foe): void {
     const [lo, hi] = GOLD_DROP[e.kind] ?? [15, 25];
     const g = Math.round(lo + Math.random() * (hi - lo));
     this.progress.addGold(g);
@@ -577,12 +857,14 @@ class Game {
     d.bonfire = { map: this.mapName, id: b.id, pos: [b.pos.x + 1.2, b.pos.y, b.pos.z + 1.2], yaw: 0 };
     this.player.restore();
     this.enemies.resetAll();
+    this.projectiles.clearFromBodies();
+    this.progress.data.arrows = ARROW.max;
     this.npcs.calmGuards();
     this.progress.save();
     if (first) this.sfx.ignite();
     else this.sfx.rest();
     this.particles.burst(b.pos.clone().setY(b.pos.y + 0.6), 24, { color: 0xffa040, speed: 2, up: 3, size: 0.07, life: 0.9, gravity: -1 });
-    this.hud.showToast(t(first ? 'toast.lit' : 'toast.rested'), 3);
+    this.hud.showToast(first ? t('toast.lit') : t('toast.rested', { quiver: this.progress.hasBow ? t('toast.quiverRefilled') : '' }), 3);
   }
 
   private questReward(q: QuestDef): void {
@@ -622,6 +904,7 @@ class Game {
   // --- menus -----------------------------------------------------------------------
 
   private openMainMenu(tab: string): void {
+    if (document.pointerLockElement) document.exitPointerLock();
     this.menu.open(t('menu.paused'), this.mapTitle(this.mapName), this.mainTabs(), tab);
     this.cam.focus = true;
     this.minimap.setVisible(false);
@@ -639,6 +922,7 @@ class Game {
     const P = this.progress;
     const statLine = (id: string) => {
       const w = weapon(id);
+      if (w.kind === 'bow') return t('stats.bow', { dmg: w.dmg, draw: (w.draw ?? 0.6).toFixed(2), aim: this.hud.key('block'), loose: this.hud.key('attack') });
       return this.statText(w) + (w.heavy ? t('stats.staggers') : '');
     };
     const tabs: MenuTab[] = [
@@ -664,6 +948,7 @@ class Game {
             { label: t('inv.shield'), kind: 'info', value: () => (P.shield ? t('inv.roundShield') : '—'), sub: () => (P.shield ? t('inv.holdBlock', { key: this.hud.key('block') }) : t('inv.soldByTraders')) },
             { label: t('inv.consumables'), kind: 'header' },
             { label: t('inv.flasks'), kind: 'info', value: () => `${d.flasks} / ${P.maxFlasks}`, sub: () => t('inv.flasksSub', { key: this.hud.key('heal') }) },
+            ...(P.hasBow ? [{ label: t('inv.arrows'), kind: 'info' as const, value: () => `${d.arrows} / ${ARROW.max}`, sub: () => t('inv.arrowsSub') }] : []),
             { label: t('inv.character'), kind: 'header' },
             { label: t('inv.health'), kind: 'info', value: () => `${Math.ceil(this.player.hp)} / ${P.maxHp}` },
             { label: t('inv.stamina'), kind: 'info', value: () => `${P.maxStamina}` },
@@ -783,7 +1068,27 @@ class Game {
               this.applyLook(this.lookIndex);
             },
           },
-          { label: t('settings.camera'), kind: 'choice', value: () => t(this.cam.usePerspective ? 'settings.perspective' : 'settings.orthographic'), adjust: () => (this.cam.usePerspective = !this.cam.usePerspective) },
+          { label: t('settings.camera'), kind: 'choice', value: () => t(this.cam.usePerspective ? 'settings.perspective' : 'settings.orthographic'), sub: () => (this.cam.thirdPerson ? t('settings.cameraThird') : ''), adjust: () => (this.cam.usePerspective = !this.cam.usePerspective) },
+          {
+            label: t('settings.uiScale'),
+            kind: 'slider',
+            value: () => `${Math.round(this.uiScale * 100)}%`,
+            sub: () => t('settings.uiScaleSub'),
+            adjust: (k) => {
+              this.uiScale = Math.round(THREE.MathUtils.clamp(this.uiScale + k * 0.05, 0.7, 1.6) * 100) / 100;
+              this.applyUiScale();
+            },
+            slider: {
+              min: 0.7,
+              max: 1.6,
+              step: 0.05,
+              get: () => this.uiScale,
+              set: (v) => {
+                this.uiScale = v;
+                this.applyUiScale();
+              },
+            },
+          },
           {
             label: t('settings.minimap'),
             kind: 'choice',
@@ -817,6 +1122,53 @@ class Game {
         id: 'debug',
         label: t('tabs.debug'),
         rows: () => [
+          { label: t('debug.camera'), kind: 'header' },
+          {
+            label: t('debug.thirdPerson'),
+            kind: 'choice',
+            value: () => t(this.cam.thirdPerson ? 'menu.on' : 'menu.off'),
+            sub: () => t(this.hud.device === 'gamepad' ? 'debug.thirdPersonPad' : 'debug.thirdPersonMouse'),
+            adjust: () => this.setThirdPerson(!this.cam.thirdPerson),
+            activate: () => this.setThirdPerson(!this.cam.thirdPerson),
+          },
+          {
+            label: t('debug.sensitivity'),
+            kind: 'slider',
+            value: () => `${Math.round((this.input.mouseSens / 0.0026) * 100)}%`,
+            adjust: (k) => {
+              this.input.mouseSens = THREE.MathUtils.clamp(this.input.mouseSens + k * 0.00026, 0.0008, 0.008);
+              this.input.stickSens = (this.input.mouseSens / 0.0026) * 2.6;
+            },
+            slider: {
+              min: 0.0008,
+              max: 0.008,
+              step: 0.0001,
+              get: () => this.input.mouseSens,
+              set: (v) => {
+                this.input.mouseSens = v;
+                this.input.stickSens = (v / 0.0026) * 2.6;
+              },
+            },
+          },
+          { label: t('debug.invertY'), kind: 'choice', value: () => t(this.input.invertY ? 'menu.on' : 'menu.off'), adjust: () => (this.input.invertY = !this.input.invertY), activate: () => (this.input.invertY = !this.input.invertY) },
+          { label: t('debug.foes'), kind: 'header' },
+          {
+            label: t('debug.bow'),
+            kind: 'button',
+            activate: () => {
+              if (!d.weapons.includes('composite_bow')) d.weapons.push('composite_bow');
+              d.equipped = 'composite_bow';
+              d.arrows = ARROW.max;
+              P.save();
+              this.rebuildPlayer();
+              this.hud.showToast(t('debug.bowToast', { aim: this.hud.key('block'), loose: this.hud.key('attack') }), 3);
+            },
+          },
+          { label: t('debug.hounds'), kind: 'button', sub: () => t('debug.houndsSub'), activate: () => this.debugSpawnFoes('hound', 3, 14) },
+          { label: t('debug.vultures'), kind: 'button', sub: () => t('debug.vulturesSub'), activate: () => this.debugSpawnFoes('vulture', 2, 16) },
+          { label: t('debug.slinger'), kind: 'button', sub: () => t('debug.slingerSub'), activate: () => this.debugSpawnFoes('slinger', 1, 15) },
+          { label: t('debug.clubman'), kind: 'button', sub: () => t('debug.clubmanSub'), activate: () => this.debugSpawnFoes('clubman', 1, 9) },
+          { label: t('debug.world'), kind: 'header' },
           { label: t('debug.horse'), kind: 'button', activate: () => this.debugSpawnHorse(false) },
           { label: t('debug.winged'), kind: 'button', sub: () => t('debug.wingedSub'), activate: () => this.debugSpawnHorse(true) },
           { label: t('debug.gold'), kind: 'button', activate: () => this.progress.addGold(500) },
@@ -854,7 +1206,8 @@ class Game {
 
   private controlRows(): MenuRow[] {
     const list: Action[] = ['move', 'run', 'attack', 'block', 'dodge', 'jump', 'heal', 'talk', 'camera', 'zoom', 'inventory', 'map'];
-    return list.map((a) => ({ label: tOr(`controls.${a}`, a), kind: 'info' as const, value: () => this.hud.key(a) }));
+    const label = (a: Action) => (a === 'camera' && this.cam.thirdPerson ? t('controls.look') : tOr(`controls.${a}`, a));
+    return list.map((a) => ({ label: label(a), kind: 'info' as const, value: () => this.hud.key(a) }));
   }
 
   /** Menu quick travel: the region's default arrival point. */
@@ -914,6 +1267,7 @@ class Game {
   }
 
   private openShop(npc: Npc): void {
+    if (document.pointerLockElement) document.exitPointerLock();
     const d = this.progress.data;
     const P = this.progress;
     const buy = (price: number, fn: () => void) => {
@@ -1000,6 +1354,24 @@ class Game {
     const z = p.z + Math.cos(a) * 3;
     this.addHorse({ role: 'horse', pos: [x, p.y, z], yaw: a + Math.PI / 2 }, winged, Math.random);
     this.hud.showToast(t(winged ? 'toast.wingedHorse' : 'toast.horse'), 2);
+  }
+
+  /** Debug: drop a group of a given enemy kind a short way ahead of the player. */
+  private debugSpawnFoes(kind: string, n: number, dist: number): void {
+    const p = this.player.pos;
+    const a = this.player.yaw;
+    for (let i = 0; i < n; i++) {
+      const ang = a + (i - (n - 1) / 2) * 0.35;
+      let x = p.x + Math.sin(ang) * dist;
+      let z = p.z + Math.cos(ang) * dist;
+      if (this.world.nav.isBlocked(x, z)) {
+        x = p.x + Math.sin(ang) * dist * 0.5;
+        z = p.z + Math.cos(ang) * dist * 0.5;
+      }
+      const e = this.enemies.spawn({ role: 'enemy', kind, camp: 'debug', pos: [x, this.world.floor(x, z, p.y + 1), z], yaw: a + Math.PI } as Spawn);
+      e.onKilled = (f) => this.onEnemyKilled(f);
+    }
+    this.hud.showToast(t(n > 1 ? 'debug.foesAppear' : 'debug.foeAppears', { n, kind: tOr(`enemies.${kind}`, kind) }), 2);
   }
 
   private debugKillNearby(): void {
@@ -1128,6 +1500,7 @@ class Game {
     this.frameNo++;
 
     const f = this.input.read(realDt);
+    this.lastFrame = f;
     const deviceChanged = f.device !== this.hud.device;
     this.hud.setDevice(f.device);
     if (deviceChanged && this.dialogue) this.showLine();
@@ -1145,6 +1518,7 @@ class Game {
       p.update(dt, f, this.cam);
       this.npcs.update(dt, p, p.pos);
       this.enemies.update(dt, p);
+      this.projectiles.update(dt, p.dead ? null : p.pos);
       for (const h of this.horses) {
         if (h === p.horse) continue;
         h.idle(dt);
@@ -1172,7 +1546,15 @@ class Game {
 
     const focus = p.pos.clone();
     focus.y += p.horse ? 1.6 : 1.0;
+    this.cam.aiming = p.aiming && this.cam.thirdPerson;
+    this.cam.occlusion = (o, d, max) => this.physics.rayStatic(o, d, max);
+    this.cam.groundAt = (x, z) => this.world.ground(x, z);
     this.cam.update(realDt, focus);
+    // Bow: aim arc and HUD.
+    const aiming = !paused && p.aiming && !!p.aim && p.drawK > 0.15;
+    this.projectiles.preview(aiming ? p.aim!.from : null, aiming ? p.aim!.vel : null);
+    this.hud.setCrosshair(this.cam.thirdPerson && !paused, p.drawK, p.aiming);
+    this.hud.setAmmo(this.progress.hasBow && p.hasBow ? this.progress.data.arrows : null, ARROW.max);
     this.world.update(realDt, p.pos, this.cam.zoom);
     this.world.setFogOffset(this.cam.targetDepth);
 
@@ -1231,7 +1613,7 @@ class Game {
     // People and raiders nearby (quieter, panned).
     const walkers: { key: object; x: number; z: number; y: number; run: boolean }[] = [];
     for (const n of this.npcs.npcs) if (!n.dead && (n.state === 'walk' || n.state === 'flee' || n.state === 'chase' || n.state === 'return')) walkers.push({ key: n, x: n.pos.x, z: n.pos.z, y: n.pos.y, run: n.state === 'flee' || n.state === 'chase' });
-    for (const e of this.enemies.list) if (!e.dead) walkers.push({ key: e, x: e.pos.x, z: e.pos.z, y: e.pos.y, run: e.state === 'approach' });
+    for (const e of this.enemies.list) if (!e.dead && e.moving) walkers.push({ key: e, x: e.pos.x, z: e.pos.z, y: e.pos.y, run: e.running });
     for (const w of walkers) {
       const d = Math.hypot(w.x - pos.x, w.z - pos.z);
       if (d > 10) {
@@ -1270,8 +1652,8 @@ class Game {
         else sfx.snort(this.pan(pick.pos.x, pick.pos.z), g);
       }
     }
-    // A raider spotting you shouts.
-    for (const e of this.enemies.list) {
+    // A raider spotting you shouts (beasts growl and screech on their own).
+    for (const e of this.enemies.humans) {
       const prev = this.prevEnemyState.get(e);
       if (e.state === 'alert' && prev !== 'alert') {
         const d = Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z);
@@ -1391,7 +1773,7 @@ class Game {
     cutout.uCutFloorY.value = p.y + 0.5;
     const ortho = (cam as THREE.OrthographicCamera).isOrthographicCamera;
     const halfH = ortho ? ((cam as THREE.OrthographicCamera).top - (cam as THREE.OrthographicCamera).bottom) / 2 : -view.z * Math.tan(THREE.MathUtils.degToRad((cam as THREE.PerspectiveCamera).fov / 2));
-    cutout.uCutRadius.value = this.player.dead || (this.menu.isOpen && this.cam.focus) ? 0 : CUT_RADIUS / halfH;
+    cutout.uCutRadius.value = this.player.dead || (this.menu.isOpen && this.cam.focus) ? 0 : (this.cam.thirdPerson ? 0.9 : CUT_RADIUS) / halfH;
   }
 
   private nearestExit(): Exit | null {
@@ -1417,6 +1799,7 @@ class Game {
   private handleInput(f: Frame): void {
     if (f.zoom) this.cam.zoomBy(f.zoom);
     if (f.rotate) this.cam.rotateBy(f.rotate);
+    if (this.cam.thirdPerson && (f.lookYaw || f.lookPitch)) this.cam.look(f.lookYaw, f.lookPitch);
 
     const p = this.player;
     const k = (a: Action) => this.hud.key(a);
@@ -1517,8 +1900,10 @@ class Game {
     else if (this.player.horse)
       items = [['move', t('hints.ride')], ['run', t('hints.gallop')], ['attack', t('hints.attack')], ['jump', t('hints.jump')], ['mount', t('hints.dismount')], ['map', t('hints.map')], ['pause', t('hints.menu')]];
     else {
-      items = [['move', t('hints.move')], ['run', t('hints.sprint')], ['attack', t('hints.attack')], ['dodge', t('hints.roll')], ['jump', t(P.doubleJump ? 'hints.jump2' : 'hints.jump')], ['camera', t('hints.camera')]];
-      if (P.shield) items.push(['block', t('hints.block')]);
+      const bow = this.player.hasBow;
+      items = [['move', t('hints.move')], ['run', t('hints.sprint')], ['attack', t(bow ? 'hints.loose' : 'hints.attack')], ['dodge', t('hints.roll')], ['jump', t(P.doubleJump ? 'hints.jump2' : 'hints.jump')], ['camera', t(this.cam.thirdPerson ? 'hints.look' : 'hints.camera')]];
+      if (bow) items.push(['block', t('hints.aim')]);
+      else if (P.shield) items.push(['block', t('hints.block')]);
       if (P.data.flasks > 0) items.push(['heal', t('hints.heal')]);
       items.push(['talk', t('hints.use')], ['map', t('hints.map')], ['inventory', t('hints.menu')]);
     }
@@ -1540,7 +1925,7 @@ class Game {
         bars.push({
           x: (this.projected.x * 0.5 + 0.5) * w,
           y: (-this.projected.y * 0.5 + 0.5) * h,
-          frac: e.hp / e.def.hp,
+          frac: e.hp / e.maxHp,
           name: e.title,
           dmg: e.sinceHurt < 1.5 ? e.lastDamage : 0,
           tell: e.telegraphing,

@@ -4320,6 +4320,54 @@
    ],
    "yaw": -1.5708,
    "from": "cliffs"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -80,
+    10.906,
+    10.4052
+   ],
+   "yaw": 0.0,
+   "kind": "vulture",
+   "camp": "sky",
+   "airborne": true
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -20,
+    14.968,
+    10.9662
+   ],
+   "yaw": 0.0,
+   "kind": "vulture",
+   "camp": "sky",
+   "airborne": true
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    40,
+    8.912,
+    -11.4753
+   ],
+   "yaw": 0.0,
+   "kind": "vulture",
+   "camp": "sky",
+   "airborne": true
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    90,
+    13.04,
+    -19.1079
+   ],
+   "yaw": 0.0,
+   "kind": "vulture",
+   "camp": "sky",
+   "airborne": true
   }
  ],
  "lights": [],

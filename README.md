@@ -17,6 +17,8 @@ It runs in any modern desktop browser with WebGL 2, using keyboard and mouse or 
   - Attacks commit you with a lunge.
   - Raider camps out in the dunes hold three enemy types: skirmisher, raider and brute. Each telegraphs its swing with a slow windup and a red flash, then leaves an opening after it.
 - **Horses:** mount one, gallop across the dunes, and fight from the saddle.
+- **A composite bow:** aim, watch the arc, loose, then pull your arrows back out of the sand. The quiver holds ten.
+- **Beasts and new raiders:** desert hounds that circle and lunge, vultures that dive from the sky, slingers who keep their distance, and clubmen.
 - **Time of day:** dawn, noon, sunset and a blue moonlit night, with a sky dome, stars and lit market lamps. Set it in the pause menu or let time pass.
 - **A pause menu** where you can choose a character look, robe colour, camera mode, minimap size and volume. It works with mouse, keyboard and controller.
 - **A minimap and on-screen prompts** that switch between keyboard and controller glyphs for whichever device you're using.
@@ -31,12 +33,14 @@ It runs in any modern desktop browser with WebGL 2, using keyboard and mouse or 
 | Move | WASD | Left stick |
 | Sprint (free out of combat) | Shift | Hold B, LT or L3 |
 | Attack | Left click or J | RB or RT |
-| Block (with a shield) | Right mouse (hold) | LB (hold) |
+| Block (with a shield) / aim a bow | Right mouse (hold) | LB (hold) |
+| Loose an arrow (bow) | Left click | RB or RT |
 | Dodge roll | Space | Tap B |
 | Jump (hold for height, double jump with the feather) | F | A |
 | Drink a healing waterskin | R | X |
 | Talk, trade, rest, open, travel, mount | E | Y |
 | Rotate camera | Middle-mouse drag, or Z / C | Right stick |
+| Look (third-person test camera, Debug tab) | Mouse (click to capture) | Right stick; D-pad up/down zooms |
 | Zoom | Mouse wheel | Right stick / D-pad |
 | Map | M | View |
 | Menu (inventory, quests, travel, settings) | Tab or Esc | Start |

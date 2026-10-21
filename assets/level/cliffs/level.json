@@ -3846,6 +3846,75 @@
     34
    ],
    "yaw": -2.7962
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    14.4362,
+    23.8,
+    -37.6
+   ],
+   "yaw": 3.1416,
+   "kind": "slinger",
+   "camp": "ledges"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -25.6866,
+    31.0,
+    -37.6
+   ],
+   "yaw": 3.1416,
+   "kind": "slinger",
+   "camp": "ledges"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    13.0,
+    7.0,
+    -8.0
+   ],
+   "yaw": 3.1416,
+   "kind": "slinger",
+   "camp": "aqueduct"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    -30,
+    16.721,
+    20
+   ],
+   "yaw": 0.0,
+   "kind": "vulture",
+   "camp": "sky",
+   "airborne": true
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    20,
+    24.065,
+    -12
+   ],
+   "yaw": 0.0,
+   "kind": "vulture",
+   "camp": "sky",
+   "airborne": true
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    52,
+    29.918,
+    -30
+   ],
+   "yaw": 0.0,
+   "kind": "vulture",
+   "camp": "sky",
+   "airborne": true
   }
  ],
  "lights": [],

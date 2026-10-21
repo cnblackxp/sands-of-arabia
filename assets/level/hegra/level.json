@@ -3606,6 +3606,28 @@
    ],
    "yaw": 0.0,
    "from": "ruined_temple"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    88,
+    0.3413,
+    -98
+   ],
+   "yaw": 1.409,
+   "kind": "hound",
+   "camp": "tomb_robbers"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    94,
+    0.0619,
+    -110
+   ],
+   "yaw": 2.162,
+   "kind": "hound",
+   "camp": "tomb_robbers"
   }
  ],
  "lights": [
