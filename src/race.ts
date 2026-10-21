@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Horse } from './animals';
+import { HORSE_GALLOP, type Horse } from './animals';
 import { beam } from './markers';
 import type { Npc } from './npc';
 
@@ -124,7 +124,8 @@ export class Race {
       r.s = 0;
       r.done = false;
       // A little spread: the best horseman is not always the same.
-      r.speed = 8.7 + Math.random() * 1.2 - i * 0.15;
+      // Just under a gallop the player can match (8.7–9.9 m/s when it was 10.5).
+      r.speed = HORSE_GALLOP * (0.83 + Math.random() * 0.115) - i * 0.15;
       r.npc.racing = true;
       r.horse.setRidden(true);
     });

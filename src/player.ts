@@ -11,8 +11,10 @@ import type { Progress } from './progress';
 import { dampAngle, wrapAngle } from './util';
 import type { ClipMeta, World } from './world';
 
-export const WALK_SPEED = 2.5;
-export const RUN_SPEED = 5.2;
+export const WALK_SPEED = 3.0;
+export const RUN_SPEED = 6.2;
+/** A light push on the stick walks slowly (a real walk), a full push moves at WALK_SPEED. */
+const SLOW_WALK = { below: 0.6, min: 0.8, max: 1.5 };
 
 /** Stamina costs (Dark Souls style: actions need stamina > 0; regen pauses after use). */
 const COST = { roll: 24, jump: 10, sprintPerSec: 13 };
@@ -22,9 +24,9 @@ const ROLL = { duration: 0.62, distance: 4.2, iStart: 0.06, iEnd: 0.42 };
 /**
  * Platformer jump: fast rise, held jump floats higher (≈1.8 m), release cuts it
  * short, faster fall, coyote time after walking off a ledge, and an optional
- * double jump (≈+1.4 m).
+ * double jump (≈+1.6 m). Held, it reaches about 2.1 m.
  */
-const JUMP = { v0: 9.2, v2: 8.0, gHeld: 23, gRise: 46, gFall: 36, maxFall: 28, coyote: 0.12, air: 7 };
+const JUMP = { v0: 9.9, v2: 8.6, gHeld: 23, gRise: 46, gFall: 36, maxFall: 28, coyote: 0.12, air: 7 };
 /** Heavy blows knock the player down: fall, lie, get up (no hits while down). */
 const KNOCKDOWN = { fall: 0.75, lie: 0.35, getUp: 1.25 / 1.35 };
 const HEAL = { duration: 0.9, at: 0.55, fraction: 0.45 };
@@ -662,7 +664,13 @@ export class Player implements PlayerView {
           const aiming = this.aiming;
           sprinting = f.run && mag > 0.5 && canSprint && this.attackT < 0 && !this.blocking && this.healT < 0 && !aiming;
           const slow = this.attackT >= 0 ? 0.35 : this.blocking ? 0.5 : this.healT >= 0 ? 0.4 : aiming ? BOW.moveK : 1;
-          const target = (aiming && this.aimLocksMove ? 0 : mag) * (sprinting ? RUN_SPEED : WALK_SPEED) * slow;
+          // Stick: a light push is a slow walk, a full push the normal pace (keys always push fully).
+          const pace = sprinting
+            ? RUN_SPEED * mag
+            : mag < SLOW_WALK.below
+              ? SLOW_WALK.min + (SLOW_WALK.max - SLOW_WALK.min) * (mag / SLOW_WALK.below)
+              : WALK_SPEED;
+          const target = (aiming && this.aimLocksMove ? 0 : mag > 0.001 ? pace : 0) * slow;
           if (aiming && this.aim) {
             // Drawn: strafe while facing the shot.
             if (mag > 0.001 && !this.aimLocksMove) this.moveDir.copy(dir);
@@ -701,7 +709,8 @@ export class Player implements PlayerView {
       const a = this.rig.anim;
       const s = this.animSpeed;
       if (s < 0.15) a.setBase('Idle', 1, 0.2);
-      else if (s < 3.0) a.setBase('Walk', Math.max(0.35, s / CLIP_SPEED.personWalk), 0.18);
+      // Walk up to a brisk pace; the normal 3 m/s pace is a jog on the Run clip.
+      else if (s < 2.4) a.setBase('Walk', Math.max(0.35, s / CLIP_SPEED.personWalk), 0.18);
       else a.setBase('Run', s / CLIP_SPEED.personRun, 0.15);
     }
     this.rig.anim.update(dt);

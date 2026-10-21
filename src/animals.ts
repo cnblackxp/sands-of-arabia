@@ -4,8 +4,8 @@ import type { Spawn } from './level';
 import { GROUP_ACTOR, GROUP_PLAYER, Mover, type Physics } from './physics';
 import { fitGround, turnToward } from './util';
 
-export const HORSE_WALK = 2.8;
-export const HORSE_GALLOP = 10.5;
+export const HORSE_WALK = 3.4;
+export const HORSE_GALLOP = 12.5;
 
 /** A rideable horse. While ridden it is moved by its own character-controller capsule. */
 export class Horse {
@@ -75,7 +75,7 @@ export class Horse {
   jump(): boolean {
     if (!this.airborne) {
       this.airborne = true;
-      this.vy = this.winged ? 13 : 7;
+      this.vy = this.winged ? 13 : 10.5;
       this.airJumps = 0;
     } else if (this.winged && this.airJumps < 1) {
       this.airJumps++;
@@ -105,8 +105,8 @@ export class Horse {
     const fz = Math.cos(this.yaw);
     let moved: { x: number; z: number; falling: boolean };
     if (this.airborne) {
-      // Winged horses glide down slowly.
-      const g = this.winged && this.vy < 0 ? 9 : 26;
+      // A horse clears about 1.7 m; winged horses glide down slowly.
+      const g = this.winged && this.vy < 0 ? 9 : this.winged ? 26 : 32;
       this.vy = Math.max(this.winged ? -6 : -28, this.vy - g * dt);
       const prevY = this.mover.feet.y;
       moved = this.mover.move(fx * this.speed * dt, fz * this.speed * dt, prevY + this.vy * dt);
