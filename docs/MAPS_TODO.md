@@ -154,7 +154,7 @@ Each entry lists the proposed map name, titles, size and culture, where it links
 ---
 
 ## 4. Open asset items for the game (not maps)
-- Enemy kinds the maps already place but which have no model yet: `scorpion`, `viper`, `ghul` (boss), `champion` (Ukaz boss).
+- Enemy kinds the maps already place but which have no model yet: `scorpion`, `viper`, `ghul` (boss). The Ukaz `champion` uses the person rig (Lamellar, Helmet, Cloak) and needs no model.
   - Variants handled in game code: palmyrene, himyar, camel, jackal, hyena.
   - Done: `rat`.
 - In the game (3b69568), scorpion and viper are procedural box placeholders and the ghul is a person-rig boss. Replacements the game session asked for (optional, since the placeholders work):
