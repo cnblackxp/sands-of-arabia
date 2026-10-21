@@ -13,7 +13,8 @@ body {
   height: 100%;
   overflow: hidden;
   background: #1b120c;
-  font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', serif;
+  /* Amiri (Google Fonts, index.html) covers Arabic; Latin stays Georgia. */
+  font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', Amiri, serif;
   color: #fff;
   user-select: none;
 }
@@ -503,7 +504,7 @@ small {
 .floater {
   position: absolute;
   transform: translate(-50%, -100%);
-  font: bold 16px Georgia, serif;
+  font: bold 16px Georgia, Amiri, serif;
   text-shadow: 0 2px 4px #000;
   animation: floatup 1.4s ease-out forwards;
   white-space: nowrap;
@@ -541,7 +542,7 @@ small {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(227, 164, 67, 0.35);
   color: #f3dcc0;
-  font: 13px Georgia, serif;
+  font: 13px Georgia, Amiri, serif;
   padding: 5px 12px;
   border-radius: 3px;
   cursor: pointer;
@@ -635,4 +636,90 @@ small {
   height: 9px;
   border-radius: 50%;
   margin: 0 5px;
+}
+
+/* --- Arabic: i18n.ts sets lang="ar" on <html> and dir="rtl" on #hud and #loading. --- */
+html:lang(ar) .dlg-text {
+  font-size: 20px;
+  line-height: 1.6;
+}
+html:lang(ar) .dlg-name,
+html:lang(ar) .prompt,
+html:lang(ar) .prow-label {
+  font-size: 18px;
+}
+html:lang(ar) .hint,
+html:lang(ar) .tracker,
+html:lang(ar) .legend,
+html:lang(ar) .pause-sub {
+  font-size: 15px;
+}
+html:lang(ar) .prow-sub,
+html:lang(ar) .pause-foot,
+html:lang(ar) .dlg-more {
+  font-size: 14px;
+}
+html:lang(ar) .tab {
+  font-size: 15px;
+}
+html:lang(ar) small {
+  font-size: 12px;
+}
+html:lang(ar) #loading .msg {
+  font-size: 15px;
+}
+html:lang(ar) .toast {
+  font-size: 26px;
+}
+html:lang(ar) .prow-value {
+  font-size: 16px;
+}
+/* Letter spacing breaks the joins of Arabic script. */
+html:lang(ar) .pause-title,
+html:lang(ar) .dlg-name,
+html:lang(ar) .prow-header .prow-label,
+html:lang(ar) #loading .title {
+  letter-spacing: 0;
+}
+html:lang(ar) .prow-header .prow-label {
+  font-size: 15px;
+}
+html:lang(ar) .prompt i {
+  font-style: normal;
+  opacity: 0.8;
+}
+/* Bars, purse, enemy bars and the arrows of choice rows keep their left-to-right layout. */
+[dir='rtl'] .bars-top,
+[dir='rtl'] .enemy-bars,
+[dir='rtl'] .prow-ctl,
+[dir='rtl'] kbd,
+[dir='rtl'] .pad {
+  direction: ltr;
+}
+[dir='rtl'] .keys {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+[dir='rtl'] .pause {
+  padding-left: 0;
+  padding-right: max(24px, 8vw);
+  background: linear-gradient(270deg, rgba(20, 10, 5, 0.85) 0%, rgba(20, 10, 5, 0.55) 45%, rgba(20, 10, 5, 0) 75%);
+}
+[dir='rtl'] .prow {
+  border-left: none;
+  border-right: 3px solid transparent;
+}
+[dir='rtl'] .prow.focus {
+  border-right-color: var(--gold);
+}
+[dir='rtl'] .prow-value.right {
+  text-align: left;
+}
+[dir='rtl'] .dlg-more {
+  text-align: left;
+}
+[dir='rtl'] small {
+  margin-left: 0;
+  margin-right: 2px;
 }

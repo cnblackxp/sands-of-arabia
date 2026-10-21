@@ -8,7 +8,8 @@ import { type Enemy, EnemySystem } from './enemy';
 import { Glints, Particles, Sfx, TimeScale } from './fx';
 import { Hud, type Action, type EnemyBar } from './hud';
 import { Input, type Frame } from './input';
-import { GOLD_DROP, ITEM_NAMES, UPGRADES, WEAPONS, upgradePrice, weapon } from './items';
+import { applyDocument, L, lang, LANGS, onLangChange, setLang, t, tOr } from './i18n';
+import { GOLD_DROP, itemName, UPGRADES, upgradePrice, upgradeText, WEAPONS, weapon, weaponText, type WeaponDef } from './items';
 import type { Exit, Spawn, Vec3 } from './level';
 import { beam, Bonfire, Chest, GoldPile, Icon, type IconKind, Pickup } from './markers';
 import { Menu, type MenuRow, type MenuTab } from './menu';
@@ -17,7 +18,7 @@ import { type Npc, NpcSystem } from './npc';
 import { Physics } from './physics';
 import { Player } from './player';
 import { Progress } from './progress';
-import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, type QuestDef } from './quests';
+import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
 import { mulberry32 } from './util';
 import { cutout, loadCommon, loadMap, World, type CommonAssets, type MapEntry } from './world';
@@ -29,17 +30,18 @@ const MOUNT_RANGE = 2.8;
 const USE_RANGE = 2.2;
 
 const ROBES: (number | null)[] = [null, 0xf1ece0, 0x2c3e73, 0x7b2a24, 0xc9902e, 0x2f6d4f, 0x5b2d6e, 0x2b2622, 0xb8a48a];
-const FLOW: { label: string; on: boolean; speed: number }[] = [
-  { label: 'Stopped', on: false, speed: 0 },
-  { label: 'Glacial (1 h / 10 min)', on: true, speed: 1 / 600 },
-  { label: 'Very slow (1 h / 5 min)', on: true, speed: 1 / 300 },
-  { label: 'Slower (1 h / 2 min)', on: true, speed: 1 / 120 },
-  { label: 'Slow (1 h / min)', on: true, speed: 1 / 60 },
-  { label: 'Moderate (1 h / 30 s)', on: true, speed: 1 / 30 },
-  { label: 'Fast (1 h / 10 s)', on: true, speed: 1 / 10 },
-  { label: 'Faster (1 h / 5 s)', on: true, speed: 1 / 5 },
-  { label: 'Very fast (1 h / 2 s)', on: true, speed: 1 / 2 },
-  { label: 'Timelapse (1 h / s)', on: true, speed: 1 },
+/** Time-of-day speeds; labels are in locales/ `flow.<id>`. */
+const FLOW: { id: string; on: boolean; speed: number }[] = [
+  { id: 'stopped', on: false, speed: 0 },
+  { id: 'glacial', on: true, speed: 1 / 600 },
+  { id: 'very_slow', on: true, speed: 1 / 300 },
+  { id: 'slower', on: true, speed: 1 / 120 },
+  { id: 'slow', on: true, speed: 1 / 60 },
+  { id: 'moderate', on: true, speed: 1 / 30 },
+  { id: 'fast', on: true, speed: 1 / 10 },
+  { id: 'faster', on: true, speed: 1 / 5 },
+  { id: 'very_fast', on: true, speed: 1 / 2 },
+  { id: 'timelapse', on: true, speed: 1 },
 ];
 
 function nameHash(s: string): number {
@@ -51,15 +53,14 @@ function nameHash(s: string): number {
 /** Speaking pitch (Hz) for an NPC's babble: stable per name, women higher, guards and priests lower. */
 function voiceOf(npc: Npc): number {
   const base = npc.female ? 290 : npc.role === 'guard' || npc.role === 'priest' ? 150 : 185;
-  return base * (0.88 + nameHash(npc.name) * 0.24);
+  return base * (0.88 + nameHash(npc.nameId) * 0.24);
 }
-
-const FILLERS = ['Hmm…', 'Ah.', 'Mm.', 'Well…', 'Eh.', 'Oh!', 'Hm, hm.'];
 
 /** Small talk sometimes opens with an "um" or "ah", seeded by name and time. */
 function withFiller(lines: string[], name: string): string[] {
   if (lines.length === 0 || Math.random() > 0.4) return lines;
-  const f = FILLERS[Math.floor(nameHash(name + Date.now()) * FILLERS.length)];
+  const fillers = L().fillers;
+  const f = fillers[Math.floor(nameHash(name + Date.now()) * fillers.length)];
   return [`${f} ${lines[0]}`, ...lines.slice(1)];
 }
 
@@ -130,6 +131,10 @@ class Game {
     this.input = new Input(canvas);
     this.input.onGesture = () => this.sfx.unlock();
     this.hud = new Hud(document.getElementById('hud')!);
+    applyDocument();
+    onLangChange(() => this.onLangChange());
+    (document.querySelector('#loading .title') as HTMLDivElement).textContent = t('loading.title');
+    (document.querySelector('#loading .msg') as HTMLDivElement).textContent = t('loading.loading');
     this.quests = new QuestSystem(this.progress, {
       toast: (t) => this.hud.showToast(t, 3.5),
       reward: (q) => this.questReward(q),
@@ -147,7 +152,7 @@ class Game {
     const msg = document.querySelector('#loading .msg') as HTMLDivElement;
     this.common = await loadCommon((f, label) => {
       bar.style.width = `${f * 50}%`;
-      msg.textContent = `Loaded ${label}`;
+      msg.textContent = t('loading.loaded', { label: tOr(`loading.assets.${label}`, label) });
     });
     const c = this.common;
     void this.music.load();
@@ -184,7 +189,24 @@ class Game {
   }
 
   private mapTitle(name: string): string {
-    return this.mapEntry(name).title;
+    return tOr(`maps.${name}`, this.mapEntry(name).title);
+  }
+
+  /** Re-render whatever shows text after the language changes. */
+  private onLangChange(): void {
+    this.hud.refreshText();
+    // The language is picked in the pause menu's Settings tab; relabel it in place.
+    if (this.menu.isOpen) this.menu.relabel(t('menu.paused'), this.mapTitle(this.mapName), this.mainTabs());
+  }
+
+  /** Exit label: the level's (English) label, or a translation by "map>to". */
+  private exitLabel(e: Exit): string {
+    return tOr(`exits.${this.mapName}>${e.to}`, lang() === 'en' ? e.label : t('markers.to', { map: this.mapTitle(e.to) }));
+  }
+
+  /** Name shown for a pickup (quest item or free pickup). */
+  private pickupLabel(p: Pickup): string {
+    return p.item.startsWith('free:') ? (L().free[p.item.slice(5)]?.label ?? p.label) : itemName(p.item);
   }
 
   /** Travel to another map through an exit (or quick travel). */
@@ -206,11 +228,11 @@ class Game {
     const loading = document.getElementById('loading')!;
     const bar = document.querySelector('#loading .bar div') as HTMLDivElement;
     const msg = document.querySelector('#loading .msg') as HTMLDivElement;
-    (document.querySelector('#loading .title') as HTMLDivElement).textContent = entry.title;
+    (document.querySelector('#loading .title') as HTMLDivElement).textContent = this.mapTitle(entry.name);
     loading.classList.remove('done');
     const map = await loadMap(entry, (f, label) => {
       bar.style.width = `${50 + f * 50}%`;
-      msg.textContent = `Loaded ${label}`;
+      msg.textContent = t('loading.loaded', { label: tOr(`loading.assets.${label}`, label) });
     });
 
     // Carry over what belongs to the player and the clock.
@@ -266,7 +288,7 @@ class Game {
       const hand = n.rig.bones.get('hand_R');
       this.glints.spawn(() => (hand ? hand.getWorldPosition(tmp) : tmp.copy(n.pos)));
     };
-    this.npcs.onDeathCb = (n) => this.hud.showToast(`${n.name} the ${n.title.toLowerCase()} has fallen.`);
+    this.npcs.onDeathCb = (n) => this.hud.showToast(t(n.female ? 'toast.fallenF' : 'toast.fallen', { name: n.name, title: n.title.toLowerCase() }));
 
     // Exits: a soft light shaft over each cairn.
     this.exits = level.exits ?? [];
@@ -298,7 +320,7 @@ class Game {
     loading.classList.add('done');
     this.last = performance.now();
     this.travelling = false;
-    this.hud.showToast(entry.title, 3);
+    this.hud.showToast(this.mapTitle(entry.name), 3);
   }
 
   private lookIndex = 0;
@@ -348,12 +370,12 @@ class Game {
     };
     for (const o of this.quests.pickupsIn(this.mapName)) {
       const pos = at(o.pickup);
-      if (pos) this.pickups.push(new Pickup(this.world.scene, pos, o.item, ITEM_NAMES[o.item] ?? o.item.replace(/_/g, ' ')));
+      if (pos) this.pickups.push(new Pickup(this.world.scene, pos, o.item, itemName(o.item)));
     }
-    for (const [id, free] of Object.entries(FREE_PICKUPS)) {
+    for (const id of Object.keys(FREE_PICKUPS)) {
       if (this.progress.data.taken.includes(id)) continue;
       const pos = at(id);
-      if (pos) this.pickups.push(new Pickup(this.world.scene, pos, `free:${id}`, free.label));
+      if (pos) this.pickups.push(new Pickup(this.world.scene, pos, `free:${id}`, L().free[id]?.label ?? id));
     }
   }
 
@@ -383,14 +405,14 @@ class Game {
       if ((u.flask ?? 0) < 3) {
         u.flask = (u.flask ?? 0) + 1;
         this.progress.data.flasks++;
-        extra = ' and an extra waterskin';
+        extra = t('toast.chestFlask');
       }
     }
     this.progress.save();
     this.sfx.chest();
-    this.floatAt(c.pos, 1.2, `+${g} gold`, 'gold');
+    this.floatAt(c.pos, 1.2, t('float.gold', { n: g }), 'gold');
     this.particles.burst(c.pos.clone().setY(c.pos.y + 0.6), 14, { color: 0xffc94a, speed: 1.6, up: 3, size: 0.06, life: 0.8 });
-    this.hud.showToast(`${c.secret ? 'A hidden chest! ' : ''}${g} gold${extra}.`, 3);
+    this.hud.showToast(t('toast.chest', { hidden: c.secret ? t('toast.chestHidden') : '', gold: g, extra }), 3);
     if (c.secret) this.sfx.questAccept();
   }
 
@@ -446,7 +468,7 @@ class Game {
       horseJump: (winged: boolean) => this.sfx.horseJump(winged),
       noFlask: () => {
         this.sfx.denied();
-        this.hud.showToast('No waterskins left. Rest at a bonfire to refill them.', 2);
+        this.hud.showToast(t('toast.noFlask'), 2);
       },
       jump: (double: boolean) => {
         if (double) this.sfx.doubleJump();
@@ -464,7 +486,7 @@ class Game {
       },
       heal: () => {
         this.sfx.drink();
-        this.floatAt(this.player.pos, 2, 'restored', 'heal');
+        this.floatAt(this.player.pos, 2, t('float.restored'), 'heal');
         const p = this.player.pos;
         this.particles.burst(new THREE.Vector3(p.x, p.y + 1, p.z), 10, { color: 0x8ee08a, speed: 1, up: 1.5, size: 0.06, life: 0.8, gravity: -1 });
       },
@@ -493,10 +515,10 @@ class Game {
     const g = Math.round(lo + Math.random() * (hi - lo));
     this.progress.addGold(g);
     this.sfx.coin();
-    this.floatAt(e.pos, e.headY - e.pos.y, `+${g} gold`, 'gold');
+    this.floatAt(e.pos, e.headY - e.pos.y, t('float.gold', { n: g }), 'gold');
     this.particles.burst(e.pos.clone().setY(e.pos.y + 1), 8, { color: 0xffc94a, speed: 2, up: 2.5, size: 0.06, life: 0.7 });
     if (e.camp && this.enemies.campAlive(e.camp) === 0) {
-      this.hud.showToast(`The ${e.camp.replace(/_/g, ' ')} camp is broken.`, 3);
+      this.hud.showToast(t('toast.campBroken', { camp: this.campName(e.camp) }), 3);
       this.quests.campCleared(this.mapName, e.camp);
     }
   }
@@ -513,9 +535,9 @@ class Game {
       this.progress.data.lostGold = { map: this.mapName, pos: [p.x, p.y, p.z], amount: gold };
       this.progress.data.gold = 0;
       this.progress.save();
-      this.hud.showToast(`YOU DIED — ${gold} gold lies where you fell`, 4);
+      this.hud.showToast(t('toast.diedGold', { gold }), 4);
     } else {
-      this.hud.showToast('YOU DIED', 3.5);
+      this.hud.showToast(t('toast.died'), 3.5);
     }
   }
 
@@ -536,7 +558,7 @@ class Game {
       this.spawnLostGold();
     }
     this.player.restore();
-    this.hud.showToast(bf ? 'You wake by the bonfire. The raiders have regrouped.' : 'You wake at the edge of the market.', 3.5);
+    this.hud.showToast(t(bf ? 'toast.wakeBonfire' : 'toast.wakeMarket'), 3.5);
   }
 
   private defaultSpawn(map: string): Vec3 {
@@ -560,26 +582,35 @@ class Game {
     if (first) this.sfx.ignite();
     else this.sfx.rest();
     this.particles.burst(b.pos.clone().setY(b.pos.y + 0.6), 24, { color: 0xffa040, speed: 2, up: 3, size: 0.07, life: 0.9, gravity: -1 });
-    this.hud.showToast(first ? 'BONFIRE LIT' : 'Rested. Health and waterskins restored; enemies have returned.', 3);
+    this.hud.showToast(t(first ? 'toast.lit' : 'toast.rested'), 3);
   }
 
   private questReward(q: QuestDef): void {
     const r = q.reward;
     this.progress.addGold(r.gold);
-    const bits = [`${r.gold} gold`];
+    const bits = [t('gold', { n: r.gold })];
     if (r.upgrade) {
       const u = this.progress.data.upgrades;
       u[r.upgrade] = (u[r.upgrade] ?? 0) + 1;
       if (r.upgrade === 'flask') this.progress.data.flasks++;
-      bits.push(UPGRADES.find((x) => x.id === r.upgrade)?.name ?? r.upgrade);
+      const up = UPGRADES.find((x) => x.id === r.upgrade);
+      bits.push(up ? upgradeText(up).name : r.upgrade);
     }
     if (r.weapon && !this.progress.data.weapons.includes(r.weapon)) {
       this.progress.data.weapons.push(r.weapon);
-      bits.push(weapon(r.weapon).name);
+      bits.push(weaponText(weapon(r.weapon)).name);
     }
     this.progress.save();
-    this.hud.showToast(`Quest complete: ${q.title} — ${bits.join(', ')}`, 4.5);
+    this.hud.showToast(t('quest.complete', { title: questText(q.id).title, rewards: bits.join(lang() === 'ar' ? '، ' : ', ') }), 4.5);
     this.sfx.questComplete();
+  }
+
+  private statText(w: WeaponDef): string {
+    return t('stats.line', { dmg: w.dmg, reach: w.range.toFixed(1), speed: w.speed.toFixed(2), stamina: w.stamina });
+  }
+
+  private campName(camp: string): string {
+    return tOr(`camps.${camp}`, camp.replace(/_/g, ' '));
   }
 
   /** Rising HUD text above a world position. */
@@ -591,7 +622,7 @@ class Game {
   // --- menus -----------------------------------------------------------------------
 
   private openMainMenu(tab: string): void {
-    this.menu.open('Paused', this.mapTitle(this.mapName), this.mainTabs(), tab);
+    this.menu.open(t('menu.paused'), this.mapTitle(this.mapName), this.mainTabs(), tab);
     this.cam.focus = true;
     this.minimap.setVisible(false);
     this.hud.setPrompt(null);
@@ -608,19 +639,19 @@ class Game {
     const P = this.progress;
     const statLine = (id: string) => {
       const w = weapon(id);
-      return `Damage ${w.dmg} · Reach ${w.range.toFixed(1)} m · Speed ${w.speed.toFixed(2)} · Stamina ${w.stamina}${w.heavy ? ' · Staggers' : ''}`;
+      return this.statText(w) + (w.heavy ? t('stats.staggers') : '');
     };
     const tabs: MenuTab[] = [
       {
         id: 'inventory',
-        label: 'Inventory',
+        label: t('tabs.inventory'),
         rows: () => {
           const rows: MenuRow[] = [
-            { label: 'Equipment', kind: 'header' },
+            { label: t('inv.equipment'), kind: 'header' },
             {
-              label: 'Weapon',
+              label: t('inv.weapon'),
               kind: 'choice',
-              value: () => weapon(d.equipped).name,
+              value: () => weaponText(weapon(d.equipped)).name,
               sub: () => statLine(d.equipped),
               adjust: (k) => {
                 const owned = d.weapons;
@@ -630,36 +661,36 @@ class Game {
                 this.rebuildPlayer();
               },
             },
-            { label: 'Shield', kind: 'info', value: () => (P.shield ? 'Round shield' : '—'), sub: () => (P.shield ? `Hold ${this.hud.key('block')} to block` : 'Sold by traders') },
-            { label: 'Consumables', kind: 'header' },
-            { label: 'Healing waterskins', kind: 'info', value: () => `${d.flasks} / ${P.maxFlasks}`, sub: () => `${this.hud.key('heal')} to drink · refilled at bonfires` },
-            { label: 'Character', kind: 'header' },
-            { label: 'Health', kind: 'info', value: () => `${Math.ceil(this.player.hp)} / ${P.maxHp}` },
-            { label: 'Stamina', kind: 'info', value: () => `${P.maxStamina}` },
-            { label: 'Gold', kind: 'info', value: () => `${d.gold}` },
-            { label: 'Falcon feather (double jump)', kind: 'info', value: () => (P.doubleJump ? 'Yes' : 'No') },
+            { label: t('inv.shield'), kind: 'info', value: () => (P.shield ? t('inv.roundShield') : '—'), sub: () => (P.shield ? t('inv.holdBlock', { key: this.hud.key('block') }) : t('inv.soldByTraders')) },
+            { label: t('inv.consumables'), kind: 'header' },
+            { label: t('inv.flasks'), kind: 'info', value: () => `${d.flasks} / ${P.maxFlasks}`, sub: () => t('inv.flasksSub', { key: this.hud.key('heal') }) },
+            { label: t('inv.character'), kind: 'header' },
+            { label: t('inv.health'), kind: 'info', value: () => `${Math.ceil(this.player.hp)} / ${P.maxHp}` },
+            { label: t('inv.stamina'), kind: 'info', value: () => `${P.maxStamina}` },
+            { label: t('inv.gold'), kind: 'info', value: () => `${d.gold}` },
+            { label: t('inv.feather'), kind: 'info', value: () => t(P.doubleJump ? 'menu.yes' : 'menu.no') },
           ];
           const keys = Object.entries(d.items).filter(([, n]) => n > 0);
           if (keys.length) {
-            rows.push({ label: 'Key items', kind: 'header' });
-            for (const [id, n] of keys) rows.push({ label: ITEM_NAMES[id] ?? id, kind: 'info', value: () => (n > 1 ? `×${n}` : '') });
+            rows.push({ label: t('inv.keyItems'), kind: 'header' });
+            for (const [id, n] of keys) rows.push({ label: itemName(id), kind: 'info', value: () => (n > 1 ? `×${n}` : '') });
           }
-          if (d.lostGold) rows.push({ label: 'Lost gold', kind: 'info', value: () => `${d.lostGold!.amount}`, sub: () => `Where you fell in ${this.mapTitle(d.lostGold!.map)}` });
+          if (d.lostGold) rows.push({ label: t('inv.lostGold'), kind: 'info', value: () => `${d.lostGold!.amount}`, sub: () => t('inv.lostGoldSub', { map: this.mapTitle(d.lostGold!.map) }) });
           return rows;
         },
       },
-      { id: 'map', label: 'Map', wide: true, render: (el) => this.renderMapTab(el) },
+      { id: 'map', label: t('tabs.map'), wide: true, render: (el) => this.renderMapTab(el) },
       {
         id: 'quests',
-        label: 'Quests',
+        label: t('tabs.quests'),
         rows: () => {
           const rows: MenuRow[] = [];
           const active = this.quests.active();
-          rows.push({ label: 'Active', kind: 'header' });
-          if (!active.length) rows.push({ label: 'No active quests', kind: 'info', sub: () => `Look for people with a ! over their head.` });
+          rows.push({ label: t('questsTab.active'), kind: 'header' });
+          if (!active.length) rows.push({ label: t('questsTab.none'), kind: 'info', sub: () => t('questsTab.noneSub') });
           for (const a of active) {
             rows.push({
-              label: (d.trackedQuest === a.q.id ? '◆ ' : '') + a.q.title,
+              label: (d.trackedQuest === a.q.id ? '◆ ' : '') + questText(a.q.id).title,
               kind: 'button',
               sub: () => this.quests.lineFor(a.q.id) ?? '',
               activate: () => {
@@ -670,35 +701,35 @@ class Game {
           }
           const done = QUESTS.filter((q) => this.quests.state(q.id)?.state === 'done');
           if (done.length) {
-            rows.push({ label: 'Completed', kind: 'header' });
-            for (const q of done) rows.push({ label: q.title, kind: 'info', value: () => '✓' });
+            rows.push({ label: t('questsTab.completed'), kind: 'header' });
+            for (const q of done) rows.push({ label: questText(q.id).title, kind: 'info', value: () => '✓' });
           }
           return rows;
         },
       },
       {
         id: 'travel',
-        label: 'Travel',
+        label: t('tabs.travel'),
         rows: () => {
-          const rows: MenuRow[] = [{ label: 'Bonfires', kind: 'header' }];
-          if (!d.litBonfires.length) rows.push({ label: 'No bonfires lit yet', kind: 'info', sub: () => 'Rest at a bonfire to travel back to it.' });
+          const rows: MenuRow[] = [{ label: t('travel.bonfires'), kind: 'header' }];
+          if (!d.litBonfires.length) rows.push({ label: t('travel.none'), kind: 'info', sub: () => t('travel.noneSub') });
           for (const id of d.litBonfires) {
             const [map, idx] = id.split(':');
-            const name = /^\d+$/.test(idx) ? `bonfire ${Number(idx) + 1}` : idx.replace(/^[a-z]+_/, '').replace(/_/g, ' ');
+            const name = /^\d+$/.test(idx) ? t('bonfireN', { n: Number(idx) + 1 }) : tOr(`bonfires.${idx}`, idx.replace(/^[a-z]+_/, '').replace(/_/g, ' '));
             rows.push({
-              label: `${this.mapTitle(map)} — ${name}`,
+              label: t('travel.row', { map: this.mapTitle(map), name }),
               kind: 'button',
               activate: () => void this.travelToBonfire(id),
               disabled: () => this.player.inCombat,
-              sub: () => (this.player.inCombat ? 'Cannot travel while enemies are near' : ''),
+              sub: () => (this.player.inCombat ? t('travel.inCombat') : ''),
             });
           }
-          rows.push({ label: 'Regions (quick travel)', kind: 'header' });
+          rows.push({ label: t('travel.regions'), kind: 'header' });
           for (const m of this.common.maps.maps) {
             rows.push({
-              label: m.title,
+              label: this.mapTitle(m.name),
               kind: 'button',
-              value: () => (m.name === this.mapName ? 'here' : ''),
+              value: () => (m.name === this.mapName ? t('travel.here') : ''),
               activate: () => void this.quickTravel(m.name),
             });
           }
@@ -707,24 +738,31 @@ class Game {
       },
       {
         id: 'settings',
-        label: 'Settings',
+        label: t('tabs.settings'),
         rows: () => [
           {
-            label: 'Time of day',
+            label: t('lang.label'),
+            kind: 'choice',
+            value: () => t('lang.name'),
+            adjust: (k) => setLang(LANGS[(LANGS.indexOf(lang()) + k + LANGS.length) % LANGS.length]),
+            activate: () => setLang(LANGS[(LANGS.indexOf(lang()) + 1) % LANGS.length]),
+          },
+          {
+            label: t('settings.time'),
             kind: 'slider',
             value: () => timeLabel(this.day.hours),
             adjust: (k) => this.day.set(this.day.hours + k * 0.5),
             slider: { min: 0, max: 23.99, step: 0.05, get: () => this.day.hours, set: (v) => this.day.set(v) },
           },
           {
-            label: 'Time passes',
+            label: t('settings.timePasses'),
             kind: 'choice',
-            value: () => FLOW[this.flow].label,
+            value: () => tOr(`flow.${FLOW[this.flow].id}`, FLOW[this.flow].id),
             sub: () => {
               const f = FLOW[this.flow];
-              if (!f.on) return 'The sun stays where it is.';
+              if (!f.on) return t('settings.sunStays');
               const s = 24 / f.speed;
-              return `A full day takes ${s >= 3600 ? `${+(s / 3600).toFixed(1)} h` : s >= 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`}.`;
+              return t('settings.dayLength', { d: s >= 3600 ? t('settings.hours', { n: +(s / 3600).toFixed(1) }) : s >= 60 ? t('settings.minutes', { n: Math.round(s / 60) }) : t('settings.seconds', { n: Math.round(s) }) });
             },
             adjust: (k) => {
               this.flow = (this.flow + k + FLOW.length) % FLOW.length;
@@ -732,9 +770,9 @@ class Game {
               this.day.speed = FLOW[this.flow].speed;
             },
           },
-          { label: 'Character', kind: 'choice', value: () => PLAYER_LOOKS[this.lookIndex].name, adjust: (k) => this.applyLook(this.lookIndex + k) },
+          { label: t('settings.character'), kind: 'choice', value: () => L().looks[this.lookIndex] ?? PLAYER_LOOKS[this.lookIndex].name, adjust: (k) => this.applyLook(this.lookIndex + k) },
           {
-            label: 'Robe colour',
+            label: t('settings.robe'),
             kind: 'choice',
             value: () => {
               const c = ROBES[this.robe] ?? PLAYER_LOOKS[this.lookIndex].colours.P_Robe;
@@ -745,49 +783,49 @@ class Game {
               this.applyLook(this.lookIndex);
             },
           },
-          { label: 'Camera', kind: 'choice', value: () => (this.cam.usePerspective ? 'Perspective' : 'Orthographic'), adjust: () => (this.cam.usePerspective = !this.cam.usePerspective) },
+          { label: t('settings.camera'), kind: 'choice', value: () => t(this.cam.usePerspective ? 'settings.perspective' : 'settings.orthographic'), adjust: () => (this.cam.usePerspective = !this.cam.usePerspective) },
           {
-            label: 'Minimap',
+            label: t('settings.minimap'),
             kind: 'choice',
-            value: () => ['Small', 'Large', 'Off'][this.minimap.mode],
+            value: () => L().settings.minimapModes[this.minimap.mode],
             adjust: (k) => {
               for (let i = 0; i < (k > 0 ? 1 : 2); i++) this.minimap.cycle();
               this.minimap.setVisible(false);
             },
           },
           {
-            label: 'Volume',
+            label: t('settings.volume'),
             kind: 'slider',
             value: () => `${Math.round(this.sfx.volume * 100)}%`,
             adjust: (k) => this.sfx.setVolume(Math.min(1, Math.max(0, this.sfx.volume + k * 0.1))),
             slider: { min: 0, max: 1, step: 0.01, get: () => this.sfx.volume, set: (v) => this.sfx.setVolume(v) },
           },
           {
-            label: 'Music',
+            label: t('settings.music'),
             kind: 'slider',
             value: () => `${Math.round(this.sfx.musicVolume * 100)}%`,
-            sub: () => (this.music.nowPlaying ? `Now playing: ${this.music.nowPlaying}` : ''),
+            sub: () => (this.music.nowPlaying ? t('settings.nowPlaying', { title: this.music.nowPlaying }) : ''),
             adjust: (k) => this.sfx.setMusicVolume(Math.min(1, Math.max(0, this.sfx.musicVolume + k * 0.1))),
             slider: { min: 0, max: 1, step: 0.01, get: () => this.sfx.musicVolume, set: (v) => this.sfx.setMusicVolume(v) },
           },
-          { label: 'Controls', kind: 'header' },
+          { label: t('settings.controls'), kind: 'header' },
           ...this.controlRows(),
-          ...(this.music.credits.length ? [{ label: 'Credits', kind: 'header' as const }, ...this.music.credits.map((c) => ({ label: c, kind: 'info' as const }))] : []),
+          ...(this.music.credits.length ? [{ label: t('settings.credits'), kind: 'header' as const }, ...this.music.credits.map((c) => ({ label: c, kind: 'info' as const }))] : []),
         ],
       },
       {
         id: 'debug',
-        label: 'Debug',
+        label: t('tabs.debug'),
         rows: () => [
-          { label: 'Spawn horse', kind: 'button', activate: () => this.debugSpawnHorse(false) },
-          { label: 'Spawn winged horse', kind: 'button', sub: () => 'Placeholder until the winged model arrives: huge jump, double jump, glide', activate: () => this.debugSpawnHorse(true) },
-          { label: '+500 gold', kind: 'button', activate: () => this.progress.addGold(500) },
-          { label: 'Heal & refill', kind: 'button', activate: () => this.player.restore() },
-          { label: 'God mode', kind: 'choice', value: () => (this.player.god ? 'On' : 'Off'), adjust: () => (this.player.god = !this.player.god), activate: () => (this.player.god = !this.player.god) },
+          { label: t('debug.horse'), kind: 'button', activate: () => this.debugSpawnHorse(false) },
+          { label: t('debug.winged'), kind: 'button', sub: () => t('debug.wingedSub'), activate: () => this.debugSpawnHorse(true) },
+          { label: t('debug.gold'), kind: 'button', activate: () => this.progress.addGold(500) },
+          { label: t('debug.heal'), kind: 'button', activate: () => this.player.restore() },
+          { label: t('debug.god'), kind: 'choice', value: () => t(this.player.god ? 'menu.on' : 'menu.off'), adjust: () => (this.player.god = !this.player.god), activate: () => (this.player.god = !this.player.god) },
           {
-            label: 'Unlock everything',
+            label: t('debug.unlock'),
             kind: 'button',
-            sub: () => 'All weapons, shield, double jump',
+            sub: () => t('debug.unlockSub'),
             activate: () => {
               d.weapons = WEAPONS.map((w) => w.id);
               d.upgrades.shield = 1;
@@ -796,12 +834,12 @@ class Game {
               this.rebuildPlayer();
             },
           },
-          { label: 'Kill nearby enemies', kind: 'button', activate: () => this.debugKillNearby() },
-          { label: 'Reset enemies', kind: 'button', activate: () => this.enemies.resetAll() },
-          { label: 'Show colliders', kind: 'choice', value: () => (this.debugObj?.visible ? 'On' : 'Off'), adjust: () => this.debugObj && (this.debugObj.visible = !this.debugObj.visible) },
-          { label: 'Teleport to next exit', kind: 'button', activate: () => this.debugNextExit() },
+          { label: t('debug.kill'), kind: 'button', activate: () => this.debugKillNearby() },
+          { label: t('debug.reset'), kind: 'button', activate: () => this.enemies.resetAll() },
+          { label: t('debug.colliders'), kind: 'choice', value: () => t(this.debugObj?.visible ? 'menu.on' : 'menu.off'), adjust: () => this.debugObj && (this.debugObj.visible = !this.debugObj.visible) },
+          { label: t('debug.exit'), kind: 'button', activate: () => this.debugNextExit() },
           {
-            label: 'New game (erase save)',
+            label: t('debug.newGame'),
             kind: 'button',
             activate: () => {
               this.progress.reset();
@@ -815,21 +853,8 @@ class Game {
   }
 
   private controlRows(): MenuRow[] {
-    const list: [Action, string][] = [
-      ['move', 'Move'],
-      ['run', 'Sprint (free out of combat)'],
-      ['attack', 'Attack (press again to chain)'],
-      ['block', 'Block with a shield (hold)'],
-      ['dodge', 'Dodge roll'],
-      ['jump', 'Jump (hold for height)'],
-      ['heal', 'Drink a healing waterskin'],
-      ['talk', 'Talk / use / mount'],
-      ['camera', 'Rotate camera'],
-      ['zoom', 'Zoom'],
-      ['inventory', 'Menu'],
-      ['map', 'Map'],
-    ];
-    return list.map(([a, l]) => ({ label: l, kind: 'info' as const, value: () => this.hud.key(a) }));
+    const list: Action[] = ['move', 'run', 'attack', 'block', 'dodge', 'jump', 'heal', 'talk', 'camera', 'zoom', 'inventory', 'map'];
+    return list.map((a) => ({ label: tOr(`controls.${a}`, a), kind: 'info' as const, value: () => this.hud.key(a) }));
   }
 
   /** Menu quick travel: the region's default arrival point. */
@@ -874,18 +899,18 @@ class Game {
     const kinds = Object.keys(BADGE) as BadgeKind[];
     legend.innerHTML =
       `<div class="legend-title">${this.mapTitle(this.mapName)}</div>` +
-      `<div class="legend-row"><span class="legend-badge" style="background:#fff">▲</span>You</div>` +
-      kinds.map((k) => `<div class="legend-row"><span class="legend-badge" style="background:${BADGE[k].fill}">${BADGE[k].glyph}</span>${BADGE[k].name}</div>`).join('') +
+      `<div class="legend-row"><span class="legend-badge" style="background:#fff">▲</span>${t('legend.you')}</div>` +
+      kinds.map((k) => `<div class="legend-row"><span class="legend-badge" style="background:${BADGE[k].fill}">${BADGE[k].glyph}</span>${tOr(`badges.${k}`, BADGE[k].name)}</div>`).join('') +
       [
-        ['#ff3a2a', 'Raider'],
-        ['#6ea0ff', 'Guard'],
-        ['#f3e6c8', 'Townsfolk'],
-        ['#c58a4a', 'Horse'],
-        ['#d8b483', 'Camel'],
+        ['#ff3a2a', t('legend.raider')],
+        ['#6ea0ff', t('legend.guard')],
+        ['#f3e6c8', t('legend.townsfolk')],
+        ['#c58a4a', t('legend.horse')],
+        ['#d8b483', t('legend.camel')],
       ]
         .map(([c, n]) => `<div class="legend-row"><span class="legend-dot" style="background:${c}"></span>${n}</div>`)
         .join('') +
-      `<div class="legend-title" style="margin-top:12px">Quest</div><div class="legend-row">${this.quests.trackerText() ?? 'None tracked'}</div>`;
+      `<div class="legend-title" style="margin-top:12px">${t('legend.quest')}</div><div class="legend-row">${this.quests.trackerText() ?? t('legend.none')}</div>`;
   }
 
   private openShop(npc: Npc): void {
@@ -893,7 +918,7 @@ class Game {
     const P = this.progress;
     const buy = (price: number, fn: () => void) => {
       if (d.gold < price) {
-        this.hud.showToast('Not enough gold.', 1.8);
+        this.hud.showToast(t('toast.notEnoughGold'), 1.8);
         this.sfx.denied();
         return;
       }
@@ -901,20 +926,20 @@ class Game {
       fn();
       P.save();
       this.sfx.purchase();
-      this.hud.showToast('Purchased.', 1.5);
+      this.hud.showToast(t('toast.purchased'), 1.5);
     };
     const tabs: MenuTab[] = [
       {
         id: 'weapons',
-        label: 'Weapons',
+        label: t('tabs.weapons'),
         rows: () => [
-          { label: `Your gold: ${d.gold}`, kind: 'info' },
+          { label: t('shop.yourGold', { n: d.gold }), kind: 'info' },
           ...WEAPONS.filter((w) => w.price > 0).map(
             (w): MenuRow => ({
-              label: w.name,
+              label: weaponText(w).name,
               kind: 'button',
-              sub: () => `${w.desc} — Damage ${w.dmg} · Reach ${w.range.toFixed(1)} m · Speed ${w.speed.toFixed(2)} · Stamina ${w.stamina}`,
-              value: () => (d.weapons.includes(w.id) ? (d.equipped === w.id ? 'Equipped' : 'Owned · equip') : `${w.price} gold`),
+              sub: () => t('shop.desc', { desc: weaponText(w).desc, stats: this.statText(w) }),
+              value: () => (d.weapons.includes(w.id) ? t(d.equipped === w.id ? 'shop.equipped' : 'shop.ownedEquip') : t('gold', { n: w.price })),
               activate: () => {
                 if (!d.weapons.includes(w.id)) buy(w.price, () => d.weapons.push(w.id));
                 if (d.weapons.includes(w.id)) {
@@ -930,18 +955,18 @@ class Game {
       },
       {
         id: 'upgrades',
-        label: 'Upgrades',
+        label: t('tabs.upgrades'),
         rows: () => [
-          { label: `Your gold: ${d.gold}`, kind: 'info' },
+          { label: t('shop.yourGold', { n: d.gold }), kind: 'info' },
           ...UPGRADES.map((u): MenuRow => {
             const owned = d.upgrades[u.id] ?? 0;
             const maxed = owned >= u.repeat;
             const price = upgradePrice(u, owned);
             return {
-              label: u.repeat > 1 ? `${u.name} (${owned}/${u.repeat})` : u.name,
+              label: u.repeat > 1 ? t('shop.count', { name: upgradeText(u).name, owned, max: u.repeat }) : upgradeText(u).name,
               kind: 'button',
-              sub: () => u.desc,
-              value: () => (maxed ? 'Owned' : `${price} gold`),
+              sub: () => upgradeText(u).desc,
+              value: () => (maxed ? t('shop.owned') : t('gold', { n: price })),
               disabled: () => maxed,
               activate: () =>
                 buy(price, () => {
@@ -955,7 +980,7 @@ class Game {
         ],
       },
     ];
-    this.menu.open(`${npc.name} the Trader`, '“Look, touch, buy. Haggling costs extra.”', tabs, 'weapons');
+    this.menu.open(t('shop.title', { name: npc.name, title: npc.title }), t('shop.sub'), tabs, 'weapons');
     this.cam.focus = false;
     this.minimap.setVisible(false);
     this.hud.setPrompt(null);
@@ -974,7 +999,7 @@ class Game {
     const x = p.x + Math.sin(a) * 3;
     const z = p.z + Math.cos(a) * 3;
     this.addHorse({ role: 'horse', pos: [x, p.y, z], yaw: a + Math.PI / 2 }, winged, Math.random);
-    this.hud.showToast(winged ? 'A winged horse appears.' : 'A horse appears.', 2);
+    this.hud.showToast(t(winged ? 'toast.wingedHorse' : 'toast.horse'), 2);
   }
 
   private debugKillNearby(): void {
@@ -1318,8 +1343,8 @@ class Game {
       this.progress.addGold(lg.amount);
       this.lostPile.dispose();
       this.lostPile = null;
-      this.floatAt(p, 2.2, `+${lg.amount} gold recovered`, 'gold');
-      this.hud.showToast('You recovered your gold.', 2.5);
+      this.floatAt(p, 2.2, t('float.recovered', { n: lg.amount }), 'gold');
+      this.hud.showToast(t('toast.recovered'), 2.5);
       this.sfx.coin();
     }
   }
@@ -1439,14 +1464,14 @@ class Game {
     let prompt: string | null = null;
     if (npc) {
       const icon = this.quests.iconFor(this.npcRef(npc));
-      const verb = icon === 'turnin' ? 'Hand in quest to' : icon === 'quest' ? 'Talk to' : npc.shop ? 'Trade with' : 'Talk to';
-      prompt = `${k('talk')} ${verb} ${npc.name} <i>(${npc.title.toLowerCase()})</i>`;
-    } else if (pickup) prompt = `${k('talk')} Take ${pickup.label}`;
-    else if (fire) prompt = `${k('talk')} ${fire.lit ? 'Rest at the bonfire' : 'Kindle the bonfire'}`;
-    else if (chest) prompt = `${k('talk')} Open the chest`;
-    else if (exit) prompt = `${k('talk')} ${exit.label}`;
-    else if (p.horse) prompt = `${k('mount')} Dismount`;
-    else if (horse) prompt = `${k('mount')} Mount ${horse.winged ? 'the winged horse' : 'horse'}`;
+      const verb = t(icon === 'turnin' ? 'prompt.handIn' : icon === 'quest' ? 'prompt.talkTo' : npc.shop ? 'prompt.tradeWith' : 'prompt.talkTo');
+      prompt = `${k('talk')} ${t('prompt.npc', { verb, name: npc.name, title: npc.title.toLowerCase() })}`;
+    } else if (pickup) prompt = `${k('talk')} ${t('prompt.take', { label: this.pickupLabel(pickup) })}`;
+    else if (fire) prompt = `${k('talk')} ${t(fire.lit ? 'prompt.rest' : 'prompt.kindle')}`;
+    else if (chest) prompt = `${k('talk')} ${t('prompt.chest')}`;
+    else if (exit) prompt = `${k('talk')} ${this.exitLabel(exit)}`;
+    else if (p.horse) prompt = `${k('mount')} ${t('prompt.dismount')}`;
+    else if (horse) prompt = `${k('mount')} ${t(horse.winged ? 'prompt.mountWinged' : 'prompt.mountHorse')}`;
     this.hud.setPrompt(prompt);
     // One interact button for everything in reach.
     if (f.interact && !p.attacking && !p.rolling && !p.jumping) {
@@ -1462,10 +1487,10 @@ class Game {
           this.progress.data.taken.push(id);
           if (free.upgrade) this.progress.data.upgrades[free.upgrade] = 1;
           this.progress.save();
-          this.hud.showToast(free.message, 4.5);
+          this.hud.showToast(L().free[id]?.message ?? id, 4.5);
         } else {
           this.quests.picked(pickup.item);
-          this.hud.showToast(`Took: ${pickup.label}`, 2.5);
+          this.hud.showToast(t('toast.took', { label: this.pickupLabel(pickup) }), 2.5);
         }
         this.sfx.pickup();
       } else if (fire) {
@@ -1488,14 +1513,14 @@ class Game {
     let items: [Action, string][];
     const P = this.progress;
     if (this.menu.isOpen) items = [];
-    else if (this.dialogue) items = [['next', 'Continue'], ['leave', 'Leave']];
+    else if (this.dialogue) items = [['next', t('hints.continue')], ['leave', t('hints.leave')]];
     else if (this.player.horse)
-      items = [['move', 'Ride'], ['run', 'Gallop'], ['attack', 'Attack'], ['jump', 'Jump'], ['mount', 'Dismount'], ['map', 'Map'], ['pause', 'Menu']];
+      items = [['move', t('hints.ride')], ['run', t('hints.gallop')], ['attack', t('hints.attack')], ['jump', t('hints.jump')], ['mount', t('hints.dismount')], ['map', t('hints.map')], ['pause', t('hints.menu')]];
     else {
-      items = [['move', 'Move'], ['run', 'Sprint'], ['attack', 'Attack'], ['dodge', 'Roll'], ['jump', P.doubleJump ? 'Jump ×2' : 'Jump'], ['camera', 'Camera']];
-      if (P.shield) items.push(['block', 'Block']);
-      if (P.data.flasks > 0) items.push(['heal', 'Heal']);
-      items.push(['talk', 'Use'], ['map', 'Map'], ['inventory', 'Menu']);
+      items = [['move', t('hints.move')], ['run', t('hints.sprint')], ['attack', t('hints.attack')], ['dodge', t('hints.roll')], ['jump', t(P.doubleJump ? 'hints.jump2' : 'hints.jump')], ['camera', t('hints.camera')]];
+      if (P.shield) items.push(['block', t('hints.block')]);
+      if (P.data.flasks > 0) items.push(['heal', t('hints.heal')]);
+      items.push(['talk', t('hints.use')], ['map', t('hints.map')], ['inventory', t('hints.menu')]);
     }
     this.hud.setHints(items);
   }
@@ -1533,17 +1558,17 @@ class Game {
       if (n.dead) continue;
       const icon = this.quests.iconFor(this.npcRef(n));
       if (icon) m.push({ x: n.pos.x, z: n.pos.z, kind: icon });
-      else if (n.shop) m.push({ x: n.pos.x, z: n.pos.z, kind: 'shop', label: full ? 'Trader' : undefined });
+      else if (n.shop) m.push({ x: n.pos.x, z: n.pos.z, kind: 'shop', label: full ? t('markers.trader') : undefined });
     }
     for (const e of this.enemies.list) if (!e.dead) m.push({ x: e.pos.x, z: e.pos.z, kind: 'enemy' });
     for (const h of this.horses) if (h !== this.player.horse) m.push({ x: h.pos.x, z: h.pos.z, kind: 'horse' });
     for (const c of this.camels) m.push({ x: c.rig.root.position.x, z: c.rig.root.position.z, kind: 'camel' });
-    for (const e of this.exits) m.push({ x: e.pos[0], z: e.pos[2], kind: 'exit', label: full ? `To ${this.mapTitle(e.to)}` : undefined });
-    for (const b of this.bonfires) m.push({ x: b.pos.x, z: b.pos.z, kind: 'bonfire', label: full ? (b.lit ? 'Bonfire' : 'Bonfire (unlit)') : undefined });
+    for (const e of this.exits) m.push({ x: e.pos[0], z: e.pos[2], kind: 'exit', label: full ? t('markers.to', { map: this.mapTitle(e.to) }) : undefined });
+    for (const b of this.bonfires) m.push({ x: b.pos.x, z: b.pos.z, kind: 'bonfire', label: full ? t(b.lit ? 'markers.bonfire' : 'markers.bonfireUnlit') : undefined });
     // Chests: only the ones on the beaten path show before they are found.
     for (const c of this.chests) if (!c.opened && !c.secret) m.push({ x: c.pos.x, z: c.pos.z, kind: 'chest' });
-    for (const k of this.pickups) m.push({ x: k.pos.x, z: k.pos.z, kind: 'objective', label: full ? k.label : undefined });
-    if (this.lostPile) m.push({ x: this.lostPile.pos.x, z: this.lostPile.pos.z, kind: 'gold', label: full ? 'Your gold' : undefined });
+    for (const k of this.pickups) m.push({ x: k.pos.x, z: k.pos.z, kind: 'objective', label: full ? this.pickupLabel(k) : undefined });
+    if (this.lostPile) m.push({ x: this.lostPile.pos.x, z: this.lostPile.pos.z, kind: 'gold', label: full ? t('markers.gold') : undefined });
     // Objectives in another region: mark the exit that leads there.
     const elsewhere = new Set(this.quests.active().map((a) => (a.obj ? objMap(a.obj) : a.q.giver.map)).filter((mp) => mp !== this.mapName));
     for (const e of this.exits) if (elsewhere.has(e.to)) m.push({ x: e.pos[0], z: e.pos[2], kind: 'objective' });
@@ -1551,11 +1576,11 @@ class Game {
     for (const a of this.quests.active()) {
       if (a.obj?.kind === 'kill_camp' && a.obj.map === this.mapName) {
         const c = this.enemies.camps().find((x) => x.camp === (a.obj as { camp: string }).camp);
-        if (c && c.alive > 0) m.push({ x: c.x, z: c.z, kind: 'objective', label: full ? a.q.title : undefined });
+        if (c && c.alive > 0) m.push({ x: c.x, z: c.z, kind: 'objective', label: full ? questText(a.q.id).title : undefined });
       }
     }
     if (full) {
-      for (const c of this.enemies.camps()) if (c.alive > 0) m.push({ x: c.x, z: c.z, kind: 'camp', label: `${c.camp.replace(/_/g, ' ')} (${c.alive})` });
+      for (const c of this.enemies.camps()) if (c.alive > 0) m.push({ x: c.x, z: c.z, kind: 'camp', label: t('markers.camp', { camp: this.campName(c.camp), n: c.alive }) });
     }
     return m;
   }
@@ -1583,5 +1608,5 @@ const game = new Game(document.getElementById('game') as HTMLCanvasElement);
 game.start().catch((e) => {
   console.error(e);
   const msg = document.querySelector('#loading .msg');
-  if (msg) msg.textContent = `Failed to start: ${e}`;
+  if (msg) msg.textContent = t('loading.failed', { error: String(e) });
 });

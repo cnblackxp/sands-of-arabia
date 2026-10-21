@@ -3,6 +3,7 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 import { CharacterFactory, CLIP_SPEED, type Accessory, type Rig } from './characters';
 import type { HitResult, PlayerView } from './combat';
 import { Flash, type Sfx } from './fx';
+import { tOr } from './i18n';
 import type { Spawn } from './level';
 import { PathFollower } from './nav';
 import { angleTo, dampAngle, mulberry32, turnToward, wrapAngle } from './util';
@@ -256,7 +257,7 @@ export class Enemy {
     return this.state === 'dead';
   }
   get title(): string {
-    return this.def.title;
+    return tOr(`enemies.${this.kind}`, this.def.title);
   }
   get homePos(): THREE.Vector3 {
     return this.home;

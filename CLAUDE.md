@@ -159,6 +159,7 @@ Run `npm install` and then `npm run dev` (port 5173; `.claude/launch.json` entry
 | `input.ts` | Keyboard, mouse and gamepad input. |
 | `hud.ts` | HUD. |
 | `dialogue.ts` | NPC lines and names. |
+| `i18n.ts`, `locales/en.ts`, `locales/ar.ts` | Localisation (English and Arabic): `t()`, `tOr()`, `L()`, the saved language and the change hook. |
 
 Decisions worth knowing:
 - **Ground.** Ground height comes from the heightfield, and the Rapier controller only resolves horizontal collisions against the level boxes and actor capsules. If the terrain were part of the controller sweep, the slope-slide would push the character sideways (the `movement_facing_bug.png` drift).
@@ -195,5 +196,11 @@ Decisions worth knowing:
   - `audio.ts` has `Ambience` (wind, crowd, water, fire crackle, birds by day, crickets at night, all levels driven by the surroundings) and `Music`.
   - `Music` plays tracks listed in `assets/audio/music/music.json`, by mood: explore, town, night, combat, stronghold.
   - The tracks are Kevin MacLeod's, CC BY 4.0. Keep the credits in the README and in `music.json`.
+- **Localisation (English + Arabic).** Every visible string goes through `src/i18n.ts`; never hard-code English in UI code.
+  - Add the string to `src/locales/en.ts` and the same key to `src/locales/ar.ts`. `ar` is typed as `Dict` (the shape of `en`), so the build fails if the Arabic is missing.
+  - Use `t('section.key', { name })` for UI text (`{name}` placeholders), `L().section` for data tables (quest text by quest id, small talk by role), and `tOr('section.' + id, fallback)` for keys built from level data ids (map titles, exits by `"map>to"`, landmarks, camps, bonfires, NPC titles and names).
+  - Some English stays next to its data, and other languages override it by id: weapons and upgrades (`items.ts`, read with `weaponText` / `upgradeText`), enemy titles (`enemy.ts` KINDS), player looks (`characters.ts`), map badges (`minimap.ts`) and exit labels (`level.json`).
+  - Arabic style: classical Arabic with a pre-Islamic flavour, easy to read, without harakat; only quoted verse carries them. Keep place and person names authentic (Hegra / الحجر, Dedan / ددان). Gendered titles go in `titlesF`.
+  - Layout: `applyDocument()` sets `lang` on `<html>` and `dir="rtl"` on `#hud` and `#loading`. RTL rules live at the end of `style.css`; the bars, enemy bars, choice arrows and key glyphs (`.keys`) stay left to right. Amiri (Google Fonts) covers Arabic. Text that the HUD or menu built must re-render in `Game.onLangChange`.
 - **Z-fighting.** The Blender export runs `fix_coplanar()` on every static mesh, so faces of different materials never share a plane (Lime ranks highest). `tools/blender/check_zfight.py` counts any remaining pairs.
 - **Debug.** The backquote key toggles wireframes of the level.json colliders.

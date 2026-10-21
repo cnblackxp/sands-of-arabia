@@ -1,3 +1,4 @@
+import { t, tOr } from './i18n';
 import type { Device } from './input';
 
 export type Action =
@@ -93,6 +94,7 @@ export class Hud {
   private typeN = 0;
   private typeWait = 0;
   private typeMore = '';
+  private typeLast = false;
   /** Called for each revealed letter that should be voiced. */
   onVoice: (ch: string) => void = () => {};
   private hint: HTMLDivElement;
@@ -161,7 +163,8 @@ export class Hud {
 
   /** HTML glyph for an action on the current device. */
   key(a: Action): string {
-    return GLYPH[this.device][a];
+    // `.keys` keeps multi-key glyphs (W A S D) in order inside right-to-left text.
+    return `<span class="keys">${GLYPH[this.device][a].replace(/<small>(\w+)<\/small>/, (_, w: string) => `<small>${tOr(`keys.${w}`, w)}</small>`)}</span>`;
   }
 
   setDevice(d: Device): void {
@@ -239,7 +242,8 @@ export class Hud {
   showDialogue(name: string, text: string, last: boolean): void {
     this.dlg.classList.remove('hidden');
     this.dlgName.textContent = name;
-    this.typeMore = last ? `${this.key('next')} farewell` : `${this.key('next')} continue &nbsp;·&nbsp; ${this.key('leave')} leave`;
+    this.typeLast = last;
+    this.typeMore = last ? `${this.key('next')} ${t('hud.farewell')}` : `${this.key('next')} ${t('hud.continue')} &nbsp;·&nbsp; ${this.key('leave')} ${t('hud.leave')}`;
     // Re-showing the same line (a device switch) keeps the reveal going.
     if (text !== this.typeText) {
       this.typeText = text;
@@ -261,13 +265,15 @@ export class Hud {
   }
 
   private renderType(): void {
-    const t = this.typeText;
-    this.dlgShown.textContent = t.slice(0, this.typeN);
+    const line = this.typeText;
+    // A zero-width joiner across the split keeps Arabic letters joined mid-word.
+    const zwj = this.typeN > 0 && this.typeN < line.length ? '\u200d' : '';
+    this.dlgShown.textContent = line.slice(0, this.typeN) + zwj;
     // The unrevealed rest is laid out invisibly so words never jump lines.
-    this.dlgRest.textContent = t.slice(this.typeN);
-    const done = this.typeN >= t.length;
+    this.dlgRest.textContent = zwj + line.slice(this.typeN);
+    const done = this.typeN >= line.length;
     this.dlg.classList.toggle('talking', !done);
-    this.dlgMore.innerHTML = done ? this.typeMore : `${this.key('next')} skip`;
+    this.dlgMore.innerHTML = done ? this.typeMore : `${this.key('next')} ${t('hud.skip')}`;
   }
 
   private updateType(dt: number): void {
@@ -279,14 +285,21 @@ export class Hud {
       changed = true;
       // Pauses on punctuation, like a breath between phrases.
       let wait = 1 / 42;
-      if (ch === ',' || ch === ';' || ch === ':') wait = 0.16;
-      else if (ch === '.' || ch === '!' || ch === '?') wait = this.typeText[this.typeN] === '.' ? 0.09 : 0.3;
+      if (ch === ',' || ch === ';' || ch === ':' || ch === '،' || ch === '؛') wait = 0.16;
+      else if (ch === '.' || ch === '!' || ch === '?' || ch === '؟') wait = this.typeText[this.typeN] === '.' ? 0.09 : 0.3;
       else if (ch === '…' || ch === '—') wait = 0.28;
       this.typeWait += wait;
       // Voice every other letter so speech babbles instead of buzzing.
       if (/[\p{L}\p{N}]/u.test(ch) && this.typeN % 2 === 1) this.onVoice(ch);
     }
     if (changed) this.renderType();
+  }
+
+  /** Redraw text the HUD built itself (after a language change). */
+  refreshText(): void {
+    this.hintKey = '';
+    this.promptKey = '';
+    if (!this.dlg.classList.contains('hidden')) this.showDialogue(this.dlgName.textContent ?? '', this.typeText, this.typeLast);
   }
 
   hideDialogue(): void {
@@ -336,6 +349,6 @@ export class Hud {
     }
     this.flash = Math.max(0, this.flash - dt * 2.5);
     this.vignette.style.opacity = String(this.flash * 0.8);
-    this.fps.textContent = `${fps.toFixed(0)} fps`;
+    this.fps.textContent = t('hud.fps', { n: fps.toFixed(0) });
   }
 }

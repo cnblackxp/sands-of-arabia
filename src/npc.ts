@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { CharacterFactory, CLIP_SPEED, PAL, pick, type Accessory, type Rig } from './characters';
-import { conversation, randomName, ROLE_TITLE, type NpcRole } from './dialogue';
+import { conversation, personName, randomName, ROLES, type NpcRole } from './dialogue';
 import type { HitResult, PlayerView } from './combat';
 import { Flash, type Sfx } from './fx';
+import { tOr } from './i18n';
 import type { Spawn, Vec3 } from './level';
 import { PathFollower } from './nav';
 import type { World } from './world';
@@ -23,8 +24,10 @@ export class Npc {
   hp = 100;
   state: State = 'idle';
   hostile = false;
-  readonly name: string;
-  title: string;
+  /** Name as stored (English); `name` is the localised one. */
+  readonly nameId: string;
+  /** Role, quest-giver spawn id or 'trader'; `title` is the localised one. */
+  titleId: string;
   /** Spawn role and index among that role's spawns in this map (quest references). */
   refRole = '';
   refIndex = 0;
@@ -62,10 +65,10 @@ export class Npc {
     this.yaw = spawn.yaw;
     this.home = this.pos.clone();
     this.homeYaw = spawn.yaw;
-    this.name = sys.uniqueName(female);
+    this.nameId = sys.uniqueName(female);
     this.follow = new PathFollower(sys.world.nav);
     this.flash.attach(rig.root);
-    this.title = ROLE_TITLE[role];
+    this.titleId = role;
     this.timer = sys.rnd() * 4;
     this.overlayTimer = 2 + sys.rnd() * 8;
     if (role === 'sitter' || role === 'prisoner') this.enter('sit');
@@ -75,6 +78,15 @@ export class Npc {
 
   get dead(): boolean {
     return this.state === 'dead';
+  }
+
+  get name(): string {
+    return personName(this.nameId);
+  }
+
+  get title(): string {
+    const title = tOr(`titles.${this.titleId}`, giverTitle(this.titleId));
+    return this.female ? tOr(`titlesF.${this.titleId}`, title) : title;
   }
 
   get talkable(): boolean {
@@ -453,7 +465,7 @@ export class NpcSystem {
       explicitShop ||= shop;
       // Unknown roles from new maps behave as wanderers; shopkeepers as merchants;
       // quest givers stand where they were placed.
-      const role = (shop ? 'merchant' : giver ? 'priest' : s.role in ROLE_TITLE ? s.role : 'wanderer') as NpcRole;
+      const role = (shop ? 'merchant' : giver ? 'priest' : ROLES.includes(s.role as NpcRole) ? s.role : 'wanderer') as NpcRole;
       const { acc, colours, female } = this.dress(role);
       const rig = factory.createPerson(acc, colours);
       const at = new THREE.Vector3(...s.pos);
@@ -464,7 +476,7 @@ export class NpcSystem {
       npc.refRole = s.role;
       npc.refId = s.id ?? '';
       if (giver && s.id) {
-        npc.title = giverTitle(s.id);
+        npc.titleId = s.id;
         const id = s.id;
         npc.linesRole = /priest|scholar/.test(id) ? 'priest' : /farmer/.test(id) ? 'farmer' : /prisoner/.test(id) ? 'prisoner' : 'wanderer';
       }
@@ -484,7 +496,7 @@ export class NpcSystem {
         merchants[0].shop = true;
       }
     }
-    for (const n of this.npcs) if (n.shop) n.title = 'Trader';
+    for (const n of this.npcs) if (n.shop) n.titleId = 'trader';
   }
 
   private dress(role: NpcRole): { acc: Accessory[]; colours: Record<string, number>; female: boolean } {
