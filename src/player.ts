@@ -703,7 +703,8 @@ export class Player implements PlayerView {
   private playDrawClip(): void {
     if (!this.bowClips) return;
     const dur = this.clips.BowDraw?.duration ?? 0.542;
-    this.rig.anim.playOverlay('BowDraw', { fade: 0.06, timeScale: dur / (this.wpn.draw ?? 0.6) });
+    // Freeze on the full-draw frame; BowAim takes over from the same pose.
+    this.rig.anim.playOverlay('BowDraw', { fade: 0.06, timeScale: dur / (this.wpn.draw ?? 0.6), hold: true });
   }
 
   /** The model has the authored archer clips (else a procedural pose is used). */
@@ -726,7 +727,7 @@ export class Player implements PlayerView {
    * Each arrow needs its own nock-and-draw time.
    */
   private updateBow(dt: number, f: Frame, busy: boolean): void {
-    if (this.releaseT > 0 && (this.releaseT -= dt) <= 0 && this.drawT >= 0) this.playDrawClip();
+    if (this.releaseT > 0) this.releaseT -= dt;
     const arrows = this.progress.data.arrows;
     const held = f.block && !busy && !this.talking;
     if (f.attack && !this.talking && !busy) {
@@ -746,7 +747,10 @@ export class Player implements PlayerView {
     }
     const want = (this.aimHeld || this.quickShot) && this.progress.data.arrows > 0;
     if (want) {
-      if (this.drawT < 0) {
+      // The next nock waits for the release follow-through to finish.
+      if (this.releaseT > 0) {
+        // (still aiming: keep facing the shot)
+      } else if (this.drawT < 0) {
         this.drawT = 0;
         this.ev.bowDraw();
         this.playDrawClip();
@@ -770,11 +774,10 @@ export class Player implements PlayerView {
     this.progress.save();
     this.ev.shoot(aim);
     this.yaw = this.yawTarget = aim.yaw;
-    // Next arrow: nock and draw again (if still aiming).
-    this.drawT = this.aimHeld && this.progress.data.arrows > 0 ? 0 : -1;
+    // Next arrow: nocked and drawn again once the release has played out.
+    this.drawT = -1;
     if (this.bowClips) this.rig.anim.playOverlay('BowRelease', { fade: 0.03 });
-    this.releaseT = this.bowClips ? 0.22 : 0;
-    if (this.drawT === 0) this.ev.bowDraw();
+    this.releaseT = this.bowClips ? (this.clips.BowRelease?.duration ?? 0.25) : 0.12;
     this.quickShot = false;
     this.shotQueued = false;
   }

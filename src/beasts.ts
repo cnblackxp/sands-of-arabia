@@ -330,7 +330,7 @@ interface BeastDef {
 
 const DEFS: Record<BeastKind, BeastDef> = {
   hound: { title: 'Desert Hound', hp: 55, sight: 18, walk: 1.6, run: 7.2, dmg: 14, knock: 1.8, tell: 0.45, cooldown: [1.4, 2.8] },
-  vulture: { title: 'Vulture', hp: 40, sight: 24, walk: 4, run: 7, dmg: 11, knock: 1.2, tell: 0.6, cooldown: [2.4, 4.2] },
+  vulture: { title: 'Vulture', hp: 40, sight: 16, walk: 4, run: 7, dmg: 11, knock: 1.2, tell: 0.6, cooldown: [2.4, 4.2] },
 };
 
 const LUNGE = { speed: 11, time: 0.42, hop: 0.55, range: 6.2, reach: 1.15 };
