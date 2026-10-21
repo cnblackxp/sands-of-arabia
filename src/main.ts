@@ -285,6 +285,7 @@ class Game {
       this.player.stamina = prev.stamina;
     }
     if (this.player.lookIndex !== this.lookIndex || this.robe !== 0) this.player.setLook(this.lookIndex, ROBES[this.robe] ?? undefined);
+    this.player.nockModel = this.common.arrowProp?.scene ?? null;
     scene.add(this.player.rig.root);
 
     this.npcs = new NpcSystem(this.world, factory, scene, this.sfx);

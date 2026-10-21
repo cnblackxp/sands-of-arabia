@@ -168,6 +168,9 @@ export class Player implements PlayerView {
   aim: BowAim | null = null;
   /** Gamepad + overhead camera: the stick turns the aim instead of walking. */
   aimLocksMove = false;
+  /** Arrow model shown on the string while drawn (set by the game). */
+  nockModel: THREE.Object3D | null = null;
+  private nock: THREE.Object3D | null = null;
 
   constructor(
     private factory: CharacterFactory,
@@ -889,6 +892,39 @@ export class Player implements PlayerView {
       r.position.copy(this.mover.feet);
       r.rotation.set(0, this.yaw, 0, 'YXZ');
     }
+    this.updateNock();
+  }
+
+  /**
+   * The nocked arrow while the authored draw is mostly done: it lies from the
+   * string hand to the bow hand (the arms are single bones, so the hands mark
+   * the string and the grip).
+   */
+  private updateNock(): void {
+    const show = this.hasBow && this.aiming && this.drawK > 0.6 && this.releaseT <= 0 && !!this.nockModel && this.bowClips;
+    if (!show) {
+      if (this.nock) this.nock.visible = false;
+      return;
+    }
+    const r = this.rig.root;
+    if (!this.nock || this.nock.parent !== r) {
+      this.nock?.removeFromParent();
+      this.nock = this.nockModel!.clone();
+      r.add(this.nock);
+    }
+    const hr = this.rig.bones.get('hand_R');
+    const hl = this.rig.bones.get('hand_L');
+    if (!hr || !hl) return;
+    r.updateMatrixWorld(true);
+    const a = r.worldToLocal(hr.getWorldPosition(new THREE.Vector3()));
+    const b = r.worldToLocal(hl.getWorldPosition(new THREE.Vector3()));
+    const dir = b.clone().sub(a);
+    if (dir.lengthSq() < 1e-4) return;
+    dir.normalize();
+    // Nock at the string hand; the 0.83 m shaft reaches past the grip.
+    this.nock.position.copy(a).addScaledVector(dir, 0.38);
+    this.nock.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    this.nock.visible = true;
   }
 }
 

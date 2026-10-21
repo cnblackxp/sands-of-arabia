@@ -383,7 +383,7 @@ export class Beast implements Foe {
     this.rnd = mulberry32(seed);
     this.pos.set(...spawn.pos);
     this.groundY = world.floor(this.pos.x, this.pos.z, spawn.pos[1]);
-    if (kind === 'vulture') this.pos.y = this.groundY + ORBIT.homeAlt;
+    if (kind === 'vulture') this.pos.y = spawn.airborne ? Math.max(spawn.pos[1], this.groundY + 4) : this.groundY + ORBIT.homeAlt;
     else this.pos.y = this.groundY;
     this.yaw = spawn.yaw;
     this.home = this.pos.clone();
