@@ -157,4 +157,16 @@ Each entry lists the proposed map name, titles, size and culture, where it links
 - Enemy kinds the maps already place but which have no model yet: `scorpion`, `viper`, `ghul` (boss), `champion` (Ukaz boss).
   - Variants handled in game code: palmyrene, himyar, camel, jackal, hyena.
   - Done: `rat`.
+- In the game (3b69568), scorpion and viper are procedural box placeholders and the ghul is a person-rig boss. Replacements the game session asked for (optional, since the placeholders work):
+  - **`characters/scorpion.glb`:** a desert scorpion about 1.1 m long, flat shell, pincers forward, tail curled over the back with the sting.
+    - Origin at bottom centre, facing +Z; D_Coat material optional.
+    - Clips: Idle, Walk, Run, Growl (tail raised and trembling, claws open: the tell), Lunge (tail stings forward, about 0.4 s), Hit, Death.
+    - Loads like `rat.glb` at native scale, so build it with `rigs.py` like `build_rat`.
+  - **`characters/viper.glb`:** a horned viper (Cerastes) about 0.9 m long, sandy with bands, a horn over each eye.
+    - Idle is a coil lying in the sand.
+    - Clips: Idle, Walk (sidewinding), Growl (front third reared in an S), Lunge (strike, about 0.3 s), Hit, Death.
+  - **The ghul:** either person accessories or a `characters/ghul.glb` on the person skeleton, so Attack, Attack2 and HeavyAttack still play.
+    - Accessories: `GhulHead` (gaunt long face, wild hair), donkey-hoof feet (the folklore detail), ragged shroud strips.
+    - About 2.3 m tall at scale 1, ashen grey.
+    - Eyes as their own mesh or material named **`GhulEyes`**, so the game can make them glow.
 - Possible later art: a sandstorm skybox or particle look for Iram; a monsoon-mist skybox for Dhofar.
