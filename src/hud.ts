@@ -49,7 +49,7 @@ const GLYPH: Record<Device, Record<Action, string>> = {
   },
   gamepad: {
     move: '<span class="pad stick">L</span>',
-    run: '<span class="pad b">B</span><small>hold</small>',
+    run: '<span class="pad b">B</span><small>hold</small> <span class="pad stick">L3</span>',
     attack: '<span class="pad bumper">RT</span>',
     dodge: '<span class="pad b">B</span>',
     talk: '<span class="pad y">Y</span>',

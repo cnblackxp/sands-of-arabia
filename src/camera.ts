@@ -38,8 +38,9 @@ export class FollowCamera {
   /** Third-person look: yaw (camera behind the player looks along -offset) and pitch (+ = looking down). */
   tpYaw = 0;
   tpPitch = 0.28;
-  private tpDist = 4.2;
-  private tpDistTarget = 4.2;
+  /** Third-person boom length (m): starts well back, zooms from 1.6 m out to 22 m. */
+  private tpDist = 6.5;
+  private tpDistTarget = 6.5;
   private tpAimK = 0;
   /** Over-the-shoulder aim (bow drawn): closer and offset to the right. */
   aiming = false;
@@ -106,7 +107,7 @@ export class FollowCamera {
 
   zoomBy(steps: number): void {
     if (this.thirdPerson) {
-      this.tpDistTarget = THREE.MathUtils.clamp(this.tpDistTarget * Math.pow(1.12, steps), 1.6, 12);
+      this.tpDistTarget = THREE.MathUtils.clamp(this.tpDistTarget * Math.pow(1.12, steps), 1.6, 22);
       return;
     }
     this.zoomTarget = THREE.MathUtils.clamp(this.zoomTarget * Math.pow(1.12, steps), 5, 45);
@@ -199,7 +200,7 @@ export class FollowCamera {
     // Over the right shoulder, so the character sits left of centre; wider while aiming and riding.
     const shoulder = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.75, 1.05, this.tpAimK), THREE.MathUtils.lerp(1.15, 1.45, this.tpAimK), m);
     const footDist = THREE.MathUtils.lerp(this.tpDist, Math.min(this.tpDist, 2.8), this.tpAimK);
-    const rideDist = THREE.MathUtils.lerp(this.tpDist * 1.3 + 1.2, Math.max(3.8, Math.min(this.tpDist * 1.3, 4.6)), this.tpAimK);
+    const rideDist = THREE.MathUtils.lerp(Math.max(this.tpDist * 1.15 + 1.2, this.tpDist), Math.max(3.8, Math.min(this.tpDist * 1.3, 4.6)), this.tpAimK);
     const dist = THREE.MathUtils.lerp(footDist, rideDist, m);
     const origin = pv.clone().addScaledVector(right, shoulder);
     // Keep the boom out of walls.

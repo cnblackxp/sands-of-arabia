@@ -4,7 +4,7 @@
  * on-screen prompt.
  *
  * Gamepad (standard mapping), Elden Ring style:
- *   L-stick move · B tap = roll, B hold = sprint (or L3) · RT attack (RB too)
+ *   L-stick move · B tap = roll, B hold or L3 = sprint · RT attack (RB too)
  *   LT hold = block / aim a bow (LB too) · X = healing draught · A jump / confirm · Y interact
  *   Start menu · View map · R-stick camera · LB/RB switch menu tabs
  * Keyboard: WASD · Shift sprint · LMB attack · RMB block · Space roll · F jump
@@ -69,6 +69,8 @@ export class Input {
   private dragX = 0;
   private padPrev: boolean[] = [];
   private runToggle = false;
+  /** Seconds L3 has been held (-1 = up): a click toggles sprint, a hold sprints while held. */
+  private l3Held = -1;
   private bHeld = -1;
   private navHold = { x: 0, y: 0, t: 0 };
   device: Device = 'keyboard';
@@ -274,9 +276,14 @@ export class Input {
     } else {
       this.bHeld = -1;
     }
-    if (edge(10)) this.runToggle = !this.runToggle;
+    if (b(10)) this.l3Held = this.l3Held < 0 ? 0 : this.l3Held + dt;
+    else if (this.l3Held >= 0) {
+      if (this.l3Held <= SPRINT_HOLD) this.runToggle = !this.runToggle;
+      this.l3Held = -1;
+    }
     if (mag < DEAD) this.runToggle = false;
-    if (this.runToggle) f.run = true;
+    // L3: held, it sprints like Shift; clicked, sprint stays on until the stick lets go.
+    if (this.runToggle || b(10)) f.run = true;
 
     // Triggers: RT attacks (looses an arrow), LT blocks (draws and aims a bow). The bumpers do the same.
     if (edge(7) || edge(5)) f.attack = true;
@@ -317,10 +324,11 @@ export class Input {
         active = true;
       }
     }
-    if (b(12)) f.zoom -= 4 * dt;
-    if (b(13)) f.zoom += 4 * dt;
-    if (b(14)) f.rotate += 1.6 * dt;
-    if (b(15)) f.rotate -= 1.6 * dt;
+    // D-pad: zoom (up/down) and turn the camera (left/right), quick enough to sweep the view.
+    if (b(12)) f.zoom -= 9 * dt;
+    if (b(13)) f.zoom += 9 * dt;
+    if (b(14)) f.rotate += 2.8 * dt;
+    if (b(15)) f.rotate -= 2.8 * dt;
 
     // Menu navigation from D-pad or stick, with auto-repeat.
     const nx = b(15) || ax(0) > 0.6 ? 1 : b(14) || ax(0) < -0.6 ? -1 : 0;

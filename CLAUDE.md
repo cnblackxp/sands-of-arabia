@@ -179,7 +179,7 @@ Decisions worth knowing:
 - **Draw calls.** Characters are merged at spawn into one mesh with two draw groups (matte, metal). Accessories are chosen before the merge and can't be toggled afterwards.
 - **Controls** follow Elden Ring's layout. The HUD glyphs follow the last device used.
   - Keyboard: WASD move, Shift sprint, LMB or J attack, RMB block (hold), Space roll, F jump (hold for height), R drink a healing waterskin, E interact (talk, trade, rest, take, travel, mount), Tab menu, M map, Esc menu, middle-mouse drag or Z and C to rotate, wheel zoom. In menus: arrows or WASD, Enter, Esc; Tab, Shift+Tab, `[` and `]` switch tabs.
-  - Gamepad (standard mapping): left stick move (analog), B tap roll, B hold or L3 sprint, RT attack, LT block / aim (hold) (RB and LB also work), X heal, A jump (hold) and confirm, Y interact, Start menu, View map, right stick camera, D-pad zoom and rotate. In menus: D-pad or stick, A choose, B close, LB and RB switch tabs.
+  - Gamepad (standard mapping): left stick move (analog), B tap roll, B hold or L3 sprint (L3 held, or clicked to stay on), RT attack, LT block / aim (hold) (RB and LB also work), X heal, A jump (hold) and confirm, Y interact, Start menu, View map, right stick camera, D-pad zoom and rotate. In menus: D-pad or stick, A choose, B close, LB and RB switch tabs.
 - **Progression** (`progress.ts`, saved to localStorage):
   - **Gold** drops from enemies. On death your gold stays where you fell (`lostGold`); die again before picking it up and it's gone.
   - **Bonfires** (`role: "bonfire"` spawns, else one beside the arrival point): rest to heal, refill waterskins and respawn enemies. The last one you rested at is where you wake. Lit bonfires appear in the menu's Travel tab.
@@ -227,6 +227,7 @@ Decisions worth knowing:
 - **True third-person camera** (the default; Settings → Camera cycles third person → orthographic → perspective, and the Debug tab has the same toggle). `FollowCamera.thirdPerson`:
   - The camera sits behind the player's right shoulder. A ray against the level boxes pulls the boom in so it never clips a wall.
   - The character sits left of centre (shoulder offset 0.75 m, 1.05 m aiming). Riding (`FollowCamera.mounted`), the pivot rises to the rider's chest (+1.75 m over the horse's feet), the boom is about 1.3× longer plus 1.2 m, the shoulder offset grows to 1.15–1.45 m and the view tilts down at least 8°, so the horse never fills the screen, even when looking back.
+  - The boom starts at 6.5 m and zooms from 1.6 m out to 22 m. The D-pad zooms (9 steps a second) and turns the camera (2.8 rad a second).
   - Mouse look uses pointer lock: the first click captures the mouse, and Esc frees it and opens the menu. The gamepad's right stick looks around. Zoom is the wheel or D-pad up/down.
   - Sensitivity and invert-Y live in the Debug tab. `Input.thirdPerson` switches the stick mapping.
 - **Bow** (`composite_bow` in `items.ts`, `kind: 'bow'`). It is two-handed, so there is no shield.
