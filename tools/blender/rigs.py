@@ -97,24 +97,62 @@ def mat(name, hexcol, rough=0.85, metallic=0.0, emit=None, strength=0.0):
 
 
 # ------------------------------------------------------------------ clips
+def _split_wide(arm, keys, bones, limit=120.0):
+    """Insert in-between keys (Euler-interpolated) where a bone turns more than `limit` deg between
+    two keys, so the quaternion keys follow the authored swing instead of the short way round."""
+    from mathutils import Euler
+    def q(f, b):
+        order = arm.pose.bones[b].get("euler_order", arm.pose.bones[b].rotation_mode)
+        order = "ZYX" if order == "QUATERNION" else order
+        return Euler([R(a) for a in keys[f].get(b, {}).get("rot", (0, 0, 0))], order).to_quaternion()
+    frames = sorted(keys)
+    out = dict(keys)
+    for f0, f1 in zip(frames, frames[1:]):
+        wide = max(math.degrees(q(f0, b).rotation_difference(q(f1, b)).angle) for b in bones)
+        n = math.ceil(wide / 90.0) if wide > limit else 1
+        for i in range(1, n):
+            t = i / n
+            mid = {}
+            for b in bones:
+                d0, d1 = keys[f0].get(b, {}), keys[f1].get(b, {})
+                r0, r1 = d0.get("rot", (0, 0, 0)), d1.get("rot", (0, 0, 0))
+                l0, l1 = d0.get("loc", (0, 0, 0)), d1.get("loc", (0, 0, 0))
+                mid[b] = {"rot": tuple(x + (y - x) * t for x, y in zip(r0, r1)),
+                          "loc": tuple(x + (y - x) * t for x, y in zip(l0, l1))}
+            out[f0 + (f1 - f0) * t] = mid
+    return out
+
+
 def clip(arm, name, length, keys, loop=True):
     """keys: {frame: {bone: {"rot": (x,y,z) deg, "loc": (x,y,z)}}}.
 
     Every bone mentioned anywhere in the clip is keyed on every key frame (missing
     entries mean rest), so clips only touch the bones they use and can be layered.
+    Rotations are authored as Euler in the bone's own order (ZYX, wings YZX) but keyed as
+    quaternions: the non-sampled glTF export composes Euler curves as XYZ and loses the order.
     """
+    from mathutils import Euler
     act = bpy.data.actions.new(name)
     act.use_fake_user = True
     arm.animation_data_create()
     arm.animation_data.action = act
     bones = sorted({b for fr in keys.values() for b in fr})
+    keys = _split_wide(arm, keys, bones)
+    prev = {}
     for f in sorted(keys):
         for b in bones:
             pb = arm.pose.bones[b]
+            if pb.rotation_mode != "QUATERNION":
+                pb["euler_order"] = pb.rotation_mode
+                pb.rotation_mode = "QUATERNION"
             d = keys[f].get(b, {})
-            pb.rotation_euler = [R(a) for a in d.get("rot", (0, 0, 0))]
+            q = Euler([R(a) for a in d.get("rot", (0, 0, 0))], pb.get("euler_order", "ZYX")).to_quaternion()
+            if b in prev:
+                q.make_compatible(prev[b])         # stay in one hemisphere so keys don't flip
+            prev[b] = q
+            pb.rotation_quaternion = q
             pb.location = d.get("loc", (0, 0, 0))
-            pb.keyframe_insert("rotation_euler", frame=f)
+            pb.keyframe_insert("rotation_quaternion", frame=f)
             pb.keyframe_insert("location", frame=f)
     act["loop"] = loop
     act["frames"] = length
@@ -131,6 +169,7 @@ def clip(arm, name, length, keys, loop=True):
     arm.animation_data.action = None
     for pb in arm.pose.bones:
         pb.rotation_euler = (0, 0, 0)
+        pb.rotation_quaternion = (1, 0, 0, 0)
         pb.location = (0, 0, 0)
     return act
 
@@ -309,10 +348,11 @@ def build_person(col):
                    ("hand_L", "cyl", (sc + Vector((0, -0.05, 0)), 0.08, 0.06, 0.08, brass, 8, (R(90), 0, 0)))])
     sd = Vector((0, -0.1, 1)).normalized()               # spear held upright; Thrust levels it with hand_R
     srot = (math.asin(0.1 / Vector((0, -0.1, 1)).length), 0, 0)
-    acc("Spear", [("hand_R", "box", (hand + sd * 0.3, (0.05, 0.05, 2.4), shaft, srot)),
-                  ("hand_R", "box", (hand + sd * 1.47, (0.06, 0.06, 0.08), steel, srot)),
-                  ("hand_R", "box", (hand + sd * 1.64, (0.08, 0.02, 0.28), steel, srot)),
-                  ("hand_R", "box", (hand - sd * 0.9, (0.06, 0.06, 0.06), steel, srot))])
+    grip = hand + Vector((0.05, -0.12, 0))               # in front of the fist, clear of the hanging arm
+    acc("Spear", [("hand_R", "box", (grip + sd * 0.3, (0.05, 0.05, 2.4), shaft, srot)),
+                  ("hand_R", "box", (grip + sd * 1.47, (0.06, 0.06, 0.08), steel, srot)),
+                  ("hand_R", "box", (grip + sd * 1.64, (0.08, 0.02, 0.28), steel, srot)),
+                  ("hand_R", "box", (grip - sd * 0.9, (0.06, 0.06, 0.06), steel, srot))])
     acc("Waterskin", [("hips", "box", ((0.31, 0.1, 0.8), (0.16, 0.13, 0.3), skin_bag)),
                       ("spine", "box", ((0, -0.176, 1.22), (0.05, 0.02, 0.62), leather, (0, R(35), 0))),
                       ("spine", "box", ((0, 0.176, 1.22), (0.05, 0.02, 0.62), leather, (0, R(-35), 0)))])
@@ -509,14 +549,15 @@ def person_clips(arm):
              "arm_R": {"rot": (-20, 0, -20)}, "arm_L": {"rot": (-20, 0, 20)}},
         35: rest,
     }, loop=False)
-    # Thrust: spear (or sword) lunge; hand_R keeps the weapon level as the arm drives forward.
+    # Thrust: spear (or sword) lunge; hand_R keeps the weapon level as the arm drives forward
+    # (arm + hand = 90 deg, minus the spine lean and the spear's ~6 deg rest tilt).
     clip(arm, "Thrust", 20, {
         1: rest,
         6: {"spine": {"rot": (-4, 26, 0)}, "arm_R": {"rot": (22, 0, 6)}, "hand_R": {"rot": (68, 0, 0)},
             "arm_L": {"rot": (-30, 0, -10)}},
-        9: {"spine": {"rot": (14, -24, 0)}, "arm_R": {"rot": (-72, 0, -4)}, "hand_R": {"rot": (162, 0, 0)},
+        9: {"spine": {"rot": (14, -24, 0)}, "arm_R": {"rot": (-72, 0, -4)}, "hand_R": {"rot": (142, 0, 0)},
             "arm_L": {"rot": (20, 0, -12)}, "head": {"rot": (6, 6, 0)}},
-        12: {"spine": {"rot": (12, -22, 0)}, "arm_R": {"rot": (-68, 0, -4)}, "hand_R": {"rot": (158, 0, 0)},
+        12: {"spine": {"rot": (12, -22, 0)}, "arm_R": {"rot": (-68, 0, -4)}, "hand_R": {"rot": (140, 0, 0)},
              "arm_L": {"rot": (18, 0, -12)}, "head": {"rot": (5, 5, 0)}},
         21: rest,
     }, loop=False)
