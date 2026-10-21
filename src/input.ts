@@ -82,8 +82,12 @@ export class Input {
   private lookDY = 0;
   private mouseNX = 0;
   private mouseNY = 0;
-  /** Clicks that only grabbed the pointer lock don't swing the sword. */
-  private swallowClick = false;
+  /**
+   * A left click that asked for the pointer lock is held back: if the lock is
+   * granted it only captured the mouse; if the browser refuses (or says
+   * nothing within a moment) it counts as a normal attack.
+   */
+  private pendingClick = 0;
   /** Called on the first user gesture of any kind (used to unlock audio). */
   onGesture: () => void = () => {};
 
@@ -105,11 +109,16 @@ export class Input {
       this.onGesture();
       if (this.thirdPerson && document.pointerLockElement !== canvas) {
         // First click in third person captures the mouse for looking around.
-        canvas.requestPointerLock?.()?.catch?.(() => {});
-        if (e.button === 0) this.swallowClick = true;
-      }
-      if (e.button === 0 && !this.swallowClick) this.mouseAttack = true;
-      this.swallowClick = false;
+        try {
+          canvas.requestPointerLock?.()?.catch?.(() => this.releaseClick());
+        } catch {
+          // Pointer lock unsupported here: plain mouse look still works.
+        }
+        if (e.button === 0) {
+          this.pendingClick = performance.now();
+          setTimeout(() => this.releaseClick(), 250);
+        }
+      } else if (e.button === 0) this.mouseAttack = true;
       if (e.button === 2) this.mouseBlock = true;
       if (e.button === 1) {
         this.mmbDrag = true;
@@ -131,6 +140,11 @@ export class Input {
       this.mouseNY = -(e.clientY / window.innerHeight) * 2 + 1;
     });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Lock granted: that click only captured the mouse. Refused: it was an attack.
+    document.addEventListener('pointerlockchange', () => {
+      if (document.pointerLockElement === canvas) this.pendingClick = 0;
+    });
+    document.addEventListener('pointerlockerror', () => this.releaseClick());
     canvas.addEventListener(
       'wheel',
       (e) => {
@@ -141,6 +155,13 @@ export class Input {
     );
   }
 
+  /** The held-back click counts after all (no pointer lock came of it). */
+  private releaseClick(): void {
+    if (!this.pendingClick) return;
+    this.pendingClick = 0;
+    this.mouseAttack = true;
+  }
+
   /**
    * Forget buttons that are mid-press (a menu or dialogue just closed), so the
    * release of the B that closed it doesn't also fire a dodge roll.
@@ -149,6 +170,7 @@ export class Input {
     this.bHeld = -2;
     this.pressed.clear();
     this.mouseAttack = false;
+    this.pendingClick = 0;
   }
 
   read(dt: number): Frame {
