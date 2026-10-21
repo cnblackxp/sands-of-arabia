@@ -416,7 +416,7 @@ def export_map(ex, m):
     objs = [o for o in objs if o not in inst_objs and o.type == "MESH"]
     objs.append(mb.build("Static", L.C_LAND))
     if m.tile:
-        empties = _inst.group_by_tile(m.tile) if m.instanced and _inst.PLACED else []
+        empties = _inst.group_by_tile(None) if m.instanced and _inst.PLACED else []      # one map-wide group
         nchunks = join_export(ex, objs, f"{rel_dir}/town.glb", chunk=m.tile, prefix="Town", extra_objs=empties,
                               instances=bool(empties), bake=True)
         print("INSTANCES", m.name, len(_inst.PLACED), "placed,", len({o.data.name for o in _inst.PLACED}), "prototypes,",

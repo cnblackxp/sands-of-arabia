@@ -204,14 +204,16 @@ def dress(mb, ctx, m, ok, rocks=40, singles=60, shrubs=120, dry=50, acacias=12, 
     sc(ctx, m, nbones, lambda x, y: bones(ctx, x, y), ok, r=2)
 
 
-def group_by_tile(size):
-    """Parent every placed instance under a per-tile Empty (Props_i_j); returns the empties."""
+def group_by_tile(size=None):
+    """Parent every placed instance under an Empty and return the empties. size=None (the default for the big maps)
+    uses one map-wide group "Props_all", so each prototype is a single InstancedMesh (one draw); a size in metres
+    groups per tile (Props_i_j) instead."""
     empties = {}
     for ob in PLACED:
-        k = (math.floor(ob.location.x / size), math.floor(ob.location.y / size))
+        k = ("all",) if size is None else (math.floor(ob.location.x / size), math.floor(ob.location.y / size))
         e = empties.get(k)
         if e is None:
-            e = bpy.data.objects.new(f"Props_{k[0]}_{k[1]}", None)
+            e = bpy.data.objects.new("Props_all" if size is None else f"Props_{k[0]}_{k[1]}", None)
             _coll().objects.link(e)
             empties[k] = e
         ob.parent = e

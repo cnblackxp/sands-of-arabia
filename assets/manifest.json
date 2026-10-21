@@ -781,7 +781,7 @@
    ],
    "chunks": 25,
    "chunk_size": 125.0,
-   "instance_groups": 42
+   "instance_groups": 1
   },
   "backdrop": {
    "file": "level/backdrop.glb",
