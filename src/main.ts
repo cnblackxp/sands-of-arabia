@@ -18,6 +18,7 @@ import { type Npc, NpcSystem } from './npc';
 import { Physics } from './physics';
 import { Player, type BowAim } from './player';
 import { Race } from './race';
+import { Convoy } from './convoy';
 import type { Enemy } from './enemy';
 import { ARROW, Projectiles, solveBallistic, type ProjTarget } from './projectiles';
 import { Progress } from './progress';
@@ -124,6 +125,10 @@ class Game {
   sluices: Sluice[] = [];
   /** The horse race (Ukaz), when the map has a course. */
   race: Race | null = null;
+  /** The escort (Dumat), when the map has a convoy. */
+  convoy: Convoy | null = null;
+  /** A siege in progress: which wave, and the foes of that wave. */
+  private siege: { wave: number; foes: Foe[]; pause: number } | null = null;
   private truceToastT = 0;
   loreStones: LoreStone[] = [];
   /** Reading an inscription (lore spawn): its lines and the line shown. */
@@ -457,6 +462,7 @@ class Game {
       this.player.mount(h);
     }
     this.setupRace(level);
+    this.setupConvoy(level);
     this.enemies.setTellFx((follow) => this.glints.spawn(follow));
     this.enemies.setKillHook((e) => this.onEnemyKilled(e));
     const tmp = new THREE.Vector3();
@@ -912,6 +918,8 @@ class Game {
     this.chests = [];
     this.sluices = [];
     this.race?.dispose();
+    this.convoy = null;
+    this.siege = null;
     this.race = null;
     this.loreStones = [];
     this.reading = null;
@@ -1683,6 +1691,68 @@ class Game {
     });
   }
 
+  /** Dumat's escort: the keeper and the convoy camels on the `convoy` road. */
+  private setupConvoy(level: import('./level').LevelData): void {
+    const path = level.paths.convoy;
+    const keeperSpawn = level.spawns.find((s) => (s.role as string) === 'caravaneer' && s.id === 'dumat_convoy_master');
+    if (!path?.length || !keeperSpawn) return;
+    const keeper = this.npcs.npcs.find((n) => n.refId === keeperSpawn.id);
+    const camels = level.spawns
+      .filter((s) => s.role === 'camel' && s.convoy)
+      .map((s) => this.camels.find((c) => Math.hypot(c.rig.root.position.x - s.pos[0], c.rig.root.position.z - s.pos[2]) < 0.6))
+      .filter((c): c is Camel => !!c);
+    if (!keeper) return;
+    for (const c of camels) c.convoy = true;
+    const v = (p: Vec3) => new THREE.Vector3(p[0], this.world.ground(p[0], p[2]), p[2]);
+    this.convoy = new Convoy(path.map(v), keeper, camels, (x, z) => this.world.ground(x, z), () => {
+      this.sfx.questComplete();
+      this.quests.finished('escort', this.mapName);
+    });
+  }
+
+  /** Siege objectives: when the player reaches the place, waves come from the markers. */
+  private updateSiege(dt: number): void {
+    const obj = this.quests.current('siege', this.mapName);
+    if (!obj) {
+      this.siege = null;
+      return;
+    }
+    const lm = this.world.level.landmarks[obj.landmark];
+    const p = this.player.pos;
+    if (!this.siege) {
+      if (!lm || Math.hypot(lm[0] - p.x, lm[2] - p.z) > 70) return;
+      this.siege = { wave: -1, foes: [], pause: 1.5 };
+      this.hud.showToast(t('siege.start'), 3);
+      this.sfx.raceStart();
+    }
+    const s = this.siege;
+    if (s.foes.some((f) => !f.dead)) return;
+    s.pause -= dt;
+    if (s.pause > 0) return;
+    s.wave++;
+    if (s.wave >= obj.waves.length) {
+      this.siege = null;
+      this.hud.showToast(t('siege.held'), 3);
+      this.quests.finished('siege', this.mapName);
+      return;
+    }
+    const w = obj.waves[s.wave];
+    const at = this.world.level.spawns.find((x) => (x.role as string) === 'wave_spawn' && x.id === w.marker);
+    if (!at) return;
+    s.foes = w.foes.map((spec, i) => {
+      const [kind, variant] = spec.split(':');
+      const a = (i / w.foes.length) * Math.PI * 2;
+      const x = at.pos[0] + Math.sin(a) * 3;
+      const z = at.pos[2] + Math.cos(a) * 3;
+      const e = this.enemies.spawn({ role: 'enemy', kind, variant, camp: `siege_${s.wave}`, pos: [x, this.world.floor(x, z, at.pos[1] + 1), z], yaw: at.yaw } as Spawn);
+      e.onKilled = (f) => this.onEnemyKilled(f);
+      return e;
+    });
+    s.pause = 4;
+    this.hud.showToast(t('siege.wave', { n: s.wave + 1, of: obj.waves.length }), 2.5);
+    this.sfx.alert(0, 1);
+  }
+
   /** Inside the truce circle (Ukaz): no one may strike. */
   private inTruce(p: THREE.Vector3): boolean {
     const tr = this.world.level.truce;
@@ -1868,6 +1938,9 @@ class Game {
       this.enemies.update(dt, p, this.isNight());
       this.projectiles.update(dt, p.dead ? null : p.pos);
       this.race?.update(dt, p.pos, !!p.horse);
+      this.updateSiege(dt);
+      if (this.convoy && !this.convoy.running && !this.convoy.done && this.quests.current('escort', this.mapName)) this.convoy.start();
+      this.convoy?.update(dt, p.pos);
       for (const h of this.horses) {
         if (h === p.horse || (h.racer && this.race?.running)) continue;
         h.idle(dt);
@@ -1930,7 +2003,19 @@ class Game {
     this.hud.setVitals(p.hp, p.maxHp, p.stamina, p.maxStamina, p.isExhausted, realDt);
     this.hud.setPurse(this.progress.data.gold, this.progress.data.flasks, this.progress.maxFlasks);
     const race = this.race?.state === 'running' ? this.race : null;
-    this.hud.setTracker(paused ? null : race ? t('race.tracker', { i: Math.min(race.checkpoint + 1, race.of), of: race.of, place: race.standing(p.pos) }) : this.quests.trackerText());
+    const escort = this.convoy?.running ? this.convoy : null;
+    const siegeObj = this.siege ? this.quests.current('siege', this.mapName) : null;
+    this.hud.setTracker(
+      paused
+        ? null
+        : race
+          ? t('race.tracker', { i: Math.min(race.checkpoint + 1, race.of), of: race.of, place: race.standing(p.pos) })
+          : escort
+            ? t('convoy.tracker', { n: Math.round(escort.progress * 100) })
+            : siegeObj && this.siege
+              ? t('siege.tracker', { n: Math.max(1, this.siege.wave + 1), of: siegeObj.waves.length })
+              : this.quests.trackerText(),
+    );
     // A boss's health bar while fighting it.
     const boss = paused ? null : (this.enemies.humans.find((e) => (e as Enemy).boss && !e.dead && e.engaged && Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) < 45) ?? null);
     this.hud.setBoss(boss ? boss.title : null, boss ? boss.hp / boss.maxHp : 1, realDt);
@@ -2374,6 +2459,11 @@ class Game {
     // Chests: only the ones on the beaten path show before they are found.
     for (const c of this.chests) if (!c.opened && !c.secret) m.push({ x: c.pos.x, z: c.pos.z, kind: 'chest' });
     for (const k of this.pickups) m.push({ x: k.pos.x, z: k.pos.z, kind: 'objective', label: full ? this.pickupLabel(k) : undefined });
+    // The convoy's head, and the place under siege.
+    if (this.convoy?.running) m.push({ x: this.convoy.head.x, z: this.convoy.head.z, kind: 'objective' });
+    const so = this.quests.current('siege', this.mapName);
+    const sl0 = so && this.world.level.landmarks[so.landmark];
+    if (sl0) m.push({ x: sl0[0], z: sl0[2], kind: 'objective' });
     // The next sluice of a rota, and places to visit.
     const gate = this.quests.nextUse(this.mapName);
     const sl = gate && this.sluices.find((s) => s.id === gate.target);

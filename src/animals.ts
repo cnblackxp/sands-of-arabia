@@ -178,6 +178,13 @@ export class Horse {
 
 export class Camel {
   readonly rig: Rig;
+  /** Its two body capsules (left behind when it walks off with a convoy). */
+  private colliders: import('@dimforge/rapier3d-compat').Collider[] = [];
+  /** A convoy camel (Dumat: the gods' cart). */
+  convoy = false;
+  setStatic(on: boolean): void {
+    for (const c of this.colliders) c.setEnabled(on);
+  }
   constructor(factory: CharacterFactory, physics: Physics, spawn: Spawn, rnd: () => number) {
     const cargo = rnd() < 0.6;
     this.rig = factory.createCamel({}, true, cargo);
@@ -193,7 +200,7 @@ export class Camel {
     const fz = Math.cos(spawn.yaw);
     const r = spawn.sitting ? 0.6 : 0.55;
     const hh = spawn.sitting ? 0.1 : 0.6;
-    for (const o of [-0.7, 0.7]) physics.addActor(r, hh, new THREE.Vector3(p.x + fx * o, p.y, p.z + fz * o));
+    for (const o of [-0.7, 0.7]) this.colliders.push(physics.addActor(r, hh, new THREE.Vector3(p.x + fx * o, p.y, p.z + fz * o)));
     this.rig.anim.update(rnd() * 2);
   }
 

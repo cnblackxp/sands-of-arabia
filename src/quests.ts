@@ -30,7 +30,11 @@ export type Objective =
   /** Hand `gold` to someone (a ransom); talking to them pays if you have it. */
   | { kind: 'pay'; npc: NpcRef; gold: number }
   /** Win the horse race in this map. */
-  | { kind: 'race'; map: string };
+  | { kind: 'race'; map: string }
+  /** Hold a place against waves of foes (`wave_spawn` marker ids, foes as `kind[:variant]`). */
+  | { kind: 'siege'; map: string; landmark: string; waves: { marker: string; foes: string[] }[] }
+  /** Bring the convoy to the end of its road. */
+  | { kind: 'escort'; map: string };
 
 /**
  * Maps that are other states of one place (Marib and Marib after the flood):
@@ -60,10 +64,75 @@ export interface QuestDef {
 
 const ITHLIB = 'jabal_ithlib';
 const UKAZ = 'ukaz';
+const TAYMA = 'tayma';
+const DUMAT = 'dumat_al_jandal';
 const MARIB = 'marib';
 const BREACH = 'marib_breach';
 
 export const QUESTS: QuestDef[] = [
+  // --- Tayma: the walled oasis, al-Samaw'al's al-Ablaq --------------------------------------------
+  {
+    id: 'tayma_siege',
+    giver: { map: TAYMA, id: 'samawal_son' },
+    objectives: [{ kind: 'kill_camp', map: TAYMA, camp: 'siege' }],
+    reward: { gold: 600, upgrade: 'shield' },
+  },
+  {
+    id: 'tayma_armour',
+    giver: { map: TAYMA, id: 'samawal' },
+    requires: 'tayma_siege',
+    objectives: [{ kind: 'fetch', map: TAYMA, pickup: 'prince_armour', item: 'prince_armour' }],
+    reward: { gold: 400, upgrade: 'vitality' },
+  },
+  {
+    id: 'tayma_channel',
+    giver: { map: TAYMA, id: 'tayma_well_master' },
+    objectives: [{ kind: 'visit', map: TAYMA, landmark: 'hidden_channel' }],
+    reward: { gold: 260 },
+  },
+  {
+    id: 'tayma_nabonidus',
+    giver: { map: TAYMA, id: 'tayma_astrologer' },
+    objectives: [{ kind: 'talk', npc: { map: TAYMA, id: 'tayma_scribe' } }],
+    reward: { gold: 220 },
+  },
+  // --- Dumat al-Jandal: city of queens, Marid castle -------------------------------------------------
+  {
+    id: 'dumat_marid',
+    giver: { map: DUMAT, id: 'queen_adummatu' },
+    objectives: [
+      {
+        kind: 'siege',
+        map: DUMAT,
+        landmark: 'marid_castle',
+        waves: [
+          { marker: 'marid_wave_1', foes: ['archer:palmyrene', 'archer:palmyrene', 'raider:palmyrene'] },
+          { marker: 'marid_wave_2', foes: ['archer:palmyrene', 'archer:palmyrene', 'raider:palmyrene', 'skirmisher:palmyrene'] },
+          { marker: 'marid_wave_3', foes: ['archer:palmyrene', 'archer:palmyrene', 'archer:palmyrene', 'brute:palmyrene', 'raider:palmyrene'] },
+        ],
+      },
+    ],
+    reward: { gold: 700, upgrade: 'shield' },
+  },
+  {
+    id: 'dumat_gods',
+    giver: { map: DUMAT, id: 'dumat_convoy_master' },
+    objectives: [{ kind: 'escort', map: DUMAT }],
+    reward: { gold: 480, upgrade: 'endurance' },
+  },
+  {
+    id: 'dumat_spring',
+    giver: { map: DUMAT, id: 'ruda_priestess' },
+    objectives: [{ kind: 'fetch', map: DUMAT, pickup: 'spring_water', item: 'spring_water' }],
+    reward: { gold: 220 },
+  },
+  {
+    id: 'dumat_tribute',
+    giver: { map: DUMAT, id: 'queen_adummatu' },
+    requires: 'dumat_gods',
+    objectives: [{ kind: 'talk', npc: { map: DUMAT, id: 'assyrian_envoy_1' } }],
+    reward: { gold: 300 },
+  },
   // --- Ukaz: the fair of the poets -----------------------------------------------------------
   {
     id: 'ukaz_race',
@@ -503,6 +572,25 @@ export class QuestSystem {
     return 'ok';
   }
 
+  /** The siege or escort objective waiting in this map, if any. */
+  current<K extends 'siege' | 'escort'>(kind: K, map: string): Extract<Objective, { kind: K }> | null {
+    for (const q of QUESTS) {
+      const st = this.state(q.id);
+      const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
+      if (obj?.kind === kind && sameMap(obj.map, map)) return obj as Extract<Objective, { kind: K }>;
+    }
+    return null;
+  }
+
+  /** A siege held, or a convoy brought home. */
+  finished(kind: 'siege' | 'escort', map: string): void {
+    for (const q of QUESTS) {
+      const st = this.state(q.id);
+      const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
+      if (obj?.kind === kind && sameMap(obj.map, map)) this.advance(q);
+    }
+  }
+
   /** Won the horse race in this map. */
   raceWon(map: string): void {
     for (const q of QUESTS) {
@@ -594,6 +682,7 @@ export class QuestSystem {
 }
 
 export function objMap(o: Objective): string {
+  if (o.kind === 'siege' || o.kind === 'escort') return MAP_ALIAS[o.map] ?? o.map;
   const m = o.kind === 'talk' || o.kind === 'pay' ? o.npc.map : o.map;
   return MAP_ALIAS[m] ?? m;
 }

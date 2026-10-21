@@ -14,7 +14,7 @@ import { angleTo, dampAngle, mulberry32, turnToward } from './util';
 
 type State = 'idle' | 'walk' | 'sit' | 'talk' | 'stagger' | 'flee' | 'return' | 'chase' | 'strike' | 'dead';
 
-const NOT_NPC = new Set(['player', 'camel', 'horse', 'enemy', 'bonfire', 'pickup', 'chest', 'winged_horse', 'lore', 'sluice', 'race_start', 'race_checkpoint']);
+const NOT_NPC = new Set(['player', 'camel', 'horse', 'enemy', 'bonfire', 'pickup', 'chest', 'winged_horse', 'lore', 'sluice', 'race_start', 'race_checkpoint', 'wave_spawn']);
 const WALK = 1.4;
 const RUN = 4.6;
 const RADIUS = 0.3;
@@ -497,7 +497,7 @@ export class NpcSystem {
       // quest givers stand where they were placed.
       const role = (shop ? 'merchant' : giver ? 'priest' : ROLES.includes(s.role as NpcRole) ? s.role : 'wanderer') as NpcRole;
       // Named people (the poets of Ukaz) are who their name says.
-      const { acc, colours, female } = this.dress(role, !!s.name);
+      const { acc, colours, female } = this.dress(role, !!s.name, /queen|priestess|daughter|mother|wife|kahina/i.test(s.title ?? ''));
       const rig = factory.createPerson(acc, colours);
       const at = new THREE.Vector3(...s.pos);
       at.y = world.floor(at.x, at.z, s.pos[1]);
@@ -509,7 +509,7 @@ export class NpcSystem {
       if (giver && s.id) {
         npc.titleId = s.id;
         const id = s.id;
-        npc.linesRole = /priest|scholar/.test(id)
+        npc.linesRole = /priest|scholar|astrologer/.test(id)
           ? 'priest'
           : /feast/.test(id)
             ? 'feast_master'
@@ -527,7 +527,7 @@ export class NpcSystem {
       if (s.id && POET_POEMS[s.id]) npc.ownPoem = POET_POEMS[s.id];
       // Named people of any role (the mukarrib, the canal wardens, the envoys) take their own title and voice.
       if (!giver && s.id && L().titles[s.id]) npc.titleId = s.id;
-      if (!giver && s.id && /envoy/.test(s.id)) npc.linesRole = 'envoy';
+      if (!giver && s.id && /himyar_envoy/.test(s.id)) npc.linesRole = 'envoy';
       npc.refIndex = counts[s.role] ?? 0;
       counts[s.role] = npc.refIndex + 1;
       if (shop) npc.shop = true;
@@ -557,11 +557,12 @@ export class NpcSystem {
     for (const n of this.npcs) if (n.shop) n.titleId = 'trader';
   }
 
-  private dress(role: NpcRole, named = false): { acc: Accessory[]; colours: Record<string, number>; female: boolean } {
+  private dress(role: NpcRole, named = false, woman = false): { acc: Accessory[]; colours: Record<string, number>; female: boolean } {
     const r = this.rnd;
     const acc: Accessory[] = [];
     const canBeFemale = !named && (role === 'wanderer' || role === 'water_carrier' || role === 'sitter' || role === 'merchant' || role === 'refugee' || role === 'musician' || role === 'poet');
-    const female = canBeFemale && r() < (role === 'water_carrier' ? 0.6 : 0.3);
+    // A queen or a priestess (by her title) is a woman; others by chance where the role allows.
+    const female = woman || (canBeFemale && r() < (role === 'water_carrier' ? 0.6 : 0.3));
     if (female) {
       acc.push('Veil');
     } else {

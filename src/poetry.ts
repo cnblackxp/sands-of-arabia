@@ -244,6 +244,7 @@ export const POET_POEMS: Record<string, string> = {
   ukaz_poet_4: 'tarafa_khawla',
   ukaz_poet_5: 'imru_qifa',
   ukaz_poet_6: 'harith_asma',
+  samawal: 'samawal_ird',
 };
 
 /** Poems a reciter of this culture would know (everyone knows a few from Ukaz). */

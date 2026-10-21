@@ -1000,7 +1000,13 @@ export class EnemySystem {
     const kind = (KINDS[kindName as EnemyKind] ? kindName : 'raider') as EnemyKind;
     const def = KINDS[kind];
     // Himyarite raiders wear the king's indigo and gold.
-    const colours = s.variant === 'himyar' ? { ...def.colours, P_Robe: 0x1f2f5a, P_Sash: 0xd6a531, P_Wrap: 0x1f2f5a, P_Vest: 0x6b4a32 } : def.colours;
+    // Variants: Himyar's indigo and gold, Palmyra's red and ochre, the camel raiders' dust.
+    const look: Record<string, Record<string, number>> = {
+      himyar: { P_Robe: 0x1f2f5a, P_Sash: 0xd6a531, P_Wrap: 0x1f2f5a, P_Vest: 0x6b4a32 },
+      palmyrene: { P_Robe: 0x8a2a1a, P_Sash: 0xc9902e, P_Wrap: 0xe5dcc8, P_Vest: 0x6b4426, P_Pants: 0x3d3128 },
+      camel: { P_Robe: 0x9a8a70, P_Sash: 0x3b3530, P_Wrap: 0x6b5a48, P_Vest: 0x4a3a2c },
+    };
+    const colours = s.variant && look[s.variant] ? { ...def.colours, ...look[s.variant] } : def.colours;
     const rig = this.factory.createPerson(def.acc, colours, def.scale);
     if (def.club && !this.factory.hasPart('Club')) rig.bones.get('hand_R')?.add(buildClub());
     const at = new THREE.Vector3(...s.pos);

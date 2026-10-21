@@ -277,6 +277,11 @@ Decisions worth knowing:
   - **Quests:** Dahis and al-Ghabra (the race), a captive of Tamim, the champion, al-Nabigha's lost ode, the hill bandits, "every poet has his jinni", and the keepers of the sacred months.
   - **Rats:** `characters/rat.glb` is used when present.
   - **Draw-call savings:** small instanced props and NPCs beyond 45 m skip the shadow pass.
+- **Tayma and Dumat al-Jandal.**
+  - **Siege** objective (`siege`: `landmark` plus `waves` of `{marker, foes}`): it starts within 70 m of the landmark (`Game.updateSiege`). Each wave's foes spawn around their `wave_spawn` marker, with a 4 s pause between waves. Foes are written as `kind` or `kind:variant`. Clearing the last wave finishes it (`QuestSystem.finished`).
+  - **Escort** objective (`escort`): `convoy.ts` walks the keeper and the `convoy: true` camels along `paths.convoy`, but only while the player stays within 26 m of the head. Reaching the end completes it. Leaving the map resets it.
+  - **Quests.** Tayma: the siege of al-Ablaq, the prince's armour, the hidden channel, and Nabonidus's scribe. Dumat: the Palmyrene siege of Marid, the gods' convoy, the spring of Ruda, and the tribute envoy.
+  - Named NPCs are women when their title says so (queen, priestess, daughter, mother, wife, kahina).
 - **People and speech.**
   - NPC names come from their culture's pool (`lore.ts`).
   - Conversations may open and close with that people's own greeting and farewell (`speech.<culture>` in the locales, naming the gods each people worshipped).

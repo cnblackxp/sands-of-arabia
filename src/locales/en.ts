@@ -86,6 +86,18 @@ export const en = {
     poet: 'Poet',
     racer: 'Horseman',
     ukaz_nabigha: 'Judge of the poets',
+    samawal: 'Lord of al-Ablaq',
+    samawal_son: 'Son of al-Samaw\'al',
+    tayma_well_master: 'Master of the well camels',
+    tayma_astrologer: 'Teller of Babylonian tales',
+    tayma_scribe: 'Aramaic scribe',
+    tayma_trader: 'Merchant of Tayma',
+    queen_adummatu: 'Queen of Adummatu',
+    assyrian_envoy_1: 'Assyrian envoy',
+    assyrian_envoy_2: 'Assyrian envoy',
+    ruda_priestess: 'Priestess of Ruda',
+    dumat_convoy_master: 'Keeper of the gods\' cart',
+    dumat_trader: 'Merchant of Dumat',
     ukaz_kahin: 'Soothsayer of Ukaz',
     ukaz_elder_thaqif: 'Elder of Thaqif',
     ukaz_elder_hawazin: 'Elder of Hawazin',
@@ -121,6 +133,9 @@ export const en = {
   lore: {
     title: 'An inscription',
     prompt: 'Read the inscription',
+    taymanitic_1: ['Taymanitic letters, cut deep in the wall stone:', '“Shahru son of Taym kept watch on this wall in the year of the war with Dadan.”'],
+    taymanitic_2: ['A line in the Taymanitic hand, beside a carved camel:', '“Mardan was with Nabonidus, king of Babylon, when he went against Dadan.”'],
+    taymanitic_3: ['A prayer cut where the wall turns:', '“O Salm of Mahram, remember the one who reads this, and the one who wrote it.”'],
     siq_inscription_1: ['Carved in Nabataean letters, worn smooth by passing hands:', '“Remembered be Kahilu son of Wa\'ilu, and his brothers, for good and for peace, before Dushara.”'],
     siq_inscription_2: ['A shallow niche with an eye-idol cut into its back wall. Below it:', '“This is the god of Hegra. Whoever cuts his name here, may Dushara and al-Kutba remember him.”'],
     siq_inscription_3: ['Lines in an older, rounder hand, Dadanitic perhaps, beside the Nabataean:', '“Talmi passed here with the caravan of Dadan, and gave thanks to Dhu-Ghabat.”'],
@@ -144,6 +159,15 @@ export const en = {
     } as Record<string, string>,
   },
   dig: { prompt: 'Dig in the disturbed sand', found: 'Something is buried here.' },
+  siege: {
+    start: 'They are coming! Hold the walls.',
+    wave: 'Wave {n} of {of}',
+    tracker: 'Siege: wave {n} of {of}',
+    held: '“Marid rebelled and al-Ablaq held out.” The castle holds.',
+  },
+  convoy: {
+    tracker: 'The gods\' cart: {n}% of the road (stay close or it waits)',
+  },
   truce: {
     toast: 'Weapons stay sheathed at Ukaz: the truce of the sacred months holds here.',
   },
@@ -362,6 +386,93 @@ export const en = {
   // --- quests ------------------------------------------------------------------------
   /** Quest text by quest id; `objectives` follow the order in quests.ts. */
   quests: {
+    tayma_siege: {
+      title: 'Truer than al-Samaw\'al',
+      offer: [
+        'Imru\' al-Qais left his armour with my father before he rode to Caesar. Now the Ghassanid\'s men camp outside the east wall and demand it.',
+        'My father will not hand over what was trusted to him; he would sooner lose everything. They attack only by night. Break their camp before they break the walls.',
+      ],
+      waiting: 'The besiegers camp outside the east wall and come only at night.',
+      turnIn: ['They are gone. My father kept his word and kept his son. Take this shield: it has kept al-Ablaq longer than I have been alive.'],
+      objectives: [{ text: 'Break the siege camp outside the east wall (they attack at night)' }],
+    },
+    tayma_armour: {
+      title: 'The Armour of Imru\' al-Qais',
+      offer: [
+        'The armour is on the top terrace of al-Ablaq, wrapped against the dust. Bring it down to me; I want to see it is whole.',
+        'A trust is a trust. Men will say "more faithful than al-Samaw\'al"; let them be right.',
+      ],
+      waiting: 'The armour is on the highest terrace of al-Ablaq.',
+      turnIn: ['Whole, every ring. It goes back up the tower until its owner\'s heirs come for it. You have the thanks of a man who keeps faith.'],
+      objectives: [{ text: 'Climb to the top of al-Ablaq and bring down the armour' }],
+    },
+    tayma_channel: {
+      title: 'The Hidden Channel',
+      offer: [
+        'Bir Haddaj is older than the wall. My grandfather said there is a channel cut inside the shaft, halfway down, that once fed the gardens.',
+        'Climb down and see if it is there. Mind the ledges, and mind the camels at the ropes.',
+      ],
+      waiting: 'Climb down into Bir Haddaj and find the old channel.',
+      turnIn: ['A channel! Then my grandfather was not lying, which surprises the whole family. Here, for your knees.'],
+      objectives: [{ text: 'Find the hidden channel inside the shaft of Bir Haddaj' }],
+    },
+    tayma_nabonidus: {
+      title: 'The King Who Lived at Tayma',
+      offer: [
+        'Nabonidus, king of Babylon, left his city to his son and lived here ten years, among our palms, building this palace.',
+        'The scribe on the mound reads the old Aramaic. Ask him what the stone says about the king; I tell the story better than I read it.',
+      ],
+      waiting: 'Ask the Aramaic scribe on the palace mound about the king.',
+      turnIn: ['Ten years! For a moon god and a palm grove. Babylon must have been very dull.'],
+      objectives: [
+        {
+          text: 'Ask the Aramaic scribe about Nabonidus',
+          lines: ['The stone says the king of Babylon came to Tayma and stayed, and the people of Tayma served him.', 'It does not say whether they enjoyed it. Stones rarely do.'],
+        },
+      ],
+    },
+    dumat_marid: {
+      title: 'Marid Rebelled',
+      offer: [
+        'The queen of Palmyra wants Dumat, and her archers are already at the foot of Marid\'s hill.',
+        'Go up to the castle and hold it. Every queen before me has kept Marid; I will not be the first to lose it.',
+      ],
+      waiting: 'Go up to Marid castle and hold it against the archers.',
+      turnIn: ['Let her say it in Palmyra: "Marid rebelled and al-Ablaq held out." Take this shield, defender of Marid.'],
+      objectives: [{ text: 'Hold Marid castle against the waves of Palmyrene archers' }],
+    },
+    dumat_gods: {
+      title: 'The Gods Come Home',
+      offer: [
+        'The kings of Assyria carried off the gods of Adummatu, and now, after long pleading, they send them back.',
+        'The cart waits on the north-west road. Walk beside it to the shrine of Ruda. Raiders wait in the dunes for anything worth stealing, and gods are worth a great deal.',
+      ],
+      waiting: 'Walk with the gods\' cart from the north-west road to the shrine of Ruda. Stay close, or it stops.',
+      turnIn: ['Ruda is home, and the others with her. Tonight Dumat will not sleep for singing.'],
+      objectives: [{ text: 'Escort the gods\' cart to the shrine of Ruda' }],
+    },
+    dumat_spring: {
+      title: 'Water for Ruda',
+      offer: ['The goddess is washed with water from the sacred spring, drawn where the palms stand thickest.', 'Fill a skin and bring it to me.'],
+      waiting: 'Fill a skin at the sacred spring among the palms.',
+      turnIn: ['Cold and clean. Ruda will be pleased, and so the oasis will be too.'],
+      objectives: [{ text: 'Fill a skin at the sacred spring' }],
+    },
+    dumat_tribute: {
+      title: 'An Answer for Nineveh',
+      offer: [
+        'The gods are home. Now the envoys of Assyria remind me of the tribute: camels, spices, a thousand things.',
+        'Tell the first envoy that Adummatu pays what it promised, and not one camel more. Say it politely. Then say it again.',
+      ],
+      waiting: 'Give the queen\'s answer to the Assyrian envoy.',
+      turnIn: ['He took it? Good. Queens of Adummatu have dealt with kings for longer than kings have liked it.'],
+      objectives: [
+        {
+          text: 'Give the queen\'s answer to the Assyrian envoy',
+          lines: ['What was promised, and not one camel more? I will carry it to Nineveh exactly so.', 'The king will not like it. The king rarely likes anything from the desert.'],
+        },
+      ],
+    },
     ukaz_race: {
       title: 'Dahis and al-Ghabra',
       offer: [
@@ -747,6 +858,8 @@ export const en = {
     rota_tablet: 'rota tablet of the canals',
     frankincense: 'bundle of frankincense',
     lost_ode: 'the lost ode (a leather scroll)',
+    prince_armour: 'the armour of Imru\' al-Qais',
+    spring_water: 'skin of water from the sacred spring',
     caravan_letter: 'Sealed letter',
     tomb_tablet: 'tomb tablet',
     painted_jar: 'painted jar',

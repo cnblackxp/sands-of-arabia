@@ -54,6 +54,8 @@ export interface Spawn {
   racer?: string;
   /** A boss: a big health bar while fighting it. */
   boss?: boolean;
+  /** Camel of the escort convoy. */
+  convoy?: boolean;
   people?: string;
   /** Flying enemies (vultures): `pos` is already at flight height. */
   airborne?: boolean;
