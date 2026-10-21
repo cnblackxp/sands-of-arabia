@@ -204,6 +204,89 @@ def stall_lights(ctx, objs):
             ctx.col(st.location.x, st.location.y, st.location.z + 1.25, w + 0.2, d, 2.5, st.rotation_euler.z, "stall")
 
 
+# spawn spacing rules (horizontal metres from every player arrival spawn)
+VULTURE_MIN = 60.0
+FOE_MIN = 35.0
+
+
+def _inside_collider(level, x, y, z, r=0.6):
+    for c in level["colliders"]:
+        cx, cy, cz = c["pos"]
+        hx, hy, hz = c["half"]
+        if not (cy - hy - 0.5 <= y <= cy + hy + 0.5):
+            continue
+        dx, dz = x - cx, z - cz
+        cs, sn = math.cos(c["yaw"]), math.sin(c["yaw"])
+        lx, lz = dx * cs - dz * sn, dx * sn + dz * cs
+        if abs(lx) < hx + r and abs(lz) < hz + r:
+            return True
+    return False
+
+
+def enforce_spacing(level, height_fn, name):
+    """Keep vultures >= VULTURE_MIN and other foes >= FOE_MIN (horizontal) from every player spawn, and
+    keep ground foes out of colliders. Works on the final level dict (three.js coords); height_fn takes
+    blender (x, y). Vultures are pushed straight away from the offending arrival and keep their altitude;
+    ground foes are moved to the nearest free spot that satisfies the rule."""
+    players = [s["pos"] for s in level["spawns"] if s["role"] == "player"]
+    bx, bz = level["bounds"]["x"], level["bounds"]["z"]
+
+    def gh(x, z):
+        return height_fn(x, -z)
+
+    def nearest(x, z):
+        return min(((math.hypot(x - p[0], z - p[2]), p) for p in players), key=lambda t: t[0]) if players else (1e9, None)
+    moved = []
+    for s in level["spawns"]:
+        if s["role"] != "enemy":
+            continue
+        x, y, z = s["pos"]
+        lim = VULTURE_MIN if s.get("kind") == "vulture" else FOE_MIN
+        alt = y - gh(x, z)
+        elevated = s.get("airborne") or alt > 0.6
+        d, p = nearest(x, z)
+        if d >= lim and (elevated or not _inside_collider(level, x, y, z)):
+            continue
+        if s.get("kind") == "vulture" or s.get("airborne"):
+            for _ in range(30):
+                d, p = nearest(x, z)
+                if d >= lim:
+                    break
+                ux, uz = (x - p[0], z - p[2]) if d > 1e-3 else (1.0, 0.0)
+                n = math.hypot(ux, uz)
+                x, z = p[0] + ux / n * (lim + 2), p[2] + uz / n * (lim + 2)
+                x = min(max(x, bx[0] + 10), bx[1] - 10)
+                z = min(max(z, bz[0] + 10), bz[1] - 10)
+            y = gh(x, z) + alt
+        elif elevated:
+            print(f"SPACING WARN {name}: elevated {s.get('kind')} at {s['pos']} is {d:.1f} m from an arrival")
+            continue
+        else:
+            best = None
+            for ring in range(0, 40):
+                for k in range(max(1, ring * 6)):
+                    a = k / max(1, ring * 6) * math.tau
+                    tx, tz = x + math.cos(a) * ring * 1.5, z + math.sin(a) * ring * 1.5
+                    if not (bx[0] + 5 < tx < bx[1] - 5 and bz[0] + 5 < tz < bz[1] - 5):
+                        continue
+                    ty = gh(tx, tz)
+                    if nearest(tx, tz)[0] >= lim and not _inside_collider(level, tx, ty, tz):
+                        best = (tx, ty, tz)
+                        break
+                if best:
+                    break
+            if not best:
+                print(f"SPACING WARN {name}: no free spot for {s.get('kind')} at {s['pos']}")
+                continue
+            x, y, z = best
+        old = s["pos"]
+        s["pos"] = [round(x, 4), round(y, 4), round(z, 4)]
+        moved.append((s.get("kind"), old, s["pos"]))
+    for k, a, b in moved:
+        print(f"SPACING {name}: moved {k} {a} -> {b}")
+    return moved
+
+
 def level_dict(m, ctx, heights, rel_dir):
     el, az = math.radians(m.sun[0]), math.radians(m.sun[1])
     sun = Vector((math.sin(az) * math.cos(el), math.cos(az) * math.cos(el), math.sin(el)))
@@ -251,6 +334,7 @@ def export_map(ex, m):
     objs.append(mb.build("Static", L.C_LAND))
     join_export(ex, objs, f"{rel_dir}/town.glb")
     lvl = level_dict(m, ctx, heights, rel_dir)
+    enforce_spacing(lvl, m.height, m.name)
     with open(os.path.join(ex.ASSETS, rel_dir, "level.json"), "w", encoding="utf8") as f:
         json.dump(lvl, f, indent=1)
     ex.MANIFEST["assets"][f"level_{m.name}"] = {"file": f"{rel_dir}/level.json", "kind": "level-data", "title": m.title}

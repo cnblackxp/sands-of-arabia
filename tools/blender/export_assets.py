@@ -891,13 +891,14 @@ def export_level():
                       "crest": [(-88, 96), (-95, 101)], "east_flats": [(114, -24), (106, -25)]}.items():
         for (x, y) in pts:
             sp("enemy", x, y, random.uniform(-math.pi, math.pi), kind="hound", camp=camp)
-    for (x, y) in [(20, -72), (23.5, -74), (18, -76)]:
-        sp("enemy", x, y, R(200), kind="hound", camp="test")
-    sp("enemy", 12, -64, 0.0, kind="vulture", camp="test", z=round(L.height(12, -64) + 16, 3), airborne=True)
+    # the test camp lives out in the south-east dunes, >70 m from every arrival and bonfire
+    for (x, y) in [(108, -78), (111.5, -80), (106, -82)]:
+        sp("enemy", x, y, R(140), kind="hound", camp="test")
+    sp("enemy", 110, -86, 0.0, kind="vulture", camp="test", z=round(L.height(110, -86) + 16, 3), airborne=True)
     sp("enemy", -60, -60, 0.0, kind="vulture", camp="sky", z=round(L.height(-60, -60) + 20, 3), airborne=True)
-    sp("enemy", -26, -78, R(30), kind="slinger", camp="test")
+    sp("enemy", 103, -73, R(140), kind="slinger", camp="test")
     sp("enemy", 120, -8, R(-120), kind="slinger", camp="east_flats")
-    sp("enemy", 30, -64, R(160), kind="clubman", camp="test")
+    sp("enemy", 116, -75, R(140), kind="clubman", camp="test")
     sp("enemy", 112, -14, R(-100), kind="clubman", camp="east_flats")
     # archery range west of the gate: targets face south toward the market
     for k, (tx, ty) in enumerate([(-9.5, 18.6), (-13.5, 18.4), (-17.5, 18.0)]):
@@ -931,6 +932,12 @@ def export_level():
                       "pool": to3((POOL.x, POOL.y, L.height(POOL.x, POOL.y))),
                       "tomb": to3((72, 106, L.height(72, 106))), "camp": to3((60, 46, L.height(60, 46))), **archery},
     }
+    import maps as _MP
+    _MP.enforce_spacing(level, L.oasis_height, "oasis")
+    test = [s_["pos"] for s_ in spawns if s_.get("camp") == "test"]
+    keep = [s_["pos"] for s_ in spawns if s_["role"] in ("player", "bonfire")]
+    dmin = min(math.hypot(a[0] - b[0], a[2] - b[2]) for a in test for b in keep)
+    print("TESTCAMP min distance to arrivals/bonfires", round(dmin, 1), "m")
     with open(os.path.join(ASSETS, "level", "level.json"), "w", encoding="utf8") as f:
         json.dump(level, f, indent=1)
     MANIFEST["assets"]["level"] = {"file": "level/level.json", "kind": "level-data",

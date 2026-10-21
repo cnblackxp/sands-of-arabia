@@ -263,11 +263,15 @@ class Rooftops(M.MapDef):
                               "summit": ((top_r[0] + top_r[1]) / 2, (top_r[2] + top_r[3]) / 2)})
         print("ROOFTOPS route", len(route), "steps, summit", round(top_r[4], 2), "m, houses", len(rects))
         # v5 enemies: slingers holding roofs along the route
-        for k in (5, 14, 20):
-            if k < len(route):
-                r = route[k]
-                ctx.spawn("enemy", (r[0] + r[1]) / 2 + 0.8, (r[2] + r[3]) / 2, math.pi, kind="slinger", camp="roofs",
-                          z=round(r[4], 3))
+        arrivals = [(sp_["x"], sp_["y"]) for sp_ in ctx.spawns if sp_["role"] == "player"]
+        picked = []
+        for k, r in enumerate(route):                      # roofs >= 40 m from every arrival, spread along the route
+            cx, cy = (r[0] + r[1]) / 2, (r[2] + r[3]) / 2
+            if min(math.hypot(cx - ax, cy - ay) for ax, ay in arrivals) >= 40 and all(k - j >= 5 for j in picked):
+                picked.append(k)
+                ctx.spawn("enemy", cx + 0.8, cy, math.pi, kind="slinger", camp="roofs", z=round(r[4], 3))
+            if len(picked) == 3:
+                break
         M.dress(mb, ctx, self, lambda x, y: max(abs(x) / 78, abs(y - 5) / 80) > 1.05, rocks=10, singles=20,
                 shrubs=50, dry=30, acacias=6, dead=2, ruins=0, bones=1)
 

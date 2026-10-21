@@ -751,75 +751,43 @@
    ]
   },
   "terrain": {
-   "file": "level/terrain.glb",
+   "file": "level/ruined_temple/terrain.glb",
    "kind": "terrain",
    "size": [
-    400.0,
-    30.931,
-    400.0
+    180.0,
+    11.082,
+    184.0
    ],
    "materials": [
     "SandVC"
-   ],
-   "notes": "vertex colours, no normals: GLTFLoader enables flatShading automatically"
+   ]
   },
   "town": {
-   "file": "level/town.glb",
+   "file": "level/ruined_temple/town.glb",
    "kind": "level",
    "size": [
-    141.796,
-    29.957,
-    169.465
+    166.001,
+    15.308,
+    171.248
    ],
    "materials": [
-    "Aw1a",
-    "Aw1b",
-    "Aw2a",
-    "Aw2b",
-    "Aw3a",
-    "Aw3b",
-    "Aw4a",
-    "Aw4b",
-    "Aw5a",
-    "Aw5b",
-    "Betyl",
-    "Brass",
-    "Clay",
-    "Clay2",
-    "Dates",
-    "Fire",
-    "Frond",
-    "GoatHair",
-    "Grass",
-    "LampFlame",
+    "Banner0",
+    "Bark",
+    "Bone",
+    "Canopy0",
+    "Canopy1",
+    "DryBrush",
     "Leather",
     "Lime",
-    "Mud0",
-    "Mud1",
-    "Mud2",
-    "Opening",
     "RockBand0",
     "RockBand1",
     "RockBand2",
     "RockBand3",
-    "Rug0",
-    "Rug1",
-    "Rug2",
-    "Rug3",
-    "Rug4",
-    "Sack",
-    "Spice0",
-    "Spice1",
-    "Spice2",
-    "Spice3",
-    "Spice4",
-    "Spice5",
+    "Shrub0",
+    "Shrub1",
+    "Shrub2",
     "Stone",
-    "TombDoor",
-    "TombFace",
-    "TombRock",
-    "Trunk",
-    "Water",
+    "StoneDark",
     "Wood"
    ]
   },
@@ -852,17 +820,16 @@
    "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
   },
   "backdrop_ground": {
-   "file": "level/backdrop_ground.glb",
+   "file": "level/ruined_temple/backdrop_ground.glb",
    "kind": "backdrop",
    "size": [
-    1800.0,
-    30.206,
-    1800.0
+    1620.0,
+    10.19,
+    1620.0
    ],
    "materials": [
     "SandVC"
-   ],
-   "notes": "coarse ground ring around the playable terrain (hole in the middle)"
+   ]
   },
   "dressing": {
    "file": "level/dressing.glb",
