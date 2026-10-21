@@ -4,15 +4,15 @@
  * on-screen prompt.
  *
  * Gamepad (standard mapping), Elden Ring style:
- *   L-stick move · B tap = roll, B hold = sprint (or L3 / LT) · RB / RT attack
- *   LB hold = block · X = healing draught · A jump / confirm · Y interact
+ *   L-stick move · B tap = roll, B hold = sprint (or L3) · RT attack (RB too)
+ *   LT hold = block / aim a bow (LB too) · X = healing draught · A jump / confirm · Y interact
  *   Start menu · View map · R-stick camera · LB/RB switch menu tabs
  * Keyboard: WASD · Shift sprint · LMB attack · RMB block · Space roll · F jump
  *   E interact · R heal · Tab inventory · M map · Esc menu · Z/C or middle-mouse drag rotate camera
  *   D-pad up/down zoom, left/right rotate (D-pad navigates menus)
  * True third person (debug camera): mouse (pointer lock) or right stick looks
- *   around, wheel or D-pad up/down zooms. With a bow, block (RMB / LB) aims and
- *   attack (LMB / RB / RT) looses the arrow.
+ *   around, wheel or D-pad up/down zooms. With a bow, block (RMB / LT) aims and
+ *   attack (LMB / RT) looses the arrow.
  */
 
 export type Device = 'keyboard' | 'gamepad';
@@ -276,11 +276,12 @@ export class Input {
     }
     if (edge(10)) this.runToggle = !this.runToggle;
     if (mag < DEAD) this.runToggle = false;
-    if (this.runToggle || (gp.buttons[6]?.value ?? 0) > 0.4) f.run = true;
+    if (this.runToggle) f.run = true;
 
-    if (edge(5) || edge(7)) f.attack = true;
+    // Triggers: RT attacks (looses an arrow), LT blocks (draws and aims a bow). The bumpers do the same.
+    if (edge(7) || edge(5)) f.attack = true;
     if (edge(2)) f.heal = true;
-    if (b(4)) f.block = true;
+    if (b(4) || b(6) || (gp.buttons[6]?.value ?? 0) > 0.3) f.block = true;
     if (edge(4)) f.tab -= 1;
     if (edge(5)) f.tab += 1;
     if (edge(0)) {

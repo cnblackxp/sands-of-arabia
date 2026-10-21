@@ -179,7 +179,7 @@ Decisions worth knowing:
 - **Draw calls.** Characters are merged at spawn into one mesh with two draw groups (matte, metal). Accessories are chosen before the merge and can't be toggled afterwards.
 - **Controls** follow Elden Ring's layout. The HUD glyphs follow the last device used.
   - Keyboard: WASD move, Shift sprint, LMB or J attack, RMB block (hold), Space roll, F jump (hold for height), R drink a healing waterskin, E interact (talk, trade, rest, take, travel, mount), Tab menu, M map, Esc menu, middle-mouse drag or Z and C to rotate, wheel zoom. In menus: arrows or WASD, Enter, Esc; Tab, Shift+Tab, `[` and `]` switch tabs.
-  - Gamepad (standard mapping): left stick move (analog), B tap roll, B hold or LT or L3 sprint, RB or RT attack, LB block (hold), X heal, A jump (hold) and confirm, Y interact, Start menu, View map, right stick camera, D-pad zoom and rotate. In menus: D-pad or stick, A choose, B close, LB and RB switch tabs.
+  - Gamepad (standard mapping): left stick move (analog), B tap roll, B hold or L3 sprint, RT attack, LT block / aim (hold) (RB and LB also work), X heal, A jump (hold) and confirm, Y interact, Start menu, View map, right stick camera, D-pad zoom and rotate. In menus: D-pad or stick, A choose, B close, LB and RB switch tabs.
 - **Progression** (`progress.ts`, saved to localStorage):
   - **Gold** drops from enemies. On death your gold stays where you fell (`lostGold`); die again before picking it up and it's gone.
   - **Bonfires** (`role: "bonfire"` spawns, else one beside the arrival point): rest to heal, refill waterskins and respawn enemies. The last one you rested at is where you wake. Lit bonfires appear in the menu's Travel tab.
@@ -229,7 +229,7 @@ Decisions worth knowing:
   - Mouse look uses pointer lock: the first click captures the mouse, and Esc frees it and opens the menu. The gamepad's right stick looks around. Zoom is the wheel or D-pad up/down.
   - Sensitivity and invert-Y live in the Debug tab. `Input.thirdPerson` switches the stick mapping.
 - **Bow** (`composite_bow` in `items.ts`, `kind: 'bow'`). It is two-handed, so there is no shield.
-  - Block (RMB / LB) draws and aims. Attack (LMB / RB / RT) looses the arrow once it is fully drawn; pressing early queues the shot. Attack without aiming makes a quick shot with aim assist. Every arrow needs a fresh draw (`draw` seconds).
+  - Block (RMB / LT) draws and aims. Attack (LMB / RT) looses the arrow once it is fully drawn; pressing early queues the shot. Attack without aiming makes a quick shot with aim assist. Every arrow needs a fresh draw (`draw` seconds).
   - Aim direction:
     - third person: along the crosshair ray;
     - overhead camera with a mouse: at the cursor, with a ballistic solve;

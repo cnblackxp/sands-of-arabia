@@ -31,10 +31,10 @@ It runs in any modern desktop browser with WebGL 2, using keyboard and mouse or 
 | Action | Keyboard & mouse | Controller |
 |---|---|---|
 | Move | WASD | Left stick |
-| Sprint (free out of combat) | Shift | Hold B, LT or L3 |
-| Attack | Left click or J | RB or RT |
-| Block (with a shield) / aim a bow | Right mouse (hold) | LB (hold) |
-| Loose an arrow (bow) | Left click | RB or RT |
+| Sprint (free out of combat) | Shift | Hold B (or L3) |
+| Attack | Left click or J | RT |
+| Block (with a shield) / aim a bow | Right mouse (hold) | LT (hold) |
+| Loose an arrow (bow) | Left click | RT |
 | Dodge roll | Space | Tap B |
 | Jump (hold for height, double jump with the feather) | F | A |
 | Drink a healing waterskin | R | X |

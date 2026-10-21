@@ -50,7 +50,7 @@ const GLYPH: Record<Device, Record<Action, string>> = {
   gamepad: {
     move: '<span class="pad stick">L</span>',
     run: '<span class="pad b">B</span><small>hold</small>',
-    attack: '<span class="pad bumper">RB</span>',
+    attack: '<span class="pad bumper">RT</span>',
     dodge: '<span class="pad b">B</span>',
     talk: '<span class="pad y">Y</span>',
     mount: '<span class="pad y">Y</span>',
@@ -64,7 +64,7 @@ const GLYPH: Record<Device, Record<Action, string>> = {
     confirm: '<span class="pad a">A</span>',
     back: '<span class="pad b">B</span>',
     adjust: '<span class="pad dpad">◀▶</span>',
-    block: '<span class="pad bumper">LB</span>',
+    block: '<span class="pad bumper">LT</span>',
     heal: '<span class="pad x">X</span>',
     inventory: '<span class="pad menu">☰</span>',
     look: '<span class="pad stick">R</span>',
