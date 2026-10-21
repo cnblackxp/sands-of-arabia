@@ -9,7 +9,7 @@ Research notes for new *Sands of Arabia* maps. They cover real sites and legends
 
 Written 2026-10-21 by a research-only session. Nothing outside `docs/research/` was changed.
 
-**About the images.** Every image is a 960 px thumbnail served by Wikimedia (`thumb.wikimedia.org`), and every caption names the author and licence and links the Commons file page. Most are CC BY or CC BY-SA, so credit the author if any image is reused in the game or its marketing. Nothing has been downloaded into the repo. Many of the best photos are by Richard Mortel (CC BY 2.0, sometimes credited as "Prof. Mortel"). His Commons and Flickr sets have hundreds more frames of the same sites, and Carole Raddato ("Following Hadrian", CC BY-SA 2.0) has more of Hegra and Wadi Rum.
+**About the images.** Every image is a local copy (1280 px, from Wikimedia Commons) in [`images/`](images/), one folder per section, so a Blender session can open them as modelling reference. Every caption names the author and licence and links the Commons file page; [`images/CREDITS.md`](images/CREDITS.md) lists them all. Most are CC BY or CC BY-SA, so credit the author if any image is reused in the game or its marketing. Many of the best photos are by Richard Mortel (CC BY 2.0, sometimes credited as "Prof. Mortel"). His Commons and Flickr sets have hundreds more frames of the same sites, and Carole Raddato ("Following Hadrian", CC BY-SA 2.0) has more of Hegra and Wadi Rum.
 
 **About the game hooks.** The level ideas assume what the game has or has planned: jump and double jump (required moves ≤ 1.35 m up and ≤ 2.7 m across), horses and the winged horse, the bow, bonfires, shops, kill/talk/fetch quests and the enemy list from the brainstorm notes (raiders, skirmishers, brutes, slingers, archers, hounds, vultures, club brutes, hyenas, ghul).
 
@@ -84,19 +84,19 @@ Many players will be Muslim, and the game ships in Arabic. Some of the old stori
 
 **What it was.** Hegra (Mada'in Salih, al-Hijr) was the Nabataean kingdom's second city and its southern frontier post, from about the 1st century BCE to 106 CE, when Rome annexed the kingdom. It has 111 monumental tombs, 94 of them decorated, many dated by inscription between 1 BCE and 75 CE ([UNESCO 1293](https://whc.unesco.org/en/list/1293); [Wikipedia](https://en.wikipedia.org/wiki/Hegra_%28Mada%27in_Salih%29)). Jabal Ithlib is the sandstone massif in the north-east of the site. It was the religious quarter: a short natural siq, niches carved with betyls (aniconic god-stones, most often for Dushara), water channels and basins, and the *Diwan*, an open rock-cut banquet hall with benches on three sides. Laïla Nehmé reads it as a hall where religious brotherhoods (*marzeah*) met to feast ([CNRS News, "Hegra's splendour revealed"](https://news.cnrs.fr/articles/hegras-splendor-revealed); [Google Arts & Culture](https://artsandculture.google.com/story/RQUhxatmfRWQLQ)).
 
-![Jabal Ithlib and the mouth of its siq](https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cb/Jabal_Ithlib_and_the_Siq%2C_Hegra_%28Madain_Salih%29%2C_Saudi_Arabia.jpg/960px-Jabal_Ithlib_and_the_Siq%2C_Hegra_%28Madain_Salih%29%2C_Saudi_Arabia.jpg)
+![Jabal Ithlib and the mouth of its siq](images/01_jabal_ithlib_hegra_the_sacred_mo/01_jabal_ithlib_and_the_mouth_of_its_siq.jpg)
 *Jabal Ithlib and the mouth of its siq.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Jabal_Ithlib_and_the_Siq,_Hegra_%28Madain_Salih%29,_Saudi_Arabia.jpg).
 
-![The Diwan: an open hall cut straight into the rock, benches on three sides](https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cd/The_Diwan%2C_Jabal_Ithlib%2C_Hegra_%28Madain_Salih%29%2C_Saudi_Arabia.jpg/960px-The_Diwan%2C_Jabal_Ithlib%2C_Hegra_%28Madain_Salih%29%2C_Saudi_Arabia.jpg)
+![The Diwan: an open hall cut straight into the rock, benches on three sides](images/01_jabal_ithlib_hegra_the_sacred_mo/02_the_diwan_an_open_hall_cut_straight_into_the_roc.jpg)
 *The Diwan: an open hall cut straight into the rock, benches on three sides.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:The_Diwan,_Jabal_Ithlib,_Hegra_%28Madain_Salih%29,_Saudi_Arabia.jpg).
 
-![A ritual niche with a betyl. Simple to model: a recess, a plinth and a block](https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5b/Ritual_niche%2C_Jabal_Ithlib%2C_Hegra_%28Madain_Salih%29%2C_Saudi_Arabia.jpg/960px-Ritual_niche%2C_Jabal_Ithlib%2C_Hegra_%28Madain_Salih%29%2C_Saudi_Arabia.jpg)
+![A ritual niche with a betyl. Simple to model: a recess, a plinth and a block](images/01_jabal_ithlib_hegra_the_sacred_mo/03_a_ritual_niche_with_a_betyl_simple_to_model_a_re.jpg)
 *A ritual niche with a betyl. Simple to model: a recess, a plinth and a block.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ritual_niche,_Jabal_Ithlib,_Hegra_%28Madain_Salih%29,_Saudi_Arabia.jpg).
 
-![Nabataean graffiti on the siq walls. These are the collectible lore stones](https://thumb.wikimedia.org/wikipedia/commons/thumb/6/69/Ancient_inscriptions_at_Jabal_Ithlib%2C_Hegra_%28MAdain_Salih%29%2C_Saudi_Arabia.jpg/960px-Ancient_inscriptions_at_Jabal_Ithlib%2C_Hegra_%28MAdain_Salih%29%2C_Saudi_Arabia.jpg)
+![Nabataean graffiti on the siq walls. These are the collectible lore stones](images/01_jabal_ithlib_hegra_the_sacred_mo/04_nabataean_graffiti_on_the_siq_walls_these_are_th.jpg)
 *Nabataean graffiti on the siq walls. These are the collectible "lore stones".* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ancient_inscriptions_at_Jabal_Ithlib,_Hegra_%28MAdain_Salih%29,_Saudi_Arabia.jpg).
 
-![Qasr al-Farid](https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Qasr_al-Farid%2C_Hegra_%28Madain_Salih%29%2C_1st_cent._CE%2C_Saudi_Arabia_%288%29.jpg/960px-Qasr_al-Farid%2C_Hegra_%28Madain_Salih%29%2C_1st_cent._CE%2C_Saudi_Arabia_%288%29.jpg)
+![Qasr al-Farid](images/01_jabal_ithlib_hegra_the_sacred_mo/05_qasr_al_farid_the_four_storey_tomb_never_finishe.jpg)
 *Qasr al-Farid: the four-storey tomb, never finished at the bottom. Its crow-steps are literal stairs.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Qasr_al-Farid,_Hegra_%28Madain_Salih%29,_1st_cent._CE,_Saudi_Arabia_%288%29.jpg).
 
 
@@ -119,28 +119,28 @@ Many players will be Muslim, and the game ships in Arabic. Some of the old stori
 
 **What it was.** Dadan (biblical Dedan) in the AlUla valley was capital of the Dadanite kingdom and then of the Lihyanite kingdom, roughly from the 8th to the 1st century BCE, before the Nabataeans moved the centre to Hegra. It sat on the incense road. Tombs are cut high in the red cliff face above the town. A few, the "lion tombs", have pairs of lions carved in relief above the opening. The town had a large temple of the Lihyanite god Dhu Ghabat (Dhu Ghaybah), with stone basins and over-life-size statues of kings ([Wikipedia: Lion tombs of Dedan](https://en.wikipedia.org/wiki/Lion_tombs_of_Dedan); [Lihyan](https://en.wikipedia.org/wiki/Lihyan); [World History Encyclopedia](https://www.worldhistory.org/article/2850/dadan-tayma-khaybar-qurh--old-town-alula/)). Jabal Ikmah, a canyon nearby, holds hundreds of Dadanitic inscriptions: an "open-air library" of dedications and ritual texts ([Wikipedia: AlUla](https://en.wikipedia.org/wiki/AlUla)).
 
-![Dadan's necropolis: rows of square tomb openings cut high in the red cliff](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/92/Ancient_site_of_Dadan_at_al-Ula%2C_1st_millenium_BCE%2C_Saudi_Arabia_9.jpg/960px-Ancient_site_of_Dadan_at_al-Ula%2C_1st_millenium_BCE%2C_Saudi_Arabia_9.jpg)
+![Dadan's necropolis: rows of square tomb openings cut high in the red cliff](images/02_dadan_and_jabal_ikmah_alula/01_dadan_s_necropolis_rows_of_square_tomb_openings.jpg)
 *Dadan's necropolis: rows of square tomb openings cut high in the red cliff.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ancient_site_of_Dadan_at_al-Ula,_1st_millenium_BCE,_Saudi_Arabia_9.jpg).
 
-![The cliff at the lion-tomb site](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e0/Lion_Tomb_Site%2C_Al_Ula_-_panoramio.jpg/960px-Lion_Tomb_Site%2C_Al_Ula_-_panoramio.jpg)
+![The cliff at the lion-tomb site](images/02_dadan_and_jabal_ikmah_alula/02_the_cliff_at_the_lion_tomb_site.jpg)
 *The cliff at the lion-tomb site.* Credit: juhotski, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Lion_Tomb_Site,_Al_Ula_-_panoramio.jpg).
 
-![The excavated temple at Dadan (locally called Mahlab al-Naqa), with the palm valley and cliffs behind](https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2b/Tempel_von_Mahlab_al-Naqa_20260129_1.jpg/960px-Tempel_von_Mahlab_al-Naqa_20260129_1.jpg)
+![The excavated temple at Dadan (locally called Mahlab al-Naqa), with the palm valley and cliffs behind](images/02_dadan_and_jabal_ikmah_alula/03_the_excavated_temple_at_dadan_locally_called_mah.jpg)
 *The excavated temple at Dadan (locally called Mahlab al-Naqa), with the palm valley and cliffs behind.* Credit: Z thomas, CC BY 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Tempel_von_Mahlab_al-Naqa_20260129_1.jpg).
 
-![A colossal red-sandstone statue of a Lihyanite king (4th–3rd c. BCE), shown in Berlin. Square shoulders, a kilt, arms at the sides](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Pergamon-Museum_-_Dedan_Statue.jpg/960px-Pergamon-Museum_-_Dedan_Statue.jpg)
+![A colossal red-sandstone statue of a Lihyanite king (4th–3rd c. BCE), shown in Berlin. Square shoulders, a kilt, arms at the sides](images/02_dadan_and_jabal_ikmah_alula/04_a_colossal_red_sandstone_statue_of_a_lihyanite_k.jpg)
 *A colossal red-sandstone statue of a Lihyanite king (4th–3rd c. BCE), shown in Berlin. Square shoulders, a kilt, arms at the sides: easy to build from boxes.* Credit: Wolfgang Sauber, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Pergamon-Museum_-_Dedan_Statue.jpg).
 
-![Carved blocks from Dadan's buildings: zig-zag and band mouldings](https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/Ancient_site_of_Dadan_at_al-Ula%2C_1st_millenium_BCE%2C_Saudi_Arabia_44.jpg/960px-Ancient_site_of_Dadan_at_al-Ula%2C_1st_millenium_BCE%2C_Saudi_Arabia_44.jpg)
+![Carved blocks from Dadan's buildings: zig-zag and band mouldings](images/02_dadan_and_jabal_ikmah_alula/05_carved_blocks_from_dadan_s_buildings_zig_zag_and.jpg)
 *Carved blocks from Dadan's buildings: zig-zag and band mouldings.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ancient_site_of_Dadan_at_al-Ula,_1st_millenium_BCE,_Saudi_Arabia_44.jpg).
 
-![Jabal Ikmah: inscriptions in Dadanitic script covering the canyon wall](https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c0/Jabal_Ikmah%2C_ancient_Arabian_rock_art_and_inscription_site%3B_1st_millenium_BCE%3B_al-Ula%2C_Saudi_Arabia_%2817%29.jpg/960px-Jabal_Ikmah%2C_ancient_Arabian_rock_art_and_inscription_site%3B_1st_millenium_BCE%3B_al-Ula%2C_Saudi_Arabia_%2817%29.jpg)
+![Jabal Ikmah: inscriptions in Dadanitic script covering the canyon wall](images/02_dadan_and_jabal_ikmah_alula/06_jabal_ikmah_inscriptions_in_dadanitic_script_cov.jpg)
 *Jabal Ikmah: inscriptions in Dadanitic script covering the canyon wall.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Jabal_Ikmah,_ancient_Arabian_rock_art_and_inscription_site;_1st_millenium_BCE;_al-Ula,_Saudi_Arabia_%2817%29.jpg).
 
-![Jabal Ikmah: rock art and lettering together](https://thumb.wikimedia.org/wikipedia/commons/thumb/a/af/Jabal_Ikmah%2C_ancient_Arabian_rock_art_and_inscription_site%3B_1st_millenium_BCE%3B_al-Ula%2C_Saudi_Arabia_%288%29.jpg/960px-Jabal_Ikmah%2C_ancient_Arabian_rock_art_and_inscription_site%3B_1st_millenium_BCE%3B_al-Ula%2C_Saudi_Arabia_%288%29.jpg)
+![Jabal Ikmah: rock art and lettering together](images/02_dadan_and_jabal_ikmah_alula/07_jabal_ikmah_rock_art_and_lettering_together.jpg)
 *Jabal Ikmah: rock art and lettering together.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Jabal_Ikmah,_ancient_Arabian_rock_art_and_inscription_site;_1st_millenium_BCE;_al-Ula,_Saudi_Arabia_%288%29.jpg).
 
-![AlUla's later old town](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/Al_Ula_old_town%2C_Saudi_Arabia_2011.jpg/960px-Al_Ula_old_town%2C_Saudi_Arabia_2011.jpg)
+![AlUla's later old town](images/02_dadan_and_jabal_ikmah_alula/08_alula_s_later_old_town_mudbrick_and_stone_on_the.jpg)
 *AlUla's later old town: mudbrick and stone on the same valley floor. Good palette reference for the valley.* Credit: Pteropus conspicillatus, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Al_Ula_old_town,_Saudi_Arabia_2011.jpg).
 
 
@@ -167,16 +167,16 @@ Many players will be Muslim, and the game ships in Arabic. Some of the old stori
 
 **What it was.** Petra was the Nabataean capital from at least the 4th century BCE to the Roman annexation in 106 CE. It sat where the incense road met the routes to Gaza and Damascus. It is known for its rock-cut façades (the Khazneh, the Monastery/ad-Deir), a theatre carved from the rock, high places of sacrifice and an engineered water system of channels, dams and cisterns ([UNESCO 326](https://whc.unesco.org/en/list/326); [Wikipedia: Petra](https://en.wikipedia.org/wiki/Petra); [Ad Deir](https://en.wikipedia.org/wiki/Ad_Deir)). Wadi Rum to the south has a Nabataean temple of Allat built over an older shrine, and thousands of Thamudic and Nabataean inscriptions ([Wikipedia: Wadi Rum](https://en.wikipedia.org/wiki/Wadi_Rum)). Humayma was a Nabataean caravan station fed by a 27 km aqueduct ([Wikipedia: Humayma](https://en.wikipedia.org/wiki/Humayma)).
 
-![Ad-Deir, the Monastery, about 45 m tall. The urn on top is the climb goal](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Ad_Deir_%28The_Monastery%29%2C_El_Deir%2C_Petra%2C_Jordan.jpg/960px-Ad_Deir_%28The_Monastery%29%2C_El_Deir%2C_Petra%2C_Jordan.jpg)
+![Ad-Deir, the Monastery, about 45 m tall. The urn on top is the climb goal](images/03_petra_and_the_nabataean_north_pe/01_ad_deir_the_monastery_about_45_m_tall_the_urn_on.jpg)
 *Ad-Deir, the Monastery, about 45 m tall. The urn on top is the climb goal.* Credit: Vyacheslav Argenberg, CC BY 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ad_Deir_%28The_Monastery%29,_El_Deir,_Petra,_Jordan.jpg).
 
-![Petra's theatre, cut into the hillside: a natural stepped arena](https://thumb.wikimedia.org/wikipedia/commons/thumb/0/04/Petra_Theatre_2054.jpg/960px-Petra_Theatre_2054.jpg)
+![Petra's theatre, cut into the hillside: a natural stepped arena](images/03_petra_and_the_nabataean_north_pe/02_petra_s_theatre_cut_into_the_hillside_a_natural.jpg)
 *Petra's theatre, cut into the hillside: a natural stepped arena.* Credit: Dosseman, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Petra_Theatre_2054.jpg).
 
-![The Nabataean temple of Allat in Wadi Rum](https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Remains_of_a_Nabataean_temple%2C_Wadi_Rum%2C_Jordan_%2834192496585%29.jpg/960px-Remains_of_a_Nabataean_temple%2C_Wadi_Rum%2C_Jordan_%2834192496585%29.jpg)
+![The Nabataean temple of Allat in Wadi Rum](images/03_petra_and_the_nabataean_north_pe/03_the_nabataean_temple_of_allat_in_wadi_rum.jpg)
 *The Nabataean temple of Allat in Wadi Rum.* Credit: Carole Raddato from FRANKFURT, Germany, CC BY-SA 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Remains_of_a_Nabataean_temple,_Wadi_Rum,_Jordan_%2834192496585%29.jpg).
 
-![Wadi Rum: Nabataean ruins under the sandstone jebels](https://thumb.wikimedia.org/wikipedia/commons/thumb/8/89/Wadi_Rum_BW_7.JPG/960px-Wadi_Rum_BW_7.JPG)
+![Wadi Rum: Nabataean ruins under the sandstone jebels](images/03_petra_and_the_nabataean_north_pe/04_wadi_rum_nabataean_ruins_under_the_sandstone_jeb.jpg)
 *Wadi Rum: Nabataean ruins under the sandstone jebels.* Credit: Berthold Werner, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Wadi_Rum_BW_7.JPG).
 
 
@@ -196,19 +196,19 @@ Many players will be Muslim, and the game ships in Arabic. Some of the old stori
 - *The well:* Bir Haddaj is a huge stone-lined well with draw-wheel frames on all sides. Its present form is later, but it may be built on an ancient one.
 - *The castle:* Qasr al-Ablaq ("the piebald castle") is the fortress of the Jewish poet al-Samaw'al ibn 'Adiya (6th century). Legend says he refused to hand over the armour that Imru' al-Qais had left with him, even when the besieger killed his son. "More loyal than al-Samaw'al" became a proverb ([Wikipedia: Samaw'al](https://en.wikipedia.org/wiki/Samaw%27al_ibn_%27Adiya)). Al-Isfahani already doubted the details, so treat it as legend.
 
-![Bir Haddaj, the great well of Tayma, with its ring of pulley frames](https://upload.wikimedia.org/wikipedia/commons/f/fd/%D8%A8%D8%A6%D8%B1_%D9%87%D8%AF%D8%A7%D8%AC.png)
+![Bir Haddaj, the great well of Tayma, with its ring of pulley frames](images/04_tayma/01_bir_haddaj_the_great_well_of_tayma_with_its_ring.png)
 *Bir Haddaj, the great well of Tayma, with its ring of pulley frames.* Credit: X1700, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:%D8%A8%D8%A6%D8%B1_%D9%87%D8%AF%D8%A7%D8%AC.png).
 
-![The Tayma stone (Aramaic, 6th–5th c. BCE), Louvre](https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Teima_stone_Louvre_AO1505.jpg/960px-Teima_stone_Louvre_AO1505.jpg)
+![The Tayma stone (Aramaic, 6th–5th c. BCE), Louvre](images/04_tayma/02_the_tayma_stone_aramaic_6th_5th_c_bce_louvre.jpg)
 *The Tayma stone (Aramaic, 6th–5th c. BCE), Louvre.* Credit: unknown, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Teima_stone_Louvre_AO1505.jpg).
 
-![Stele of the god Salm, Tayma, Louvre](https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5d/Stele_Salm_Louvre_AO5009.jpg/960px-Stele_Salm_Louvre_AO5009.jpg)
+![Stele of the god Salm, Tayma, Louvre](images/04_tayma/03_stele_of_the_god_salm_tayma_louvre.jpg)
 *Stele of the god Salm, Tayma, Louvre.* Credit: unknown, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Stele_Salm_Louvre_AO5009.jpg).
 
-![Old Tayma: mudbrick lanes between walled palm gardens](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Old_town_of_Tayma_2020.jpg/960px-Old_town_of_Tayma_2020.jpg)
+![Old Tayma: mudbrick lanes between walled palm gardens](images/04_tayma/04_old_tayma_mudbrick_lanes_between_walled_palm_gar.jpg)
 *Old Tayma: mudbrick lanes between walled palm gardens.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Old_town_of_Tayma_2020.jpg).
 
-![A rock drawing of a horseman in Neo-Assyrian style, one of the few traces of Nabonidus's stay at Tayma](https://thumb.wikimedia.org/wikipedia/commons/thumb/5/54/Tayma_horseman.jpg/960px-Tayma_horseman.jpg)
+![A rock drawing of a horseman in Neo-Assyrian style, one of the few traces of Nabonidus's stay at Tayma](images/04_tayma/05_a_rock_drawing_of_a_horseman_in_neo_assyrian_sty.jpg)
 *A rock drawing of a horseman in Neo-Assyrian style, one of the few traces of Nabonidus's stay at Tayma.* Credit: Nabataeus, CC BY 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Tayma_horseman.jpg).
 
 
@@ -236,10 +236,10 @@ Many players will be Muslim, and the game ships in Arabic. Some of the old stori
 
 **What it was.** Khaybar is an oasis about 150 km north of Medina, set in the black basalt lava fields of Harrat Khaybar. Satellite survey and excavation have found a walled oasis: a wall about 14.5 km long and the fortified town of al-Natah, built about 2400–2000 BCE and later abandoned. In the 6th–7th centuries CE Khaybar was a rich date oasis of Jewish tribes, with fortresses (*hisn*) on basalt spurs ([Wikipedia: Khaybar](https://en.wikipedia.org/wiki/Khaybar); [PLOS ONE, Charloux et al. 2024](https://doi.org/10.1371/journal.pone.0309963); [ScienceAlert summary](https://www.sciencealert.com/ancient-town-from-4000-years-ago-found-hidden-in-saudi-arabian-oasis)).
 
-![Khaybar: a fortress on a basalt outcrop above the palm valley](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Khaybar_-_view_over_the_fortress.jpg/960px-Khaybar_-_view_over_the_fortress.jpg)
+![Khaybar: a fortress on a basalt outcrop above the palm valley](images/05_khaybar/01_khaybar_a_fortress_on_a_basalt_outcrop_above_the.jpg)
 *Khaybar: a fortress on a basalt outcrop above the palm valley.* Credit: Hardscarf, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Khaybar_-_view_over_the_fortress.jpg).
 
-![Harrat Khaybar from the International Space Station](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Harrat_Khaybar_Space.jpg/960px-Harrat_Khaybar_Space.jpg)
+![Harrat Khaybar from the International Space Station](images/05_khaybar/02_harrat_khaybar_from_the_international_space_stat.jpg)
 *Harrat Khaybar from the International Space Station: black lava flows and volcanic cones (NASA, public domain).* Credit: Expedition 16 Crew Member on the International Space Station, NASA, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Harrat_Khaybar_Space.jpg).
 
 
@@ -259,10 +259,10 @@ Many players will be Muslim, and the game ships in Arabic. Some of the old stori
 
 **What it was.** Dumat al-Jandal ("Duma of the stones"), in the Jawf depression of northern Arabia, is the Adummatu of Assyrian texts (8th–7th c. BCE). It was the seat of the Qedarite Arabs and their queens: Zabibe, Samsi, Te'elhunu, and Tabua, whom Esarhaddon installed. Sennacherib sacked it and carried off its gods; Esarhaddon gave the statues back ([Wikipedia: Dumat al-Jandal](https://en.wikipedia.org/wiki/Dumat_al-Jandal); [Zabibe](https://en.wikipedia.org/wiki/Zabibe); [Te'elhunu](https://en.wikipedia.org/wiki/Te%CA%BEel%E1%B8%ABunu); [PSAS: "Dūmat al-Jandal, a North Arabian oasis from the Assyrian period to the advent of Islam"](https://archaeopresspublishing.com/ojs/index.php/PSAS/article/view/2248)). Later it was a Nabataean and Roman outpost. Marid castle on its hill dates in part to around the 1st century CE. Tradition says Zenobia of Palmyra failed to take both Marid and Tayma's al-Ablaq, and said *"tamarrada Mārid wa-ʿazza al-Ablaq"*: "Marid rebelled and al-Ablaq held firm" ([Saudipedia, Marid castle (Arabic)](https://saudipedia.com/%D9%82%D9%84%D8%B9%D8%A9-%D9%85%D8%A7%D8%B1%D8%AF)).
 
-![Marid castle: battlemented walls and a round tower on the rock](https://thumb.wikimedia.org/wikipedia/commons/thumb/3/33/Marid_Castle%2C_Dumat_al-Jandal%2C_Saudi_Arabia%2C_ca._1st_cent._CE_%282%29.jpg/960px-Marid_Castle%2C_Dumat_al-Jandal%2C_Saudi_Arabia%2C_ca._1st_cent._CE_%282%29.jpg)
+![Marid castle: battlemented walls and a round tower on the rock](images/06_dumat_al_jandal_adummatu/01_marid_castle_battlemented_walls_and_a_round_towe.jpg)
 *Marid castle: battlemented walls and a round tower on the rock.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Marid_Castle,_Dumat_al-Jandal,_Saudi_Arabia,_ca._1st_cent._CE_%282%29.jpg).
 
-![Marid castle: the inner walls and a gateway](https://thumb.wikimedia.org/wikipedia/commons/thumb/5/56/Marid_Castle%2C_Dumat_al-Jandal%2C_Saudi_Arabia%2C_ca._1st_cent._CE_%286%29.jpg/960px-Marid_Castle%2C_Dumat_al-Jandal%2C_Saudi_Arabia%2C_ca._1st_cent._CE_%286%29.jpg)
+![Marid castle: the inner walls and a gateway](images/06_dumat_al_jandal_adummatu/02_marid_castle_the_inner_walls_and_a_gateway.jpg)
 *Marid castle: the inner walls and a gateway.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Marid_Castle,_Dumat_al-Jandal,_Saudi_Arabia,_ca._1st_cent._CE_%286%29.jpg).
 
 
@@ -284,10 +284,10 @@ Many players will be Muslim, and the game ships in Arabic. Some of the old stori
 
 **What it was.** Al-Rajajil ("the men") near Sakaka in al-Jawf is a field of some 50 groups of rough sandstone pillars, many up to 3 m tall and leaning, set up around the 4th millennium BCE (Chalcolithic). Their purpose is unknown; ideas include ritual and astronomical alignment. Some carry later Thamudic graffiti ([Wikipedia: Columns of Rajajil](https://en.wikipedia.org/wiki/Columns_of_Rajajil); [Amusing Planet: "The al-Rajajil standing stones"](https://www.amusingplanet.com/2017/04/the-al-rajajil-standing-stones.html)).
 
-![One of the Rajajil pillars on the sand plain](https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Rajajil_standing_columns%2C_al-Jouf%2C_6th_-_5th_millenia_BCE_%286%29.jpg/960px-Rajajil_standing_columns%2C_al-Jouf%2C_6th_-_5th_millenia_BCE_%286%29.jpg)
+![One of the Rajajil pillars on the sand plain](images/07_the_rajajil_standing_stones/01_one_of_the_rajajil_pillars_on_the_sand_plain.jpg)
 *One of the Rajajil pillars on the sand plain.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Rajajil_standing_columns,_al-Jouf,_6th_-_5th_millenia_BCE_%286%29.jpg).
 
-![A 1976 survey photo of a pillar group (public domain)](https://upload.wikimedia.org/wikipedia/commons/a/ad/Columns_of_Rajajil%2C_Saudi_Arabia%2C_1976_01.png)
+![A 1976 survey photo of a pillar group (public domain)](images/07_the_rajajil_standing_stones/02_a_1976_survey_photo_of_a_pillar_group_public_dom.png)
 *A 1976 survey photo of a pillar group (public domain).* Credit: Masry, Abdullah H., Steven C. Caton, Ahmad H. Sharafaddin, and Mahm..., Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Columns_of_Rajajil,_Saudi_Arabia,_1976_01.png).
 
 
@@ -303,13 +303,13 @@ Many players will be Muslim, and the game ships in Arabic. Some of the old stori
 
 **What it was.** UNESCO's [Rock Art in the Hail Region (1472)](https://whc.unesco.org/en/list/1472) covers Jabal Umm Sinman at Jubbah and Jabal al-Manjor and Raat at Shuwaymis. They hold some 10,000 years of carvings: life-size human figures, cattle, camels, ibex, horses and hunting dogs, plus later Thamudic and Arabic inscriptions. Jubbah overlooked a lake that dried up in the Holocene ([Wikipedia: Rock Art in the Hail Region](https://en.wikipedia.org/wiki/Rock_Art_in_the_Hail_Region); [Jubbah](https://en.wikipedia.org/wiki/Jubbah,_Saudi_Arabia)). Ha'il's two mountain ranges, Aja and Salma, carry a pre-Islamic legend: two lovers of different tribes, killed by her family, whose names passed to the two mountains ([Saudipedia: Aja and Salma Mountains](https://saudipedia.com/en/aja-and-salma-mountains); [Wikipedia: Shammar Mountains](https://en.wikipedia.org/wiki/Shammar_Mountains); [Tayy](https://en.wikipedia.org/wiki/Tayy)). Ha'il is also the land of Tayy, the tribe of Hatim al-Ta'i, the byword for Arab generosity ([Wikipedia: Hatim al-Tai](https://en.wikipedia.org/wiki/Hatim_al-Tai)).
 
-![An ibex pecked into dark, sun-varnished sandstone at Jubbah](https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/Ibex%2C_Jubbah_rock_art_site%2C_Saudi_Arabia.jpg/960px-Ibex%2C_Jubbah_rock_art_site%2C_Saudi_Arabia.jpg)
+![An ibex pecked into dark, sun-varnished sandstone at Jubbah](images/08_jubbah_shuwaymis_and_the_mountai/01_an_ibex_pecked_into_dark_sun_varnished_sandstone.jpg)
 *An ibex pecked into dark, sun-varnished sandstone at Jubbah.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ibex,_Jubbah_rock_art_site,_Saudi_Arabia.jpg).
 
-![Camels and riders at Jubbah](https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Warriors%2C_Jubbah_rock_art_site%2C_Saudi_Arabia_%283%29.jpg/960px-Warriors%2C_Jubbah_rock_art_site%2C_Saudi_Arabia_%283%29.jpg)
+![Camels and riders at Jubbah](images/08_jubbah_shuwaymis_and_the_mountai/02_camels_and_riders_at_jubbah.jpg)
 *Camels and riders at Jubbah.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Warriors,_Jubbah_rock_art_site,_Saudi_Arabia_%283%29.jpg).
 
-![Ostriches at Jubbah: once common in the Najd](https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Ostriches%2C_Jubbah_rock_art_site%2C_Saudi_Arabia.jpg/960px-Ostriches%2C_Jubbah_rock_art_site%2C_Saudi_Arabia.jpg)
+![Ostriches at Jubbah: once common in the Najd](images/08_jubbah_shuwaymis_and_the_mountai/03_ostriches_at_jubbah_once_common_in_the_najd.jpg)
 *Ostriches at Jubbah: once common in the Najd.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ostriches,_Jubbah_rock_art_site,_Saudi_Arabia.jpg).
 
 
@@ -335,19 +335,19 @@ Many players will be Muslim, and the game ships in Arabic. Some of the old stori
 
 Sources: [Wikipedia: Qaryat al-Faw](https://en.wikipedia.org/wiki/Qaryat_al-Faw); [Kindah](https://en.wikipedia.org/wiki/Kindah); [de Lara, "The mrzḥ of Qaryat al-Fāw", PSAS](https://www.archaeopresspublishing.com/ojs/index.php/PSAS/article/view/2262).
 
-![Al-Faw from the air: the market square and the town plan in the sand](https://thumb.wikimedia.org/wikipedia/commons/thumb/0/06/%D8%B5%D9%88%D8%B1%D8%A9_%D8%AC%D9%88%D9%8A%D8%A9_%D9%84%D9%85%D9%88%D9%82%D8%B9_%D8%A7%D9%84%D9%81%D8%A7%D9%88_%D8%A7%D9%84%D8%A3%D8%AB%D8%B1%D9%8A.jpg/960px-%D8%B5%D9%88%D8%B1%D8%A9_%D8%AC%D9%88%D9%8A%D8%A9_%D9%84%D9%85%D9%88%D9%82%D8%B9_%D8%A7%D9%84%D9%81%D8%A7%D9%88_%D8%A7%D9%84%D8%A3%D8%AB%D8%B1%D9%8A.jpg)
+![Al-Faw from the air: the market square and the town plan in the sand](images/09_qaryat_al_faw_capital_of_kindah/01_al_faw_from_the_air_the_market_square_and_the_to.jpg)
 *Al-Faw from the air: the market square and the town plan in the sand.* Credit: Heritage Commission, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:%D8%B5%D9%88%D8%B1%D8%A9_%D8%AC%D9%88%D9%8A%D8%A9_%D9%84%D9%85%D9%88%D9%82%D8%B9_%D8%A7%D9%84%D9%81%D8%A7%D9%88_%D8%A7%D9%84%D8%A3%D8%AB%D8%B1%D9%8A.jpg).
 
-![Wall painting fragment from al-Faw. Red, ochre and black on plaster](https://thumb.wikimedia.org/wikipedia/commons/thumb/4/44/Fragment_mural_painting_zodiacal_motif_-_2018-04-30.jpg/960px-Fragment_mural_painting_zodiacal_motif_-_2018-04-30.jpg)
+![Wall painting fragment from al-Faw. Red, ochre and black on plaster](images/09_qaryat_al_faw_capital_of_kindah/02_wall_painting_fragment_from_al_faw_red_ochre_and.jpg)
 *Wall painting fragment from al-Faw. Red, ochre and black on plaster: a palette for painted interiors.* Credit: Nesnad, CC BY 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Fragment_mural_painting_zodiacal_motif_-_2018-04-30.jpg).
 
-![An al-Faw wall painting of a curly-haired man among vines and garlands (shown in Berlin, Roads of Arabia exhibition)](https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Pergamon-Museum_-_Wandmalerei_2.jpg/960px-Pergamon-Museum_-_Wandmalerei_2.jpg)
+![An al-Faw wall painting of a curly-haired man among vines and garlands (shown in Berlin, Roads of Arabia exhibition)](images/09_qaryat_al_faw_capital_of_kindah/03_an_al_faw_wall_painting_of_a_curly_haired_man_am.jpg)
 *An al-Faw wall painting of a curly-haired man among vines and garlands (shown in Berlin, "Roads of Arabia" exhibition).* Credit: Wolfgang Sauber, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Pergamon-Museum_-_Wandmalerei_2.jpg).
 
-![Bronze lion-head door knockers from al-Faw](https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d8/Lion_door_knockers_-_Qaryat_al-Faw_-_3rd_Century_BCE_-_20180430.jpg/960px-Lion_door_knockers_-_Qaryat_al-Faw_-_3rd_Century_BCE_-_20180430.jpg)
+![Bronze lion-head door knockers from al-Faw](images/09_qaryat_al_faw_capital_of_kindah/04_bronze_lion_head_door_knockers_from_al_faw.jpg)
 *Bronze lion-head door knockers from al-Faw.* Credit: Nesnad, CC BY 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Lion_door_knockers_-_Qaryat_al-Faw_-_3rd_Century_BCE_-_20180430.jpg).
 
-![A carved lintel with a frieze of figures and animals: a good repeating box-decal band](https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a4/Lintel_-_Qaryat_al-Faw_-_3rd_Century_BCE_-_20180430.jpg/960px-Lintel_-_Qaryat_al-Faw_-_3rd_Century_BCE_-_20180430.jpg)
+![A carved lintel with a frieze of figures and animals: a good repeating box-decal band](images/09_qaryat_al_faw_capital_of_kindah/05_a_carved_lintel_with_a_frieze_of_figures_and_ani.jpg)
 *A carved lintel with a frieze of figures and animals: a good repeating box-decal band.* Credit: Nesnad, CC BY 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Lintel_-_Qaryat_al-Faw_-_3rd_Century_BCE_-_20180430.jpg).
 
 
@@ -375,10 +375,10 @@ Sources: [Wikipedia: Qaryat al-Faw](https://en.wikipedia.org/wiki/Qaryat_al-Faw)
 
 **What it was (legend).** Arab tradition tells of two lost tribes, Tasm and Jadis, in al-Yamama (central Najd, around today's al-Kharj). Their seer Zarqa al-Yamama ("the blue-eyed one of al-Yamama") could see riders three days away. The Himyarite king Hassan marched on them. His men cut branches and carried them, so the army looked like a moving forest. Zarqa warned "the trees are walking", nobody believed her, and the tribe fell. "Sharper-sighted than Zarqa al-Yamama" became a proverb, and a 2024 Riyadh opera retells it ([Wikipedia: Zarqa al-Yamama](https://en.wikipedia.org/wiki/Zarqa_al_Yamama); [Wikipedia: Al-Yamama](https://en.wikipedia.org/wiki/Al-Yamama); [Oman Observer](https://www.omanobserver.om/article/11056/Opinion/the-story-of-blue-eyed-woman-of-yamama)).
 
-![The Tuwaiq escarpment, the spine of al-Yamama and the Najd](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Tuwaiq_Escarpment_%282981960802%29.jpg/960px-Tuwaiq_Escarpment_%282981960802%29.jpg)
+![The Tuwaiq escarpment, the spine of al-Yamama and the Najd](images/10_al_yamama_tasm_jadis_and_zarqa_a/01_the_tuwaiq_escarpment_the_spine_of_al_yamama_and.jpg)
 *The Tuwaiq escarpment, the spine of al-Yamama and the Najd.* Credit: Peter Dowley from Dubai, United Arab Emirates, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Tuwaiq_Escarpment_%282981960802%29.jpg).
 
-![The Edge of the World on the Tuwaiq escarpment near Riyadh](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/75/Edge_of_the_World.jpg/960px-Edge_of_the_World.jpg)
+![The Edge of the World on the Tuwaiq escarpment near Riyadh](images/10_al_yamama_tasm_jadis_and_zarqa_a/02_the_edge_of_the_world_on_the_tuwaiq_escarpment_n.jpg)
 *"The Edge of the World" on the Tuwaiq escarpment near Riyadh: the cliff-edge horizon of the Najd.* Credit: S0lL0 TRAVELER, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Edge_of_the_World.jpg).
 
 
@@ -399,10 +399,10 @@ Sources: [Wikipedia: Qaryat al-Faw](https://en.wikipedia.org/wiki/Qaryat_al-Faw)
 
 Sources: [Wikipedia: Souk Okaz](https://en.wikipedia.org/wiki/Souk_Okaz); [Mu'allaqat](https://en.wikipedia.org/wiki/Mu%27allaqat); [Antarah ibn Shaddad](https://en.wikipedia.org/wiki/Antarah_ibn_Shaddad); [Al-Nabigha](https://en.wikipedia.org/wiki/Al-Nabigha).
 
-![A sketch map of the site of Ukaz (labels in Arabic)](https://upload.wikimedia.org/wikipedia/commons/5/5f/%D8%B3%D9%88%D9%82_%D8%B9%D9%83%D8%A7%D8%B8.JPG)
+![A sketch map of the site of Ukaz (labels in Arabic)](images/11_ukaz_the_fair_of_the_poets/01_a_sketch_map_of_the_site_of_ukaz_labels_in_arabi.jpg)
 *A sketch map of the site of Ukaz (labels in Arabic).* Credit: Pass276, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:%D8%B3%D9%88%D9%82_%D8%B9%D9%83%D8%A7%D8%B8.JPG).
 
-![Camels crossing red sand: the kind of caravan that came to Ukaz](https://upload.wikimedia.org/wikipedia/commons/e/ef/Ad_Dahna_desert_-_A_journey.jpg)
+![Camels crossing red sand: the kind of caravan that came to Ukaz](images/11_ukaz_the_fair_of_the_poets/02_camels_crossing_red_sand_the_kind_of_caravan_tha.jpg)
 *Camels crossing red sand: the kind of caravan that came to Ukaz.* Credit: Mohammad Nowfal, FAL, [Commons file page](https://commons.wikimedia.org/wiki/File:Ad_Dahna_desert_-_A_journey.jpg).
 
 
@@ -433,19 +433,19 @@ Elsewhere, Allat, al-Uzza and Manawat are also known from Nabataean, Palmyrene a
 
 Sources: [Wikipedia: Al-Lat](https://en.wikipedia.org/wiki/Al-L%C4%81t); [Al-Uzza](https://en.wikipedia.org/wiki/Al-Uzza); [Manat](https://en.wikipedia.org/wiki/Manat_%28goddess%29); [Book of Idols](https://en.wikipedia.org/wiki/Book_of_Idols); [Religion in pre-Islamic Arabia](https://en.wikipedia.org/wiki/Religion_in_pre-Islamic_Arabia).
 
-![Allat, Manat and al-Uzza on a relief from Hatra (Iraq Museum). Iconography from the northern trade cities, not the Hijaz itself](https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Relief_of_the_Arabian_goddess_Al-Lat%2C_Manat_and_al-Uzza_from_Hatra._Iraq_Museum.jpg/960px-Relief_of_the_Arabian_goddess_Al-Lat%2C_Manat_and_al-Uzza_from_Hatra._Iraq_Museum.jpg)
+![Allat, Manat and al-Uzza on a relief from Hatra (Iraq Museum). Iconography from the northern trade cities, not the Hijaz itself](images/12_ta_if_nakhla_and_qudayd_the_shri/01_allat_manat_and_al_uzza_on_a_relief_from_hatra_i.jpg)
 *Allat, Manat and al-Uzza on a relief from Hatra (Iraq Museum). Iconography from the northern trade cities, not the Hijaz itself.* Credit: Osama Shukir Muhammed Amin FRCP(Glasg), CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Relief_of_the_Arabian_goddess_Al-Lat,_Manat_and_al-Uzza_from_Hatra._Iraq_Museum.jpg).
 
-![Allat between two lions in a niche (Damascus museum): a model for a shrine niche](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Damascus_National_Museum_monolithic_niche_with_Allat_between_two_lions_7819.jpg/960px-Damascus_National_Museum_monolithic_niche_with_Allat_between_two_lions_7819.jpg)
+![Allat between two lions in a niche (Damascus museum): a model for a shrine niche](images/12_ta_if_nakhla_and_qudayd_the_shri/02_allat_between_two_lions_in_a_niche_damascus_muse.jpg)
 *Allat between two lions in a niche (Damascus museum): a model for a shrine niche.* Credit: Dosseman, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Damascus_National_Museum_monolithic_niche_with_Allat_between_two_lions_7819.jpg).
 
-![The Lion of Allat from Palmyra, with an antelope between its paws](https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/Lion_in_the_garden_of_Palmyra_Archeological_Museum%2C_2010-04-21.jpg/960px-Lion_in_the_garden_of_Palmyra_Archeological_Museum%2C_2010-04-21.jpg)
+![The Lion of Allat from Palmyra, with an antelope between its paws](images/12_ta_if_nakhla_and_qudayd_the_shri/03_the_lion_of_allat_from_palmyra_with_an_antelope.jpg)
 *The Lion of Allat from Palmyra, with an antelope between its paws.* Credit: Mappo, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Lion_in_the_garden_of_Palmyra_Archeological_Museum,_2010-04-21.jpg).
 
-![The Sarawat mountains at al-Hada above Ta'if](https://thumb.wikimedia.org/wikipedia/commons/thumb/d/df/Al-Hada%2C_near_al-Taif%2C_Saudi_Arabia_%286%29.jpg/960px-Al-Hada%2C_near_al-Taif%2C_Saudi_Arabia_%286%29.jpg)
+![The Sarawat mountains at al-Hada above Ta'if](images/12_ta_if_nakhla_and_qudayd_the_shri/04_the_sarawat_mountains_at_al_hada_above_ta_if.jpg)
 *The Sarawat mountains at al-Hada above Ta'if.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Al-Hada,_near_al-Taif,_Saudi_Arabia_%286%29.jpg).
 
-![Green hills at al-Shafa, Ta'if: the cool highland look](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Alshafa20.JPG/960px-Alshafa20.JPG)
+![Green hills at al-Shafa, Ta'if: the cool highland look](images/12_ta_if_nakhla_and_qudayd_the_shri/05_green_hills_at_al_shafa_ta_if_the_cool_highland.jpg)
 *Green hills at al-Shafa, Ta'if: the cool highland look.* Credit: Ziyad Alsufyani, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Alshafa20.JPG).
 
 
@@ -484,13 +484,13 @@ The incense kingdoms of the south are Saba (Sheba), Ma'in, Qataban, Hadramawt an
 
 **What it was.** Najran is a broad oasis valley on the border with Yemen, and the northern gate of the incense road. Its ancient walled town, today the site of al-Ukhdud (ancient Ragmat), had square stone houses, a citadel and many Musnad inscriptions. By the 6th century Najran had a large Christian community. In 523 CE the Himyarite king Yusuf As'ar Yath'ar (Dhu Nuwas), a convert to Judaism, besieged the town and killed many Christians. Syriac sources remember them as the Martyrs of Najran, and Islamic tradition links the event to the "People of the Ditch" (*Ashab al-Ukhdud*). Aksumite intervention followed ([Wikipedia: Al-Ukhdud](https://en.wikipedia.org/wiki/Al-Ukhdud); [Najran](https://en.wikipedia.org/wiki/Najran); [Dhu Nuwas](https://en.wikipedia.org/wiki/Dhu_Nuwas)).
 
-![Al-Ukhdud: the big dressed blocks of a house footing](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Site_of_al-Ukhdud%2C_Najran_%282%29.jpg/960px-Site_of_al-Ukhdud%2C_Najran_%282%29.jpg)
+![Al-Ukhdud: the big dressed blocks of a house footing](images/14_najran_and_al_ukhdud/01_al_ukhdud_the_big_dressed_blocks_of_a_house_foot.jpg)
 *Al-Ukhdud: the big dressed blocks of a house footing.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Site_of_al-Ukhdud,_Najran_%282%29.jpg).
 
-![The Najran valley at al-Ukhdud: palms and fields beyond the ruins](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7e/Ancient_site_of_al-Ukhdud%2C_Najran%2C_Saudi_Arabia_%2860%29.jpg/960px-Ancient_site_of_al-Ukhdud%2C_Najran%2C_Saudi_Arabia_%2860%29.jpg)
+![The Najran valley at al-Ukhdud: palms and fields beyond the ruins](images/14_najran_and_al_ukhdud/02_the_najran_valley_at_al_ukhdud_palms_and_fields.jpg)
 *The Najran valley at al-Ukhdud: palms and fields beyond the ruins.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ancient_site_of_al-Ukhdud,_Najran,_Saudi_Arabia_%2860%29.jpg).
 
-![Excavated house foundations, with the mountains of Najran behind](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/Site_of_al-Ukhdud%2C_Najran_%2817%29.jpg/960px-Site_of_al-Ukhdud%2C_Najran_%2817%29.jpg)
+![Excavated house foundations, with the mountains of Najran behind](images/14_najran_and_al_ukhdud/03_excavated_house_foundations_with_the_mountains_o.jpg)
 *Excavated house foundations, with the mountains of Najran behind.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Site_of_al-Ukhdud,_Najran_%2817%29.jpg).
 
 
@@ -514,16 +514,16 @@ The incense kingdoms of the south are Saba (Sheba), Ma'in, Qataban, Hadramawt an
 
 Sources: [Wikipedia: Bir Hima Rock Petroglyphs and Inscriptions](https://en.wikipedia.org/wiki/Bir_Hima_Rock_Petroglyphs_and_Inscriptions); [Abraha](https://en.wikipedia.org/wiki/Abraha).
 
-![A carved boulder at Hima](https://thumb.wikimedia.org/wikipedia/commons/thumb/1/12/Hima_Cultural_Area_Overview2.jpg/960px-Hima_Cultural_Area_Overview2.jpg)
+![A carved boulder at Hima](images/15_hima_wells_and_rock_art/01_a_carved_boulder_at_hima.jpg)
 *A carved boulder at Hima.* Credit: Heritage Commission, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Hima_Cultural_Area_Overview2.jpg).
 
-![Petroglyphs on a sandstone face at Hima](https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f8/Ancient_petroglyphs_at_Hima_Cultural_Area%2C_near_Najran%2C_Saudi_Arabia_%2867%29.jpg/960px-Ancient_petroglyphs_at_Hima_Cultural_Area%2C_near_Najran%2C_Saudi_Arabia_%2867%29.jpg)
+![Petroglyphs on a sandstone face at Hima](images/15_hima_wells_and_rock_art/02_petroglyphs_on_a_sandstone_face_at_hima.jpg)
 *Petroglyphs on a sandstone face at Hima.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ancient_petroglyphs_at_Hima_Cultural_Area,_near_Najran,_Saudi_Arabia_%2867%29.jpg).
 
-![The Hima plain: sand and scattered acacias](https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/Landscape_at_Hima_Cultural_Area%2C_near_Najran%2C_Saudi_Arabia_%282%29.jpg/960px-Landscape_at_Hima_Cultural_Area%2C_near_Najran%2C_Saudi_Arabia_%282%29.jpg)
+![The Hima plain: sand and scattered acacias](images/15_hima_wells_and_rock_art/03_the_hima_plain_sand_and_scattered_acacias.jpg)
 *The Hima plain: sand and scattered acacias.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Landscape_at_Hima_Cultural_Area,_near_Najran,_Saudi_Arabia_%282%29.jpg).
 
-![Thamudic graffiti: the kind of scratched lines that cover Hima's rocks](https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3c/Thamudic_inscriptions_Wadi_Rum.jpg/960px-Thamudic_inscriptions_Wadi_Rum.jpg)
+![Thamudic graffiti: the kind of scratched lines that cover Hima's rocks](images/15_hima_wells_and_rock_art/04_thamudic_graffiti_the_kind_of_scratched_lines_th.jpg)
 *Thamudic graffiti: the kind of scratched lines that cover Hima's rocks.* Credit: Falcodigiada, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Thamudic_inscriptions_Wadi_Rum.jpg).
 
 
@@ -548,22 +548,22 @@ Sources: [Wikipedia: Bir Hima Rock Petroglyphs and Inscriptions](https://en.wiki
 
 Sources: [Wikipedia: Marib Dam](https://en.wikipedia.org/wiki/Marib_Dam); [Mahram Bilqis](https://en.wikipedia.org/wiki/Mahram_Bilqis); [Barran Temple](https://en.wikipedia.org/wiki/Barran_Temple); [Almaqah](https://en.wikipedia.org/wiki/Almaqah); [National Geographic on the dam](https://www.nationalgeographic.com/science/article/150603-Yemen-ancient-Sheba-dam-heritage-destruction-Middle-East-archaeology).
 
-![The southern sluice of the Marib dam. Ashlar walls without mortar, and the spillway](https://thumb.wikimedia.org/wikipedia/commons/thumb/2/27/Jemen1988-022_hg.jpg/960px-Jemen1988-022_hg.jpg)
+![The southern sluice of the Marib dam. Ashlar walls without mortar, and the spillway](images/16_marib_the_great_dam_and_the_saba/01_the_southern_sluice_of_the_marib_dam_ashlar_wall.jpg)
 *The southern sluice of the Marib dam. Ashlar walls without mortar, and the spillway.* Credit: H. Grobe, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Jemen1988-022_hg.jpg).
 
-![Barran temple: the monolithic pillars on their platform, with fields around](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e9/Barran_Temple.jpg/960px-Barran_Temple.jpg)
+![Barran temple: the monolithic pillars on their platform, with fields around](images/16_marib_the_great_dam_and_the_saba/02_barran_temple_the_monolithic_pillars_on_their_pl.jpg)
 *Barran temple: the monolithic pillars on their platform, with fields around.* Credit: Ali Mohamed, CC BY-SA 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Barran_Temple.jpg).
 
-![Barran in 1986: pillars, stepped platform and ashlar courses](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/Bar%27an_temple_1986-2.jpg/960px-Bar%27an_temple_1986-2.jpg)
+![Barran in 1986: pillars, stepped platform and ashlar courses](images/16_marib_the_great_dam_and_the_saba/03_barran_in_1986_pillars_stepped_platform_and_ashl.jpg)
 *Barran in 1986: pillars, stepped platform and ashlar courses.* Credit: Bernard Gagnon, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Bar%27an_temple_1986-2.jpg).
 
-![Awwam (Mahram Bilqis): the pillared entrance hall and the enclosure wall](https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Awwam_Temple.jpg/960px-Awwam_Temple.jpg)
+![Awwam (Mahram Bilqis): the pillared entrance hall and the enclosure wall](images/16_marib_the_great_dam_and_the_saba/04_awwam_mahram_bilqis_the_pillared_entrance_hall_a.jpg)
 *Awwam (Mahram Bilqis): the pillared entrance hall and the enclosure wall.* Credit: Marib Governorate, CC BY-SA 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Awwam_Temple.jpg).
 
-![A reconstruction of Awwam's north-west gate](https://upload.wikimedia.org/wikipedia/commons/7/79/Awwam_Northwest_gate.jpg)
+![A reconstruction of Awwam's north-west gate](images/16_marib_the_great_dam_and_the_saba/05_a_reconstruction_of_awwam_s_north_west_gate.jpg)
 *A reconstruction of Awwam's north-west gate.* Credit: Wissmann, CC0, [Commons file page](https://commons.wikimedia.org/wiki/File:Awwam_Northwest_gate.jpg).
 
-![A 3D model of a Sabaean altar with recessed false window panels: already low-poly](https://upload.wikimedia.org/wikipedia/commons/c/c7/Sabaean_altar%2C_marib.jpg)
+![A 3D model of a Sabaean altar with recessed false window panels: already low-poly](images/16_marib_the_great_dam_and_the_saba/06_a_3d_model_of_a_sabaean_altar_with_recessed_fals.jpg)
 *A 3D model of a Sabaean altar with recessed "false window" panels: already low-poly.* Credit: Nabataeus, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Sabaean_altar,_marib.jpg).
 
 
@@ -595,10 +595,10 @@ Sources: [Wikipedia: Marib Dam](https://en.wikipedia.org/wiki/Marib_Dam); [Mahra
 
 **What it was.** Sirwah, 40 km west of Marib, was an early Sabaean centre (8th–7th c. BCE). It has a large temple of Almaqah with a crescent-shaped wall. In the temple stands the great stone inscribed with the campaigns of the *mukarrib* Karib'il Watar, the longest Sabaean inscription, which records his wars against Awsan and others. The German Archaeological Institute has excavated and restored the site ([Wikipedia: Sirwah](https://en.wikipedia.org/wiki/Sirwah); [Karib'il Watar](https://en.wikipedia.org/wiki/Karib%27il_Watar)).
 
-![Sirwah: ashlar walls and a gate, with monolithic pillars behind](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9b/Jemen_Sirwah_01.JPG/960px-Jemen_Sirwah_01.JPG)
+![Sirwah: ashlar walls and a gate, with monolithic pillars behind](images/17_sirwah/01_sirwah_ashlar_walls_and_a_gate_with_monolithic_p.jpg)
 *Sirwah: ashlar walls and a gate, with monolithic pillars behind.* Credit: Kmatura, CC BY 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Jemen_Sirwah_01.JPG).
 
-![Sirwah in its mountain valley](https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Jemen_Sirwah_04.JPG/960px-Jemen_Sirwah_04.JPG)
+![Sirwah in its mountain valley](images/17_sirwah/02_sirwah_in_its_mountain_valley.jpg)
 *Sirwah in its mountain valley.* Credit: Kmatura, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Jemen_Sirwah_04.JPG).
 
 
@@ -610,7 +610,7 @@ Sources: [Wikipedia: Marib Dam](https://en.wikipedia.org/wiki/Marib_Dam); [Mahra
 
 **What it was.** Baraqish (ancient Yathill) in Yemen's al-Jawf was a city of the Minaean kingdom (Ma'in), the great traders of the incense road; Minaean merchants had colonies as far as Dadan and Egypt. Its stone wall, with dozens of towers, rings an oval mound of earlier towns. Inside is a temple of Nakrah. It is usually identified with the Athrula that the Roman general Aelius Gallus took in 25/24 BCE during his failed campaign into Arabia ([Wikipedia: Baraqish](https://en.wikipedia.org/wiki/Baraqish); [Minaean kingdom](https://en.wikipedia.org/wiki/Ma%27in)).
 
-![Baraqish on its mound: the ancient wall with later tower houses on top](https://thumb.wikimedia.org/wikipedia/commons/thumb/d/de/Barakisk_flickr01.jpg/960px-Barakisk_flickr01.jpg)
+![Baraqish on its mound: the ancient wall with later tower houses on top](images/18_baraqish_yathill_and_the_minaean/01_baraqish_on_its_mound_the_ancient_wall_with_late.jpg)
 *Baraqish on its mound: the ancient wall with later tower houses on top.* Credit: txago, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Barakisk_flickr01.jpg).
 
 
@@ -625,16 +625,16 @@ Sources: [Wikipedia: Marib Dam](https://en.wikipedia.org/wiki/Marib_Dam); [Mahra
 
 **What it was.** Timna (Hajar Kohlan), in Wadi Bayhan, was the capital of Qataban, a kingdom of the incense road that peaked in the last centuries BCE. A stele set at the city's market gate carried Qataban's commercial law: rules for traders, taxes and market days. Above the valley, the Mablaqa pass was paved and stepped for caravans. Timna burned in the 1st century CE and Qataban was absorbed by its neighbours ([Wikipedia: Timnaʿ](https://en.wikipedia.org/wiki/Timna%CA%BF); [Qataban](https://en.wikipedia.org/wiki/Qataban)).
 
-![A Qatabanian inscribed alabaster stele (Louvre)](https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/Inscribed_stele_Qataban_Louvre_AO21124.jpg/960px-Inscribed_stele_Qataban_Louvre_AO21124.jpg)
+![A Qatabanian inscribed alabaster stele (Louvre)](images/19_timna_and_qataban/01_a_qatabanian_inscribed_alabaster_stele_louvre.jpg)
 *A Qatabanian inscribed alabaster stele (Louvre).* Credit: unknown, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Inscribed_stele_Qataban_Louvre_AO21124.jpg).
 
-![An alabaster head from Qataban (3rd–1st c. BCE)](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7d/Head_of_a_man_Qataban_%28Arabia_Felix%29_3rd-1st_century_BCE_Alabaster_at_the_Seattle_Art_Museum.jpg/960px-Head_of_a_man_Qataban_%28Arabia_Felix%29_3rd-1st_century_BCE_Alabaster_at_the_Seattle_Art_Museum.jpg)
+![An alabaster head from Qataban (3rd–1st c. BCE)](images/19_timna_and_qataban/02_an_alabaster_head_from_qataban_3rd_1st_c_bce.jpg)
 *An alabaster head from Qataban (3rd–1st c. BCE).* Credit: Mary Harrsch, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Head_of_a_man_Qataban_%28Arabia_Felix%29_3rd-1st_century_BCE_Alabaster_at_the_Seattle_Art_Museum.jpg).
 
-![An alabaster funerary head from South Arabia (Walters Art Museum, public domain). The stylised faces suit low-poly heads well](https://thumb.wikimedia.org/wikipedia/commons/thumb/0/05/South_Arabian_-_Head_of_a_Woman_with_a_Rectangular_Face_-_Walters_2123_-_Three_Quarter.jpg/960px-South_Arabian_-_Head_of_a_Woman_with_a_Rectangular_Face_-_Walters_2123_-_Three_Quarter.jpg)
+![An alabaster funerary head from South Arabia (Walters Art Museum, public domain). The stylised faces suit low-poly heads well](images/19_timna_and_qataban/03_an_alabaster_funerary_head_from_south_arabia_wal.jpg)
 *An alabaster funerary head from South Arabia (Walters Art Museum, public domain). The stylised faces suit low-poly heads well.* Credit: Anonymous (South Arabia), Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:South_Arabian_-_Head_of_a_Woman_with_a_Rectangular_Face_-_Walters_2123_-_Three_Quarter.jpg).
 
-![A man's head in the same style](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/93/South_Arabian_-_Head_of_a_Man_with_a_Rectangular_Face_-_Walters_2122_-_Three_Quarter.jpg/960px-South_Arabian_-_Head_of_a_Man_with_a_Rectangular_Face_-_Walters_2122_-_Three_Quarter.jpg)
+![A man's head in the same style](images/19_timna_and_qataban/04_a_man_s_head_in_the_same_style.jpg)
 *A man's head in the same style.* Credit: Anonymous (South Arabia), Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:South_Arabian_-_Head_of_a_Man_with_a_Rectangular_Face_-_Walters_2122_-_Three_Quarter.jpg).
 
 
@@ -650,10 +650,10 @@ Sources: [Wikipedia: Marib Dam](https://en.wikipedia.org/wiki/Marib_Dam); [Mahra
 
 **What it was.** Shabwa was the capital of the Hadramawt kingdom, the land where frankincense grew. Pliny the Elder (*Natural History* 12.63) says all the incense had to be brought to Shabwa (*Sabota*), where a tenth was taken for the god Sayin before any could be sold. Shabwa had some 60 temples, a royal palace called Shaqir and a monumental gate. Himyar sacked and burned it around 300 CE. Wadi Hadramawt, to its east, is a deep canyon with mudbrick tower cities. Its most famous one, Shibam, is post-Islamic in its present form, but it was founded in late antiquity and shows how Hadrami builders built high in mud ([Wikipedia: Shabwa](https://en.wikipedia.org/wiki/Shabwa); [Kingdom of Hadhramaut](https://en.wikipedia.org/wiki/Kingdom_of_Hadhramaut); [Shibam, UNESCO 192](https://whc.unesco.org/en/list/192)).
 
-![Ruins of Shabwa's rampart](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/71/Y%C3%A9men-104.JPG/960px-Y%C3%A9men-104.JPG)
+![Ruins of Shabwa's rampart](images/20_shabwa_and_the_hadramawt/01_ruins_of_shabwa_s_rampart.jpg)
 *Ruins of Shabwa's rampart.* Credit: BluesyPete, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Y%C3%A9men-104.JPG).
 
-![Shibam in Wadi Hadramawt](https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1f/Shibam_Wadi_Hadhramaut_Yemen.jpg/960px-Shibam_Wadi_Hadhramaut_Yemen.jpg)
+![Shibam in Wadi Hadramawt](images/20_shabwa_and_the_hadramawt/02_shibam_in_wadi_hadramawt_mudbrick_towers_with_li.jpg)
 *Shibam in Wadi Hadramawt: mudbrick towers with lime-white tops. Its present form is much later, but the building tradition is old.* Credit: Jialiang Gao www.peace-on-earth.org, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Shibam_Wadi_Hadhramaut_Yemen.jpg).
 
 
@@ -672,10 +672,10 @@ Sources: [Wikipedia: Marib Dam](https://en.wikipedia.org/wiki/Marib_Dam); [Mahra
 
 **What it was.** Zafar, in the highlands south of Sana'a, was the capital of the Himyarite kingdom (from about 110 BCE). By the late 3rd century CE Himyar had united all of South Arabia, and it ruled until the Aksumite conquest of 525 CE. The site lies on a volcanic hill with rock-cut rooms, caves, cisterns and terraced fields, and has yielded fine reliefs ([Wikipedia: Zafar, Yemen](https://en.wikipedia.org/wiki/Zafar,_Yemen); [Himyarite Kingdom](https://en.wikipedia.org/wiki/Himyarite_Kingdom)). In Sana'a, the legendary palace of **Ghumdan** was said to rise 20 storeys, roofed with alabaster so thin that birds could be seen flying overhead ([Wikipedia: Ghumdan Palace](https://en.wikipedia.org/wiki/Ghumdan_Palace)).
 
-![Bronze bust of the Himyarite king Dhamar'ali Yuhabirr (3rd c. CE)](https://upload.wikimedia.org/wikipedia/commons/8/86/Dhamar_Ali_Yahbur_%28bust%29.jpg)
+![Bronze bust of the Himyarite king Dhamar'ali Yuhabirr (3rd c. CE)](images/21_zafar_and_himyar/01_bronze_bust_of_the_himyarite_king_dhamar_ali_yuh.jpg)
 *Bronze bust of the Himyarite king Dhamar'ali Yuhabirr (3rd c. CE): curly hair, a bare chest and a regal look. A model for a king NPC.* Credit: Retlaw Snellac, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Dhamar_Ali_Yahbur_%28bust%29.jpg).
 
-![A miniature stone door panel from Zafar (2nd–3rd c.), framed with vine scrolls](https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Antico_yemen%2C_porta_in_miniatura%2C_da_zafar%2C_II-III_sec.JPG/960px-Antico_yemen%2C_porta_in_miniatura%2C_da_zafar%2C_II-III_sec.JPG)
+![A miniature stone door panel from Zafar (2nd–3rd c.), framed with vine scrolls](images/21_zafar_and_himyar/02_a_miniature_stone_door_panel_from_zafar_2nd_3rd.jpg)
 *A miniature stone door panel from Zafar (2nd–3rd c.), framed with vine scrolls: a model for Himyarite doors.* Credit: sailko, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Antico_yemen,_porta_in_miniatura,_da_zafar,_II-III_sec.JPG).
 
 
@@ -690,16 +690,16 @@ Sources: [Wikipedia: Marib Dam](https://en.wikipedia.org/wiki/Marib_Dam); [Mahra
 
 **What it was.** Qana (Bir Ali today) was Hadramawt's harbour on the Arabian Sea, below a black volcanic headland crowned by a fort called Husn al-Ghurab ("Crow's Castle"). Frankincense came in from Dhofar and Socotra and went out again by caravan. The 1st-century Greek *Periplus of the Erythraean Sea* describes it. Socotra, the island offshore, was the source of aloe and of dragon's blood resin (from *Dracaena cinnabari*). In the Hoq cave, sailors from India, South Arabia, Ethiopia and the Greek world left graffiti (1st c. BCE – 6th c. CE) ([Wikipedia: Bir Ali (Qana)](https://en.wikipedia.org/wiki/Bir_Ali); [Socotra](https://en.wikipedia.org/wiki/Socotra)).
 
-![The black volcanic headland at Bir Ali (ancient Qana), where Husn al-Ghurab stands](https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/23_Bir_Ali_%285%29.jpg/960px-23_Bir_Ali_%285%29.jpg)
+![The black volcanic headland at Bir Ali (ancient Qana), where Husn al-Ghurab stands](images/22_qana_socotra_and_the_incense_shi/01_the_black_volcanic_headland_at_bir_ali_ancient_q.jpg)
 *The black volcanic headland at Bir Ali (ancient Qana), where Husn al-Ghurab stands.* Credit: Ljuba brank, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:23_Bir_Ali_%285%29.jpg).
 
-![The cliff with the Hoq cave on Socotra](https://thumb.wikimedia.org/wikipedia/commons/thumb/3/38/Hoq_Cave_-_entrance.jpg/960px-Hoq_Cave_-_entrance.jpg)
+![The cliff with the Hoq cave on Socotra](images/22_qana_socotra_and_the_incense_shi/02_the_cliff_with_the_hoq_cave_on_socotra.jpg)
 *The cliff with the Hoq cave on Socotra.* Credit: Clemens Schmillen, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Hoq_Cave_-_entrance.jpg).
 
-![Socotra's dragon's blood trees: an unmistakable low-poly silhouette](https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Dragonblood_tree_in_Socotra_2.jpg/960px-Dragonblood_tree_in_Socotra_2.jpg)
+![Socotra's dragon's blood trees: an unmistakable low-poly silhouette](images/22_qana_socotra_and_the_incense_shi/03_socotra_s_dragon_s_blood_trees_an_unmistakable_l.jpg)
 *Socotra's dragon's blood trees: an unmistakable low-poly silhouette.* Credit: Alex38, CC BY 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Dragonblood_tree_in_Socotra_2.jpg).
 
-![Dragon's blood trees on the plateau](https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Dragon%27s_Blood_Tree%2C_Socotra_Is.jpg/960px-Dragon%27s_Blood_Tree%2C_Socotra_Is.jpg)
+![Dragon's blood trees on the plateau](images/22_qana_socotra_and_the_incense_shi/04_dragon_s_blood_trees_on_the_plateau.jpg)
 *Dragon's blood trees on the plateau.* Credit: Rod Waddington, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Dragon%27s_Blood_Tree,_Socotra_Is.jpg).
 
 
@@ -717,16 +717,16 @@ Sources: [Wikipedia: Marib Dam](https://en.wikipedia.org/wiki/Marib_Dam); [Mahra
 
 Shisr was found in 1992 with the help of satellite images by an expedition including Nicholas Clapp and Ranulph Fiennes. They presented it as Ubar, the lost city of 'Ad and "Iram of the Pillars". Part of the fortress had collapsed into a sinkhole beneath it, which fitted the legend of a city swallowed by the sands. Most archaeologists now see Shisr as a caravan watering fort, not the legendary Iram ([Wikipedia: Ubar](https://en.wikipedia.org/wiki/Ubar); [Khor Rori](https://en.wikipedia.org/wiki/Khor_Rori); [Boswellia sacra](https://en.wikipedia.org/wiki/Boswellia_sacra)).
 
-![Wadi Dawkah: frankincense trees dotting a stony plain](https://thumb.wikimedia.org/wikipedia/commons/thumb/6/65/Oman%2C_Wadi_Dawkah%2C_Land_of_Frankincense.jpg/960px-Oman%2C_Wadi_Dawkah%2C_Land_of_Frankincense.jpg)
+![Wadi Dawkah: frankincense trees dotting a stony plain](images/23_dhofar_wadi_dawkah_sumhuram_and/01_wadi_dawkah_frankincense_trees_dotting_a_stony_p.jpg)
 *Wadi Dawkah: frankincense trees dotting a stony plain.* Credit: Dr. Thomas Liptak, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Oman,_Wadi_Dawkah,_Land_of_Frankincense.jpg).
 
-![A frankincense tree: a short, twisted trunk with papery bark and small leaves](https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Boswellia_sacra_in_Wadi_Dowkah_%28Dhofar%29.JPG/960px-Boswellia_sacra_in_Wadi_Dowkah_%28Dhofar%29.JPG)
+![A frankincense tree: a short, twisted trunk with papery bark and small leaves](images/23_dhofar_wadi_dawkah_sumhuram_and/02_a_frankincense_tree_a_short_twisted_trunk_with_p.jpg)
 *A frankincense tree: a short, twisted trunk with papery bark and small leaves.* Credit: Mauro Raffaelli, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Boswellia_sacra_in_Wadi_Dowkah_%28Dhofar%29.JPG).
 
-![Sumhuram above its lagoon, now closed by a sandbar](https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Khor_Rori%2C_the_site_of_the_ancient_fortified_port_city_of_Sumhuram%2C_was_abandoned_in_the_5th_century_most_likely_due_to_the_formation_of_the_sandbar_blocking_the_estuary.jpg/960px-thumbnail.jpg)
+![Sumhuram above its lagoon, now closed by a sandbar](images/23_dhofar_wadi_dawkah_sumhuram_and/03_sumhuram_above_its_lagoon_now_closed_by_a_sandba.jpg)
 *Sumhuram above its lagoon, now closed by a sandbar.* Credit: Richard N Horne, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Khor_Rori,_the_site_of_the_ancient_fortified_port_city_of_Sumhuram,_was_abandoned_in_the_5th_century_most_likely_due_to_the_formation_of_the_sandbar_blocking_the_estuary.jpg).
 
-![The sinkhole at Shisr, into which part of the fort collapsed](https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Ubar.jpg/960px-Ubar.jpg)
+![The sinkhole at Shisr, into which part of the fort collapsed](images/23_dhofar_wadi_dawkah_sumhuram_and/04_the_sinkhole_at_shisr_into_which_part_of_the_for.jpg)
 *The sinkhole at Shisr, into which part of the fort collapsed.* Credit: Armatus1995, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Ubar.jpg).
 
 
@@ -748,16 +748,16 @@ Shisr was found in 1992 with the help of satellite images by an expedition inclu
 
 **What it is.** The largest continuous sand desert on earth, about 650,000 km² across Saudi Arabia, Oman, the UAE and Yemen. It has star and linear dunes up to 250 m high, salt flats (*sabkha*) and gravel plains. In the wetter Holocene there were lakes here, and fossil hippo and water-buffalo bones have been found. Caravans skirted its edges; only the Bedouin crossed it ([Wikipedia: Rub' al Khali](https://en.wikipedia.org/wiki/Rub%27_al_Khali)).
 
-![Rub' al-Khali from orbit: linear dune ridges with salt flats between them](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Rub%27_al_Khali_%28Arabian_Empty_Quarter%29_sand_dunes_imaged_by_Terra_%28EOS_AM-1%29.jpg/960px-Rub%27_al_Khali_%28Arabian_Empty_Quarter%29_sand_dunes_imaged_by_Terra_%28EOS_AM-1%29.jpg)
+![Rub' al-Khali from orbit: linear dune ridges with salt flats between them](images/24_the_empty_quarter_rub_al_khali/01_rub_al_khali_from_orbit_linear_dune_ridges_with.jpg)
 *Rub' al-Khali from orbit: linear dune ridges with salt flats between them.* Credit: NASA/GSFC/METI/ERSDAC/JAROS, and U.S./Japan ASTER Science Team, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Rub%27_al_Khali_%28Arabian_Empty_Quarter%29_sand_dunes_imaged_by_Terra_%28EOS_AM-1%29.jpg).
 
-![At ground level: knife-edged ridges and empty sky](https://upload.wikimedia.org/wikipedia/commons/8/86/Rub_al-Khali_Oman_2.jpg)
+![At ground level: knife-edged ridges and empty sky](images/24_the_empty_quarter_rub_al_khali/02_at_ground_level_knife_edged_ridges_and_empty_sky.jpg)
 *At ground level: knife-edged ridges and empty sky.* Credit: Ulf Rydin, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Rub_al-Khali_Oman_2.jpg).
 
-!['Uruq Bani Ma'arid: red dunes and gravel corridors on the western edge](https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/Uruq_Bani_Ma%27arid_Reserve%2C_Saudi_Arabia_%282025%29.jpg/960px-Uruq_Bani_Ma%27arid_Reserve%2C_Saudi_Arabia_%282025%29.jpg)
+!['Uruq Bani Ma'arid: red dunes and gravel corridors on the western edge](images/24_the_empty_quarter_rub_al_khali/03_uruq_bani_ma_arid_red_dunes_and_gravel_corridors.jpg)
 *'Uruq Bani Ma'arid: red dunes and gravel corridors on the western edge.* Credit: Saudi Press Agency (SPA), CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Uruq_Bani_Ma%27arid_Reserve,_Saudi_Arabia_%282025%29.jpg).
 
-![The Arabian oryx: white coat, long straight horns. A legendary animal of the sands](https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Arabian_oryx_%28oryx_leucoryx%29.jpg/960px-Arabian_oryx_%28oryx_leucoryx%29.jpg)
+![The Arabian oryx: white coat, long straight horns. A legendary animal of the sands](images/24_the_empty_quarter_rub_al_khali/04_the_arabian_oryx_white_coat_long_straight_horns.jpg)
 *The Arabian oryx: white coat, long straight horns. A legendary animal of the sands.* Credit: Charles J. Sharp, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Arabian_oryx_%28oryx_leucoryx%29.jpg).
 
 
@@ -786,16 +786,16 @@ Shisr was found in 1992 with the help of satellite images by an expedition inclu
 
 **Thaj** is an oval walled town of the 4th century BCE – 3rd century CE about 95 km inland, with a stone wall and towers around a salt-flat lake. At nearby Tell al-Zayer, in 1998, the grave of a young girl was found with a gold funerary mask, gold jewellery, rubies and pearls ([Wikipedia: Thaj](https://en.wikipedia.org/wiki/Thaj)). The region wrote in the Hasaitic variant of South Arabian script and minted coins that imitated Alexander's. **Al-Ahsa** is the world's largest palm oasis, fed by artesian springs ([UNESCO 1563](https://whc.unesco.org/en/list/1563)). **Tarout island** has Bronze Age layers tied to Dilmun ([Wikipedia: Tarout Island](https://en.wikipedia.org/wiki/Tarout_Island)).
 
-![Gold necklace from Thaj (Tell al-Zayer, 1st c. CE), shown in Berlin](https://thumb.wikimedia.org/wikipedia/commons/thumb/d/db/Pergamon-Museum_-_Halskette_Thaj.jpg/960px-Pergamon-Museum_-_Halskette_Thaj.jpg)
+![Gold necklace from Thaj (Tell al-Zayer, 1st c. CE), shown in Berlin](images/25_gerrha_thaj_and_the_gulf_coast/01_gold_necklace_from_thaj_tell_al_zayer_1st_c_ce_s.jpg)
 *Gold necklace from Thaj (Tell al-Zayer, 1st c. CE), shown in Berlin.* Credit: Wolfgang Sauber, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Pergamon-Museum_-_Halskette_Thaj.jpg).
 
-![A tetradrachm of Alexander type minted in eastern Arabia (Gerrha/Thaj), Bibliothèque nationale de France](https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1b/Monnaie_-_T%C3%A9tradrachme%2C_argent%2C_types_d%27Alexandre_III_le_Grand%2C_Gerrha_%28Thaj%29%2C_%2C_-_btv1b103057231_%281_of_2%29.jpg/960px-Monnaie_-_T%C3%A9tradrachme%2C_argent%2C_types_d%27Alexandre_III_le_Grand%2C_Gerrha_%28Thaj%29%2C_%2C_-_btv1b103057231_%281_of_2%29.jpg)
+![A tetradrachm of Alexander type minted in eastern Arabia (Gerrha/Thaj), Bibliothèque nationale de France](images/25_gerrha_thaj_and_the_gulf_coast/02_a_tetradrachm_of_alexander_type_minted_in_easter.jpg)
 *A tetradrachm of Alexander type minted in eastern Arabia (Gerrha/Thaj), Bibliothèque nationale de France.* Credit: Bibliothèque nationale de France, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Monnaie_-_T%C3%A9tradrachme,_argent,_types_d%27Alexandre_III_le_Grand,_Gerrha_%28Thaj%29,_,_-_btv1b103057231_%281_of_2%29.jpg).
 
-![Uqair on the Gulf coast, seen through an arcade. The buildings are later, but the shore and light are right](https://upload.wikimedia.org/wikipedia/commons/9/9c/Uqair.jpg)
+![Uqair on the Gulf coast, seen through an arcade. The buildings are later, but the shore and light are right](images/25_gerrha_thaj_and_the_gulf_coast/03_uqair_on_the_gulf_coast_seen_through_an_arcade_t.jpg)
 *Uqair on the Gulf coast, seen through an arcade. The buildings are later, but the shore and light are right.* Credit: Mark Dolce, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Uqair.jpg).
 
-![Tarout castle stands on a far older Bronze Age tell](https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f9/%D9%88%D8%A7%D8%AC%D9%87%D8%A9-%D9%82%D9%84%D8%B9%D8%A9-%D8%AA%D8%A7%D8%B1%D9%88%D8%AA.jpg/960px-%D9%88%D8%A7%D8%AC%D9%87%D8%A9-%D9%82%D9%84%D8%B9%D8%A9-%D8%AA%D8%A7%D8%B1%D9%88%D8%AA.jpg)
+![Tarout castle stands on a far older Bronze Age tell](images/25_gerrha_thaj_and_the_gulf_coast/04_tarout_castle_stands_on_a_far_older_bronze_age_t.jpg)
 *Tarout castle stands on a far older Bronze Age tell.* Credit: Mustafa Al-Elq, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:%D9%88%D8%A7%D8%AC%D9%87%D8%A9-%D9%82%D9%84%D8%B9%D8%A9-%D8%AA%D8%A7%D8%B1%D9%88%D8%AA.jpg).
 
 
@@ -825,16 +825,16 @@ Shisr was found in 1992 with the help of satellite images by an expedition inclu
 - *The mounds:* about 11,700 burial mounds survive out of a once much larger number, including "royal mounds" at A'ali up to 15 m high ([UNESCO 1542, Dilmun Burial Mounds](https://whc.unesco.org/en/list/1542)).
 - *In myth:* Dilmun was a pure land of sweet water (*Enki and Ninhursag*). In the Sumerian flood story the survivor Ziusudra is settled there. Some scholars link the plant of youth that Gilgamesh dives for to the freshwater springs that bubble up from the sea floor around Bahrain ([Wikipedia: Dilmun](https://en.wikipedia.org/wiki/Dilmun)).
 
-![Burial mounds at A'ali: a lumpy field of low rubble mounds. Easy to build as terrain](https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a2/A%27ali_Burial_Mounds.jpg/960px-A%27ali_Burial_Mounds.jpg)
+![Burial mounds at A'ali: a lumpy field of low rubble mounds. Easy to build as terrain](images/26_dilmun_bahrain/01_burial_mounds_at_a_ali_a_lumpy_field_of_low_rubb.jpg)
 *Burial mounds at A'ali: a lumpy field of low rubble mounds. Easy to build as terrain.* Credit: Step, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:A%27ali_Burial_Mounds.jpg).
 
-![The Barbar temple: low ashlar terraces and platforms](https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c9/Barbar_temple%2C_Dilmun_culture%2C_ca._3000-2000_BCE%3B_Bahrain_%2814%29.jpg/960px-Barbar_temple%2C_Dilmun_culture%2C_ca._3000-2000_BCE%3B_Bahrain_%2814%29.jpg)
+![The Barbar temple: low ashlar terraces and platforms](images/26_dilmun_bahrain/02_the_barbar_temple_low_ashlar_terraces_and_platfo.jpg)
 *The Barbar temple: low ashlar terraces and platforms.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Barbar_temple,_Dilmun_culture,_ca._3000-2000_BCE;_Bahrain_%2814%29.jpg).
 
-![Barbar: the big dressed blocks of the temple platform](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e6/Barbar_temple%2C_Dilmun_culture%2C_ca._3000-2000_BCE%3B_Bahrain_%288%29.jpg/960px-Barbar_temple%2C_Dilmun_culture%2C_ca._3000-2000_BCE%3B_Bahrain_%288%29.jpg)
+![Barbar: the big dressed blocks of the temple platform](images/26_dilmun_bahrain/03_barbar_the_big_dressed_blocks_of_the_temple_plat.jpg)
 *Barbar: the big dressed blocks of the temple platform.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Barbar_temple,_Dilmun_culture,_ca._3000-2000_BCE;_Bahrain_%288%29.jpg).
 
-![Qal'at al-Bahrain: the tell by the sea. The fort on top is much later](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7c/Qal%27at_al-Bahrain%2C_Karbabad%2C_Bar%C3%A9in%2C_2024-08-18%2C_DD_67.jpg/960px-Qal%27at_al-Bahrain%2C_Karbabad%2C_Bar%C3%A9in%2C_2024-08-18%2C_DD_67.jpg)
+![Qal'at al-Bahrain: the tell by the sea. The fort on top is much later](images/26_dilmun_bahrain/04_qal_at_al_bahrain_the_tell_by_the_sea_the_fort_o.jpg)
 *Qal'at al-Bahrain: the tell by the sea. The fort on top is much later.* Credit: Diego Delso, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Qal%27at_al-Bahrain,_Karbabad,_Bar%C3%A9in,_2024-08-18,_DD_67.jpg).
 
 
@@ -860,22 +860,22 @@ Shisr was found in 1992 with the help of satellite images by an expedition inclu
 - **Mleiha** (Sharjah) is an inland site with a long history: a Bronze Age Umm an-Nar communal tomb (about 2300 BCE) with relief-carved stone, and a large town of about the 3rd century BCE – 3rd century CE. The later town had a fort, a mint that struck coins in the name of a king Abi'el, and graves in which horses and camels were buried beside their owners, some with gold trappings ([Wikipedia: Mleiha](https://en.wikipedia.org/wiki/Mleiha); [UNESCO tentative list 6643](https://whc.unesco.org/en/tentativelists/6643); [Sharjah Archaeology Authority](https://saa.shj.ae/en/place_exc/mleiha-sharjah)).
 - **Ed-Dur** (Umm al-Quwain) was a coastal town of about the 1st century BCE – 2nd century CE on a lagoon, with a small temple to the sun god Shamash, Roman glass and coins from across the Indian Ocean world ([Wikipedia: Ed-Dur](https://en.wikipedia.org/wiki/Ed-Dur)).
 
-![A plan of the Mleiha fort: a square enclosure with corner towers and rooms along the walls](https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fb/Mlaiha_fort_CW%2C_Sharjah_emirate.jpg/960px-Mlaiha_fort_CW%2C_Sharjah_emirate.jpg)
+![A plan of the Mleiha fort: a square enclosure with corner towers and rooms along the walls](images/27_mleiha_and_ed_dur/01_a_plan_of_the_mleiha_fort_a_square_enclosure_wit.jpg)
 *A plan of the Mleiha fort: a square enclosure with corner towers and rooms along the walls.* Credit: Azd0815, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Mlaiha_fort_CW,_Sharjah_emirate.jpg).
 
-![The Umm an-Nar tomb](https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Mleiha_tomb2.jpg/960px-Mleiha_tomb2.jpg)
+![The Umm an-Nar tomb](images/27_mleiha_and_ed_dur/02_the_umm_an_nar_tomb_a_round_communal_grave_of_dr.jpg)
 *The Umm an-Nar tomb: a round communal grave of dressed stone, with the Hajar mountains behind.* Credit: Angela Manthorpe, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Mleiha_tomb2.jpg).
 
-![The tomb's entrance: a small window-like door in the curved ashlar wall](https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Entrance_of_the_Middle_Bronze_Age_Umm_al-Nar_tomb_at_Mleiha%2C_Sharjah%2C_UAE%2C_ca._2300_BCE_%281%29.jpg/960px-Entrance_of_the_Middle_Bronze_Age_Umm_al-Nar_tomb_at_Mleiha%2C_Sharjah%2C_UAE%2C_ca._2300_BCE_%281%29.jpg)
+![The tomb's entrance: a small window-like door in the curved ashlar wall](images/27_mleiha_and_ed_dur/03_the_tomb_s_entrance_a_small_window_like_door_in.jpg)
 *The tomb's entrance: a small window-like door in the curved ashlar wall.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Entrance_of_the_Middle_Bronze_Age_Umm_al-Nar_tomb_at_Mleiha,_Sharjah,_UAE,_ca._2300_BCE_%281%29.jpg).
 
-![Relief animals carved on the tomb's stones](https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6d/Relief_decoration_on_the_Middle_Bonze_Age_Umm_al-Nar_tomb_at_Mleiha%2C_Sharjah%2C_UAE%2C_ca._2300_BCE.jpg/960px-Relief_decoration_on_the_Middle_Bonze_Age_Umm_al-Nar_tomb_at_Mleiha%2C_Sharjah%2C_UAE%2C_ca._2300_BCE.jpg)
+![Relief animals carved on the tomb's stones](images/27_mleiha_and_ed_dur/04_relief_animals_carved_on_the_tomb_s_stones.jpg)
 *Relief animals carved on the tomb's stones.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Relief_decoration_on_the_Middle_Bonze_Age_Umm_al-Nar_tomb_at_Mleiha,_Sharjah,_UAE,_ca._2300_BCE.jpg).
 
-![A Mleiha coin of the 1st–2nd c. CE](https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7a/Mleiha_Tetra_Drachma_-_100-200AD.jpg/960px-Mleiha_Tetra_Drachma_-_100-200AD.jpg)
+![A Mleiha coin of the 1st–2nd c. CE](images/27_mleiha_and_ed_dur/05_a_mleiha_coin_of_the_1st_2nd_c_ce.jpg)
 *A Mleiha coin of the 1st–2nd c. CE.* Credit: Alexandermcnabb, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Mleiha_Tetra_Drachma_-_100-200AD.jpg).
 
-![Ed-Dur's dunes by the lagoon](https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/The_site_of_Ed-Dur_today.jpg/960px-The_site_of_Ed-Dur_today.jpg)
+![Ed-Dur's dunes by the lagoon](images/27_mleiha_and_ed_dur/06_ed_dur_s_dunes_by_the_lagoon.jpg)
 *Ed-Dur's dunes by the lagoon.* Credit: Alexandermcnabb, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:The_site_of_Ed-Dur_today.jpg).
 
 
@@ -902,13 +902,13 @@ Shisr was found in 1992 with the help of satellite images by an expedition inclu
 
 **What it is.** In Arab tradition, 'Ad were a mighty ancient people of southern Arabia, in al-Ahqaf ("the curving sand dunes"). They built *Iram dhat al-'Imad*, "Iram of the Pillars". The Qur'an tells how the prophet Hud warned them and how a roaring wind destroyed them. Later storytellers (Wahb ibn Munabbih, the *Thousand and One Nights*) added King Shaddad ibn 'Ad, who built Iram as a garden of gold, silver and gems to rival paradise, and saw it destroyed before he could enter it. The 1992 Shisr "Ubar" discovery made the legend famous again (section 23) ([Wikipedia: Iram of the Pillars](https://en.wikipedia.org/wiki/Iram_of_the_Pillars); ['Ad](https://en.wikipedia.org/wiki/%CA%BFAd); [Ubar](https://en.wikipedia.org/wiki/Ubar)).
 
-![The 1992 space-radar image used to find old caravan tracks converging on Shisr (NASA, public domain)](https://upload.wikimedia.org/wikipedia/commons/b/bd/SIR-C_X-SAR_Ubar%2C_Oman.gif)
+![The 1992 space-radar image used to find old caravan tracks converging on Shisr (NASA, public domain)](images/28_iram_of_the_pillars_and_the_peop/01_the_1992_space_radar_image_used_to_find_old_cara.gif)
 *The 1992 space-radar image used to find old caravan tracks converging on Shisr (NASA, public domain).* Credit: NASA, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:SIR-C_X-SAR_Ubar,_Oman.gif).
 
-![The Shisr ruins over the sinkhole](https://thumb.wikimedia.org/wikipedia/commons/thumb/0/01/Shisr_%28Ubar%299.jpg/960px-Shisr_%28Ubar%299.jpg)
+![The Shisr ruins over the sinkhole](images/28_iram_of_the_pillars_and_the_peop/02_the_shisr_ruins_over_the_sinkhole.jpg)
 *The Shisr ruins over the sinkhole.* Credit: 9591353082 (English Wikipedia), CC BY 2.5, [Commons file page](https://commons.wikimedia.org/wiki/File:Shisr_%28Ubar%299.jpg).
 
-![Al-Ahqaf, the curving dunes, where the legend places 'Ad](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/95/Rub%27_al_Khali_%28Arabian_Empty_Quarter%29_sand_dunes_imaged_by_Terra_%28EOS_AM-1%29.jpg/960px-Rub%27_al_Khali_%28Arabian_Empty_Quarter%29_sand_dunes_imaged_by_Terra_%28EOS_AM-1%29.jpg)
+![Al-Ahqaf, the curving dunes, where the legend places 'Ad](images/28_iram_of_the_pillars_and_the_peop/03_al_ahqaf_the_curving_dunes_where_the_legend_plac.jpg)
 *Al-Ahqaf, the "curving dunes", where the legend places 'Ad.* Credit: NASA/GSFC/METI/ERSDAC/JAROS, and U.S./Japan ASTER Science Team, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Rub%27_al_Khali_%28Arabian_Empty_Quarter%29_sand_dunes_imaged_by_Terra_%28EOS_AM-1%29.jpg).
 
 
@@ -932,13 +932,13 @@ Shisr was found in 1992 with the help of satellite images by an expedition inclu
 - *Scripts:* "Thamudic" is also the old label for thousands of graffiti in Ancient North Arabian scripts across the peninsula (now split into Hismaic, Taymanitic, Dadanitic and others).
 - *Tradition:* Islamic tradition places Thamud at al-Hijr (Hegra) and remembers them as carvers of houses in the rocks. Their prophet Salih brought them a she-camel as a sign, to share their water on alternate days. They hamstrung her and were destroyed. Because of this, people long avoided the Hegra tombs as a cursed place.
 
-![Thamudic graffiti at Jubbah](https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Thamudic_inscription_at_Jubbah_Rock_Art_Site_%281%29.jpg/960px-Thamudic_inscription_at_Jubbah_Rock_Art_Site_%281%29.jpg)
+![Thamudic graffiti at Jubbah](images/29_thamud_al_hijr_and_the_she_camel/01_thamudic_graffiti_at_jubbah.jpg)
 *"Thamudic" graffiti at Jubbah.* Credit: Richard Mortel, CC BY 2.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Thamudic_inscription_at_Jubbah_Rock_Art_Site_%281%29.jpg).
 
-![Julius Euting's 1880s drawings of Nabataean tomb inscriptions at Hegra (public domain)](https://upload.wikimedia.org/wikipedia/commons/9/99/Euting_Nabataean_inscriptions_from_Hegra%2C_Al-Ula_20.jpg)
+![Julius Euting's 1880s drawings of Nabataean tomb inscriptions at Hegra (public domain)](images/29_thamud_al_hijr_and_the_she_camel/02_julius_euting_s_1880s_drawings_of_nabataean_tomb.jpg)
 *Julius Euting's 1880s drawings of Nabataean tomb inscriptions at Hegra (public domain).* Credit: Julius Euting, Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:Euting_Nabataean_inscriptions_from_Hegra,_Al-Ula_20.jpg).
 
-![Qasr al-Farid at Hegra. Later tradition made Hegra's tombs the houses in the rocks of Thamud](https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5e/Mada%27in_Saleh_2017.jpg/960px-Mada%27in_Saleh_2017.jpg)
+![Qasr al-Farid at Hegra. Later tradition made Hegra's tombs the houses in the rocks of Thamud](images/29_thamud_al_hijr_and_the_she_camel/03_qasr_al_farid_at_hegra_later_tradition_made_hegr.jpg)
 *Qasr al-Farid at Hegra. Later tradition made Hegra's tombs the "houses in the rocks" of Thamud.* Credit: Ahmad AlHasanat, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Mada%27in_Saleh_2017.jpg).
 
 
@@ -959,13 +959,13 @@ Shisr was found in 1992 with the help of satellite images by an expedition inclu
 
 Sources: [Wikipedia: Jinn](https://en.wikipedia.org/wiki/Jinn); [Ghoul](https://en.wikipedia.org/wiki/Ghoul); [Yosefi, "The origins of the traditional approach towards the jinn of poetic inspiration", PSAS 2019](https://archaeopresspublishing.com/ojs/index.php/PSAS/article/view/353); [Atlas Obscura: Wadi e Jinn](https://www.atlasobscura.com/places/wadi-e-jinn); [Arab News](https://www.arabnews.com/node/1221666).
 
-![Wadi al-Disah (Tabuk)](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e8/Wadi_al-Disah1.jpg/960px-Wadi_al-Disah1.jpg)
+![Wadi al-Disah (Tabuk)](images/30_the_jinn_wadi_abqar_and_wadi_al/01_wadi_al_disah_tabuk_a_palm_filled_canyon_between.jpg)
 *Wadi al-Disah (Tabuk): a palm-filled canyon between sandstone towers. Good reference for a hidden jinn valley.* Credit: Clemens Schmillen, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Wadi_al-Disah1.jpg).
 
-![Wadi al-Disah: a Nabataean façade cut in the canyon wall](https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Wadi_al-Disah2%2C_Nabataean_tomb_facade.jpg/960px-Wadi_al-Disah2%2C_Nabataean_tomb_facade.jpg)
+![Wadi al-Disah: a Nabataean façade cut in the canyon wall](images/30_the_jinn_wadi_abqar_and_wadi_al/02_wadi_al_disah_a_nabataean_fa_ade_cut_in_the_cany.jpg)
 *Wadi al-Disah: a Nabataean façade cut in the canyon wall.* Credit: Clemens Schmillen, CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Wadi_al-Disah2,_Nabataean_tomb_facade.jpg).
 
-![Wadi al-Jinn (al-Baida) near Medina, the gravity hill: bare rocky hills](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Wadi_Jinn_29_K.m_from_Madina_-_panoramio.jpg/960px-Wadi_Jinn_29_K.m_from_Madina_-_panoramio.jpg)
+![Wadi al-Jinn (al-Baida) near Medina, the gravity hill: bare rocky hills](images/30_the_jinn_wadi_abqar_and_wadi_al/03_wadi_al_jinn_al_baida_near_medina_the_gravity_hi.jpg)
 *Wadi al-Jinn (al-Baida) near Medina, the "gravity hill": bare rocky hills.* Credit: khadim-un-nabi Rao, CC BY-SA 3.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Wadi_Jinn_29_K.m_from_Madina_-_panoramio.jpg).
 
 
@@ -1008,10 +1008,10 @@ These are short notes for art, dialogue and localisation, and they apply to ever
 
 Don't put modern Arabic script on ancient objects. The *Mu'allaqat* were oral poetry; show poets reciting, not reading from scrolls.
 
-![A Sabaean inscription (2nd c. CE)](https://thumb.wikimedia.org/wikipedia/commons/thumb/6/62/Slab_with_an_inscription_about_the_political_activities_of_the_kings_of_Sheba._Ancient_South_Arabian_script_appears._From_Yemen%2C_2nd_century_CE._Ancient_Orient_Museum%2C_Istanbul.jpg/960px-thumbnail.jpg)
+![A Sabaean inscription (2nd c. CE)](images/99_cultural_details/01_a_sabaean_inscription_2nd_c_ce_musnad_letters_in.jpg)
 *A Sabaean inscription (2nd c. CE): Musnad letters in raised bands. This is the look for South Arabian lore stones.* Credit: Osama Shukir Muhammed Amin FRCP(Glasg), CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Slab_with_an_inscription_about_the_political_activities_of_the_kings_of_Sheba._Ancient_South_Arabian_script_appears._From_Yemen,_2nd_century_CE._Ancient_Orient_Museum,_Istanbul.jpg).
 
-![The Nabataean alphabet set out on a tablet](https://thumb.wikimedia.org/wikipedia/commons/thumb/4/49/Nabataean_alphabet_tablet_-_2018430.jpg/960px-Nabataean_alphabet_tablet_-_2018430.jpg)
+![The Nabataean alphabet set out on a tablet](images/99_cultural_details/02_the_nabataean_alphabet_set_out_on_a_tablet.jpg)
 *The Nabataean alphabet set out on a tablet.* Credit: Nesnad, CC BY 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Nabataean_alphabet_tablet_-_2018430.jpg).
 
 
@@ -1024,10 +1024,10 @@ Don't put modern Arabic script on ancient objects. The *Mu'allaqat* were oral po
 - *Dilmun:* Inzak and his consort Meskilak; Enki in the Sumerian myths about Dilmun. *Ed-Dur:* Shamash.
 - *Practices:* incense burning on small cubical altars with feet; betyls in niches; animal sacrifice at high places; ritual banquets (*marzeah*); pilgrimage in the sacred months; divination with arrows (*azlam*); the soothsayer (*kahin*) who speaks in rhymed prose (*saj'*).
 
-![A South Arabian incense burner (5th–4th c. BCE, British Museum) with the names of the incenses carved on it. A must-have prop for every shrine](https://thumb.wikimedia.org/wikipedia/commons/thumb/1/19/Incense_burner%2C_from_Yemen%2C_5th-4th_century_BCE._An_ancient_South_Arabian_inscription_about_the_names_of_incense._British_Museum.jpg/960px-Incense_burner%2C_from_Yemen%2C_5th-4th_century_BCE._An_ancient_South_Arabian_inscription_about_the_names_of_incense._British_Museum.jpg)
+![A South Arabian incense burner (5th–4th c. BCE, British Museum) with the names of the incenses carved on it. A must-have prop for every shrine](images/99_cultural_details/03_a_south_arabian_incense_burner_5th_4th_c_bce_bri.jpg)
 *A South Arabian incense burner (5th–4th c. BCE, British Museum) with the names of the incenses carved on it. A must-have prop for every shrine.* Credit: Osama Shukir Muhammed Amin FRCP(Glasg), CC BY-SA 4.0, [Commons file page](https://commons.wikimedia.org/wiki/File:Incense_burner,_from_Yemen,_5th-4th_century_BCE._An_ancient_South_Arabian_inscription_about_the_names_of_incense._British_Museum.jpg).
 
-![An ibex frieze (Walters Art Museum). Rows of ibex heads crown South Arabian temples](https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/South_Arabian_-_Fragment_of_an_Ibex_Frieze_-_Walters_2137.jpg/960px-South_Arabian_-_Fragment_of_an_Ibex_Frieze_-_Walters_2137.jpg)
+![An ibex frieze (Walters Art Museum). Rows of ibex heads crown South Arabian temples](images/99_cultural_details/04_an_ibex_frieze_walters_art_museum_rows_of_ibex_h.jpg)
 *An ibex frieze (Walters Art Museum). Rows of ibex heads crown South Arabian temples: an easy repeating box decal.* Credit: Anonymous (South Arabia), Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:South_Arabian_-_Fragment_of_an_Ibex_Frieze_-_Walters_2137.jpg).
 
 
@@ -1045,7 +1045,7 @@ Don't put modern Arabic script on ancient objects. The *Mu'allaqat* were oral po
 - *Pests:* scorpions, vipers (the horned viper buries itself in sand), camel spiders and locusts.
 - *Not right:* no elephants except Abraha's (from Africa); no stirrups; no cats as pets in the desert (fine in towns); no turkeys, tomatoes, maize or chillies (New World crops).
 
-![A South Arabian frieze: a crouching ibex beside a row of oryx heads](https://thumb.wikimedia.org/wikipedia/commons/thumb/e/eb/South_Arabian_-_Fragment_of_a_Frieze_with_an_Ibex_and_Oryxes_-_Walters_2138.jpg/960px-South_Arabian_-_Fragment_of_a_Frieze_with_an_Ibex_and_Oryxes_-_Walters_2138.jpg)
+![A South Arabian frieze: a crouching ibex beside a row of oryx heads](images/99_cultural_details/05_a_south_arabian_frieze_a_crouching_ibex_beside_a.jpg)
 *A South Arabian frieze: a crouching ibex beside a row of oryx heads.* Credit: Anonymous (South Arabia), Public domain, [Commons file page](https://commons.wikimedia.org/wiki/File:South_Arabian_-_Fragment_of_a_Frieze_with_an_Ibex_and_Oryxes_-_Walters_2138.jpg).
 
 
