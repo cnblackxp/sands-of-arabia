@@ -15,7 +15,7 @@ Blender conventions used here (the glTF exporter converts them):
     - pose location.y moves a bone up
 """
 import bpy, bmesh, math
-from mathutils import Vector
+from mathutils import Vector, Matrix, Euler
 
 import arabia_lib as L
 
@@ -222,6 +222,16 @@ def counter_euler(e):
     return tuple(round(math.degrees(a), 2) for a in inv)
 
 
+BOW_CARRY = 120.0   # deg about X: the held bow's rest tilt (upper limb forward-down like the sword)
+
+
+def bow_hand(arm_e):
+    """hand_L Euler (deg, ZYX) that undoes the arm rotation arm_e and the bow's carry tilt: bow upright."""
+    from mathutils import Euler, Matrix
+    m = Euler([R(a) for a in arm_e], "ZYX").to_matrix().inverted() @ Matrix.Rotation(R(-BOW_CARRY), 3, "X")
+    return tuple(round(math.degrees(a), 2) for a in m.to_euler("ZYX"))
+
+
 # ------------------------------------------------------------------ person
 PERSON_BONES = [
     ("root", None, (0, 0, 0)),
@@ -361,7 +371,8 @@ def build_person(col):
                 ("spine", "box", ((-0.33, 0.23, 0.82), (0.04, 0.04, 0.3), bow_wood, (0, R(70), 0))),
                 ("spine", "box", ((0.02, 0.25, 1.2), (0.01, 0.01, 1.3), fletch, (0, R(35), 0))),
                 ("spine", "box", ((-0.15, 0.22, 1.25), (0.13, 0.1, 0.5), leather, (0, R(-20), 0))),
-                ("spine", "box", ((-0.19, 0.22, 1.54), (0.1, 0.08, 0.1), fletch, (0, R(-20), 0)))])
+                ("spine", "box", (Vector((-0.15, 0.22, 1.25)) + Vector((math.sin(R(-20)), 0, math.cos(R(-20)))) * 0.29,
+                                  (0.1, 0.08, 0.1), fletch, (0, R(-20), 0)))])
     acc("Belly", [("spine", "box", ((0, -0.08, 1.13), (0.6, 0.44, 0.34), robe))])
     # ---- v5: held composite bow (left hand), back quiver, club, sling
     sinew = mat("P_BowSinew", "#c9a46b", 0.7)
@@ -374,13 +385,20 @@ def build_person(col):
                 ("hand_L", "box", (gl + Vector((0, 0.083, sg * 0.31)), (0.04, 0.012, 0.48), horn, (R(-14 * sg), 0, 0))),
                 ("hand_L", "box", (gl + Vector((0, 0.1, sg * 0.63)), (0.04, 0.03, 0.18), siyah, (R(25 * sg), 0, 0)))]
     bow += [("hand_L", "box", (gl + Vector((0, 0.075, 0)), (0.008, 0.008, 1.38), fletch))]          # string
-    acc("BowHeld", bow)
-    qv = [("spine", "box", ((0.17, 0.21, 1.18), (0.15, 0.13, 0.56), leather, (0, R(-22), 0))),
-          ("spine", "box", ((0.17, 0.21, 1.0), (0.17, 0.15, 0.06), brass, (0, R(-22), 0)))]
-    for k in range(6):                                   # arrow nocks and dark fletching above the mouth
-        ox, oy = (k % 3 - 1) * 0.04, (k // 3) * 0.04 - 0.02
-        qv += [("spine", "box", ((0.27 + ox, 0.21 + oy, 1.5), (0.012, 0.012, 0.14), shaft, (0, R(-22), 0))),
-               ("spine", "box", ((0.29 + ox, 0.21 + oy, 1.55), (0.03, 0.01, 0.07), mask, (0, R(-22), 0)))]
+    # carried like the sword: the whole bow turns BOW_CARRY about the hand_L head, upper limb forward-down
+    # along cd, clear of the hanging arm; the archery clips undo it (bow_hand) so it is upright when drawn
+    cm = Matrix.Rotation(R(BOW_CARRY), 3, "X")
+    hl = Vector(dict((b, h) for b, _, h in PERSON_BONES)["hand_L"])
+    acc("BowHeld", [(b, k, (hl + cm @ (Vector(c) - hl), sz, m, (cm @ Euler(r[0] if r else (0, 0, 0)).to_matrix()).to_euler()))
+                    for b, k, (c, sz, m, *r) in bow])
+    qc, qa = Vector((0.17, 0.21, 1.18)), Vector((math.sin(R(-22)), 0, math.cos(R(-22))))   # quiver centre, axis
+    qv = [("spine", "box", (qc, (0.15, 0.13, 0.56), leather, (0, R(-22), 0))),
+          ("spine", "box", (qc - qa * 0.19, (0.17, 0.15, 0.06), brass, (0, R(-22), 0)))]
+    qx = Vector((math.cos(R(-22)), 0, -math.sin(R(-22))))                                  # across the mouth
+    for k in range(6):                                   # arrow shafts and dark fletching standing out of the mouth
+        o = qx * ((k % 3 - 1) * 0.04) + Vector((0, (k // 3) * 0.04 - 0.02, 0))
+        qv += [("spine", "box", (qc + qa * 0.30 + o, (0.012, 0.012, 0.14), shaft, (0, R(-22), 0))),
+               ("spine", "box", (qc + qa * 0.36 + o, (0.03, 0.01, 0.07), mask, (0, R(-22), 0)))]
     acc("Quiver", qv)
     cd = Vector((0, -math.cos(R(30)), -math.sin(R(30))))                                            # like the sword
     club_wood = mat("P_Club", "#5e3f26", 0.85)
@@ -646,10 +664,10 @@ def person_clips(arm):
         target = grip.lerp(anchor, draw)
         ar = limb_euler(tuple(target - rs), tw)
         return {"spine": {"rot": (2 + sway, tw, 0)}, "head": {"rot": (-2, -tw * 0.85, 0)},
-                "arm_L": {"rot": al}, "hand_L": {"rot": counter_euler(al)}, "arm_R": {"rot": ar}}
+                "arm_L": {"rot": al}, "hand_L": {"rot": bow_hand(al)}, "arm_R": {"rot": ar}}
     clip(arm, "BowDraw", 13, {
         1: {"spine": {"rot": (0, 0, 0)}, "arm_L": {"rot": limb_euler((0, -0.45, -0.9), 0)},
-            "hand_L": {"rot": counter_euler(limb_euler((0, -0.45, -0.9), 0))}, "arm_R": {"rot": (-20, 0, -8)}},
+            "hand_L": {"rot": bow_hand(limb_euler((0, -0.45, -0.9), 0))}, "arm_R": {"rot": (-20, 0, -8)}},
         5: bow_pose(24, draw=0.0),
         9: bow_pose(32, draw=0.6),
         13: bow_pose(35, draw=1.0),
@@ -665,7 +683,7 @@ def person_clips(arm):
     back["arm_R"] = {"rot": limb_euler((0.25, 0.55, -0.7), 30)}
     back["spine"] = {"rot": (0, 30, 0)}
     back["arm_L"] = {"rot": limb_euler((0, -0.95, -0.15), 30)}
-    back["hand_L"] = {"rot": counter_euler(limb_euler((0, -0.95, -0.15), 30))}
+    back["hand_L"] = {"rot": bow_hand(limb_euler((0, -0.95, -0.15), 30))}
     clip(arm, "BowRelease", 6, {1: rel, 3: fly, 7: back}, loop=False)
     bpy.data.actions["BowRelease"]["release"] = 1
 
