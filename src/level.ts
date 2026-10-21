@@ -45,6 +45,8 @@ export interface Spawn {
 }
 
 export interface Exit {
+  /** Arabic label from the export. */
+  label_ar?: string;
   to: string;
   pos: Vec3;
   radius: number;

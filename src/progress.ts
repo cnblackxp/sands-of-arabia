@@ -30,6 +30,8 @@ export interface ProgressData {
   taken: string[];
   /** Arrows in the quiver (max 10); loosed ones can be picked up again. */
   arrows: number;
+  /** Maps entered at least once (new lands show "New" until then). */
+  visited: string[];
 }
 
 const KEY = 'sands-of-arabia.save.v1';
@@ -52,6 +54,7 @@ export function freshProgress(): ProgressData {
     openedChests: [],
     taken: [],
     arrows: 10,
+    visited: [],
   };
 }
 

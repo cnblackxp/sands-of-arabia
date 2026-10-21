@@ -17,7 +17,19 @@ export interface ClipMeta {
 export interface MapEntry {
   name: string;
   title: string;
+  /** Arabic title from the export (the locales can still override it). */
+  title_ar?: string;
   level: string;
+  /** 2 = the new big lands; the first journey's maps have none. */
+  batch?: number;
+}
+
+/** The first journey's maps (kept as they are; new lands are added beside them). */
+export const FIRST_BATCH: ReadonlySet<string> = new Set(['oasis', 'hegra', 'caravanserai', 'wadi', 'raider_fort', 'rooftops', 'cliffs', 'ruined_temple']);
+
+/** A map from the new lands (by its `batch`, or by not being one of the first journey's). */
+export function isNewLand(m: MapEntry): boolean {
+  return m.batch !== undefined ? m.batch >= 2 : !FIRST_BATCH.has(m.name);
 }
 
 /** Loaded once: characters, sky, manifest, map list. */

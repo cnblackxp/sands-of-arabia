@@ -252,6 +252,10 @@ Decisions worth knowing:
   - Shaders compile with `compileAsync` behind the loading screen.
 - **Input safety.** Losing focus, hiding the tab or a pointer-lock change releases all held keys, and `mousemove` drops buttons whose `mouseup` was missed. A stuck key used to close dialogue at once.
 - **Sky lighting** (PMREM environment) is rebuilt at most once a second, however fast time runs.
+- **Map batches.**
+  - The first journey's 8 maps (`FIRST_BATCH` in `world.ts`) stay as they are. The only allowed change to them is an added exit to a new land.
+  - New lands carry `"batch": 2` in `maps.json`, plus `title_ar` and exits with `label_ar`.
+  - The Travel tab lists "Regions of the first journey" and "New lands"; new lands are marked ✦ New until visited (`progress.data.visited`).
 - **People and speech.**
   - NPC names come from their culture's pool (`lore.ts`).
   - Conversations may open and close with that people's own greeting and farewell (`speech.<culture>` in the locales, naming the gods each people worshipped).

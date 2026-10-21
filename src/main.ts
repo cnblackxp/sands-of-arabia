@@ -23,7 +23,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './s
 import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
 import { mulberry32 } from './util';
-import { cutout, loadCommon, loadMap, mapRequested, World, type CommonAssets, type MapEntry } from './world';
+import { cutout, isNewLand, loadCommon, loadMap, mapRequested, World, type CommonAssets, type MapEntry } from './world';
 
 const TALK_RANGE = 2.4;
 /** See-through radius around the player, metres. */
@@ -298,7 +298,8 @@ class Game {
   }
 
   private mapTitle(name: string): string {
-    return tOr(`maps.${name}`, this.mapEntry(name).title);
+    const e = this.mapEntry(name);
+    return tOr(`maps.${name}`, lang() === 'ar' && e.title_ar ? e.title_ar : e.title);
   }
 
   /** Re-render whatever shows text after the language changes. */
@@ -310,7 +311,7 @@ class Game {
 
   /** Exit label: the level's (English) label, or a translation by "map>to". */
   private exitLabel(e: Exit): string {
-    return tOr(`exits.${this.mapName}>${e.to}`, lang() === 'en' ? e.label : t('markers.to', { map: this.mapTitle(e.to) }));
+    return tOr(`exits.${this.mapName}>${e.to}`, lang() === 'en' ? e.label : lang() === 'ar' && e.label_ar ? e.label_ar : t('markers.to', { map: this.mapTitle(e.to) }));
   }
 
   /** Name shown for a pickup (quest item or free pickup). */
@@ -367,6 +368,10 @@ class Game {
     await this.physics.init();
     this.world = new World(map, this.physics);
     this.mapName = entry.name;
+    if (!this.progress.data.visited.includes(entry.name)) {
+      this.progress.data.visited.push(entry.name);
+      this.progress.save();
+    }
     const scene = this.world.scene;
     this.day = new DayCycle(this.world, this.renderer, this.common.bg, this.common.envHdr);
     this.defaultHours ??= this.day.hours;
@@ -1120,14 +1125,25 @@ class Game {
               sub: () => (this.player.inCombat ? t('travel.inCombat') : ''),
             });
           }
-          rows.push({ label: t('travel.regions'), kind: 'header' });
-          for (const m of this.common.maps.maps) {
-            rows.push({
-              label: this.mapTitle(m.name),
-              kind: 'button',
-              value: () => (m.name === this.mapName ? t('travel.here') : ''),
-              activate: () => void this.quickTravel(m.name),
-            });
+          // The first journey's regions, then the new lands (marked until visited).
+          const maps = this.common.maps.maps;
+          const groups: [string, MapEntry[]][] = [
+            [t('travel.regionsFirst'), maps.filter((m) => !isNewLand(m))],
+            [t('travel.regionsNew'), maps.filter((m) => isNewLand(m))],
+          ];
+          for (const [title, list] of groups) {
+            if (!list.length) continue;
+            rows.push({ label: title, kind: 'header' });
+            for (const m of list) {
+              const fresh = isNewLand(m) && !d.visited.includes(m.name);
+              rows.push({
+                label: (fresh ? '✦ ' : '') + this.mapTitle(m.name),
+                kind: 'button',
+                value: () => (m.name === this.mapName ? t('travel.here') : fresh ? t('travel.new') : ''),
+                sub: () => (isNewLand(m) ? t('travel.newSub') : ''),
+                activate: () => void this.quickTravel(m.name),
+              });
+            }
           }
           return rows;
         },

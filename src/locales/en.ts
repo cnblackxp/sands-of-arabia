@@ -563,6 +563,10 @@ export const en = {
     row: '{map} — {name}',
     inCombat: 'Cannot travel while enemies are near',
     regions: 'Regions (quick travel)',
+    regionsFirst: 'Regions of the first journey',
+    regionsNew: 'New lands',
+    new: 'New',
+    newSub: 'A larger region, built from the old sites and stories of Arabia',
     here: 'here',
   },
   settings: {
