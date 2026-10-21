@@ -1,7 +1,9 @@
 import type { Accessory } from './characters';
+import { L, tOr } from './i18n';
 
 /**
- * Weapons, upgrades and consumables. Prices are in gold.
+ * Weapons, upgrades and consumables. Prices are in gold. Names here are
+ * English; other languages override them by id in locales/ (`weaponText`).
  * Attack timings come from the clip metadata in the manifest (`hit_time`);
  * `speed` scales the clip playback.
  */
@@ -128,11 +130,19 @@ export function upgradePrice(u: UpgradeDef, owned: number): number {
   return u.price + u.priceStep * owned;
 }
 
-/** Quest / key items shown in the inventory. */
-export const ITEM_NAMES: Record<string, string> = {
-  sweet_water: 'Skin of sweet water',
-  caravan_letter: 'Sealed letter',
-};
+/** Name and description in the current language (the English is in the tables above). */
+export function weaponText(w: WeaponDef): { name: string; desc: string } {
+  return L().weapons[w.id] ?? w;
+}
+
+export function upgradeText(u: UpgradeDef): { name: string; desc: string } {
+  return L().upgrades[u.id] ?? u;
+}
+
+/** Quest / key items shown in the inventory and on pickups (names in locales/). */
+export function itemName(id: string): string {
+  return tOr(`items.${id}`, id.replace(/_/g, ' '));
+}
 
 /** Gold dropped by enemy kind. */
 export const GOLD_DROP: Record<string, [number, number]> = {

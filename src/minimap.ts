@@ -1,3 +1,4 @@
+import { t, tOr } from './i18n';
 import type { HeightField, LevelData } from './level';
 
 export type DotKind = 'npc' | 'enemy' | 'hostile' | 'guard' | 'horse' | 'camel' | 'dead';
@@ -11,7 +12,13 @@ export interface MapMarker {
   label?: string;
 }
 
-/** Icon badges: fill colour, glyph, and whether it stays pinned to the minimap rim when off-screen. */
+/** "tomb_3" → "tomb 3"; localised where locales/ has the landmark. */
+function landmarkName(id: string): string {
+  const m = /^(.*)_(\d+)$/.exec(id);
+  return m ? `${tOr(`landmarks.${m[1]}`, m[1].replace(/_/g, ' '))} ${m[2]}` : tOr(`landmarks.${id}`, id.replace(/_/g, ' '));
+}
+
+/** Icon badges (names localised in locales/ `badges`): fill colour, glyph, and whether it stays pinned to the minimap rim when off-screen. */
 export const BADGE: Record<BadgeKind, { fill: string; glyph: string; rim: boolean; name: string }> = {
   exit: { fill: '#ffd04a', glyph: '➜', rim: true, name: 'Exit to another region' },
   bonfire: { fill: '#ff8a3a', glyph: '▲', rim: true, name: 'Bonfire (rest, respawn point)' },
@@ -188,22 +195,22 @@ export class Minimap {
       c.arc(sx, sy, size * 0.9 * dpr, 0, Math.PI * 2);
       c.fill();
     }
-    c.font = `${12 * dpr}px Georgia, serif`;
+    c.font = `${12 * dpr}px Georgia, Amiri, serif`;
     c.textAlign = 'center';
     for (const [name, lx, lz] of this.landmarks) {
       const [sx, sy] = toS(lx, lz);
-      const t = name.replace(/_/g, ' ');
+      const label = landmarkName(name);
       c.fillStyle = 'rgba(20,10,5,0.75)';
-      c.fillText(t, sx + 1, sy + 1);
+      c.fillText(label, sx + 1, sy + 1);
       c.fillStyle = '#f6e2bd';
-      c.fillText(t, sx, sy);
+      c.fillText(label, sx, sy);
     }
     for (const m of markers) {
       if (!isBadge(m.kind)) continue;
       const [sx, sy] = toS(m.x, m.z);
       badge(c, sx, sy, 9 * dpr, m.kind);
       if (m.label) {
-        c.font = `bold ${11 * dpr}px Georgia, serif`;
+        c.font = `bold ${11 * dpr}px Georgia, Amiri, serif`;
         // Keep labels inside the canvas (exits sit on the map edge).
         const tw = c.measureText(m.label).width;
         const lx = Math.min(W - tw / 2 - 4 * dpr, Math.max(tw / 2 + 4 * dpr, sx));
@@ -233,8 +240,8 @@ export class Minimap {
     c.stroke();
     c.restore();
     c.fillStyle = '#e3a443';
-    c.font = `bold ${14 * dpr}px Georgia, serif`;
-    c.fillText('N', W - 18 * dpr, 22 * dpr);
+    c.font = `bold ${14 * dpr}px Georgia, Amiri, serif`;
+    c.fillText(t('legend.north'), W - 18 * dpr, 22 * dpr);
   }
 
   dispose(): void {
@@ -316,7 +323,7 @@ export class Minimap {
 
     // Landmark labels (kept upright).
     if (this.mode === 1) {
-      c.font = `${11 * dpr}px Georgia, serif`;
+      c.font = `${11 * dpr}px Georgia, Amiri, serif`;
       c.textAlign = 'center';
       for (const [name, lx, lz] of this.landmarks) {
         const dx = (lx - px) * PX_PER_M * scale;
@@ -324,10 +331,11 @@ export class Minimap {
         const sx = r + dx * Math.cos(camYaw) - dz * Math.sin(camYaw);
         const sy = r + dx * Math.sin(camYaw) + dz * Math.cos(camYaw);
         if (Math.hypot(sx - r, sy - r) > r - 14 * dpr) continue;
+        const label = landmarkName(name);
         c.fillStyle = 'rgba(20,10,5,0.7)';
-        c.fillText(name, sx + dpr, sy + dpr);
+        c.fillText(label, sx + dpr, sy + dpr);
         c.fillStyle = '#ffe2b0';
-        c.fillText(name, sx, sy);
+        c.fillText(label, sx, sy);
       }
     }
 
@@ -358,10 +366,10 @@ export class Minimap {
     const nx = r + Math.sin(na) * (r - 11 * dpr);
     const ny = r - Math.cos(na) * (r - 11 * dpr);
     c.fillStyle = '#e3a443';
-    c.font = `bold ${11 * dpr}px Georgia, serif`;
+    c.font = `bold ${11 * dpr}px Georgia, Amiri, serif`;
     c.textAlign = 'center';
     c.textBaseline = 'middle';
-    c.fillText('N', nx, ny);
+    c.fillText(t('legend.north'), nx, ny);
     c.textBaseline = 'alphabetic';
   }
 }

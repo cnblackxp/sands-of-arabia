@@ -4,6 +4,7 @@ import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { Animator, ClipLibrary } from './animator';
 import type { Foe, HitResult, PlayerView } from './combat';
 import { FLASH, TELL, type Sfx } from './fx';
+import { tOr } from './i18n';
 import type { Spawn } from './level';
 import { PathFollower } from './nav';
 import { mulberry32, turnToward, wrapAngle } from './util';
@@ -408,7 +409,7 @@ export class Beast implements Foe {
     return this.def.hp;
   }
   get title(): string {
-    return this.def.title;
+    return tOr(`enemies.${this.kind}`, this.def.title);
   }
   get headY(): number {
     return this.pos.y + (this.flying ? 0.6 : 1.0);

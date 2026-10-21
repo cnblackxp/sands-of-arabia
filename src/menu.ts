@@ -1,4 +1,5 @@
 import type { Action, Hud } from './hud';
+import { t } from './i18n';
 import type { Frame } from './input';
 
 /**
@@ -85,6 +86,17 @@ export class Menu {
     this.focus = 0;
     this.root.classList.remove('hidden');
     this.sound(true);
+    this.buildTabs();
+    this.refresh();
+  }
+
+  /** Swap title and tabs in place (language change), keeping the open tab and focus. */
+  relabel(title: string, sub: string, tabs: MenuTab[]): void {
+    const id = this.tabId;
+    this.tabs = tabs;
+    this.tabIdx = Math.max(0, tabs.findIndex((t) => t.id === id));
+    this.titleEl.textContent = title;
+    this.subEl.textContent = sub;
     this.buildTabs();
     this.refresh();
   }
@@ -203,8 +215,8 @@ export class Menu {
       this.renderRows();
     }
     this.foot.innerHTML =
-      `<span>${this.hud.device === 'gamepad' ? '<span class="pad dpad">✚</span>' : '<kbd>↑</kbd><kbd>↓</kbd>'} select</span>` +
-      `<span>${k('adjust')} change</span><span>${k('confirm')} choose</span><span>${k('back')} close</span>`;
+      `<span>${this.hud.device === 'gamepad' ? '<span class="pad dpad">✚</span>' : '<span class="keys"><kbd>↑</kbd><kbd>↓</kbd></span>'} ${t('menu.select')}</span>` +
+      `<span>${k('adjust')} ${t('menu.change')}</span><span>${k('confirm')} ${t('menu.choose')}</span><span>${k('back')} ${t('menu.close')}</span>`;
   }
 
   private renderRows(): void {

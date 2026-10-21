@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { t } from './i18n';
 import type { World } from './world';
 
 /**
@@ -47,8 +48,9 @@ const MIN_LIGHT_ELEV = THREE.MathUtils.degToRad(22);
 export function timeLabel(h: number): string {
   const hh = Math.floor(h) % 24;
   const mm = Math.floor((h - Math.floor(h)) * 60);
-  const name =
-    h < 4.8 || h >= 20.5 ? 'Night' : h < 6.8 ? 'Dawn' : h < 11 ? 'Morning' : h < 14 ? 'Noon' : h < 17.4 ? 'Afternoon' : h < 19 ? 'Sunset' : 'Dusk';
+  const name = t(
+    h < 4.8 || h >= 20.5 ? 'time.night' : h < 6.8 ? 'time.dawn' : h < 11 ? 'time.morning' : h < 14 ? 'time.noon' : h < 17.4 ? 'time.afternoon' : h < 19 ? 'time.sunset' : 'time.dusk',
+  );
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}  ${name}`;
 }
 

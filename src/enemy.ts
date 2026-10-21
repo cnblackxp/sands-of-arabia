@@ -4,6 +4,7 @@ import { CharacterFactory, CLIP_SPEED, type Accessory, type Rig } from './charac
 import { BEAST_KINDS, createBeast, type Beast, type BeastKind, type Ear } from './beasts';
 import type { Foe, HitResult, PlayerView } from './combat';
 import { Flash, type Sfx } from './fx';
+import { tOr } from './i18n';
 import type { Spawn } from './level';
 import { PathFollower } from './nav';
 import { angleTo, dampAngle, mulberry32, turnToward, wrapAngle } from './util';
@@ -346,7 +347,7 @@ export class Enemy implements Foe {
     return this.damage(dmg, from);
   }
   get title(): string {
-    return this.def.title;
+    return tOr(`enemies.${this.kind}`, this.def.title);
   }
   get homePos(): THREE.Vector3 {
     return this.home;
