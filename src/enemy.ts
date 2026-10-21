@@ -962,15 +962,29 @@ export class EnemySystem {
     for (const e of this.humans) e.onTell = this.tellFor(e);
   }
 
+  private tick = 0;
+  private slept = new Map<Foe, number>();
+
   update(dt: number, player: PlayerView): void {
     this.assignTokensAndSlots(player);
-    for (const e of this.humans) {
+    this.tick++;
+    let i = 0;
+    for (const e of this.list) {
+      i++;
       const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
-      e.update(dt, player, d);
-    }
-    for (const b of this.beasts) {
-      const d = Math.hypot(b.pos.x - player.pos.x, b.pos.z - player.pos.z);
-      b.update(dt, player, d);
+      e.root.visible = d < 200 || e.engaged;
+      const run = (t: number) => (e instanceof Enemy ? e.update(t, player, d) : (e as Beast).update(t, player, d));
+      // Idle foes far away (big maps) update every 6th frame with the time they missed.
+      if (d < 90 || e.engaged) {
+        run(dt + (this.slept.get(e) ?? 0));
+        this.slept.set(e, 0);
+      } else {
+        const acc = (this.slept.get(e) ?? 0) + dt;
+        if ((this.tick + i) % 6 === 0) {
+          run(acc);
+          this.slept.set(e, 0);
+        } else this.slept.set(e, acc);
+      }
     }
     this.separate(player);
   }

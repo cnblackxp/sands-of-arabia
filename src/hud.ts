@@ -95,6 +95,7 @@ export class Hud {
   /** Typewriter state: the full line and how much of it is revealed. */
   private typeText = '';
   private typeN = 0;
+  private typeVerse = false;
   private typeWait = 0;
   private typeMore = '';
   private typeLast = false;
@@ -118,6 +119,8 @@ export class Hud {
   private hpLagHold = 0;
   private lastHp = 1;
   device: Device = 'keyboard';
+  /** Debug performance readout appended to the fps counter ('' = off). */
+  perf = '';
   /** Interface size: panels use CSS zoom, so screen-anchored items divide by it. */
   uiScale = 1;
   /** Third-person camera: "camera" prompts show the look control instead. */
@@ -273,8 +276,11 @@ export class Hud {
     if (html) this.prompt.innerHTML = html;
   }
 
-  showDialogue(name: string, text: string, last: boolean): void {
+  /** `verse`: a couplet of poetry (centred, two lines, recited slower and without babble). */
+  showDialogue(name: string, text: string, last: boolean, verse = false): void {
     this.dlg.classList.remove('hidden');
+    this.dlg.classList.toggle('verse', verse);
+    this.typeVerse = verse;
     this.dlgName.textContent = name;
     this.typeLast = last;
     this.typeMore = last ? `${this.key('next')} ${t('hud.farewell')}` : `${this.key('next')} ${t('hud.continue')} &nbsp;·&nbsp; ${this.key('leave')} ${t('hud.leave')}`;
@@ -318,13 +324,13 @@ export class Hud {
       const ch = this.typeText[this.typeN++];
       changed = true;
       // Pauses on punctuation, like a breath between phrases.
-      let wait = 1 / 42;
+      let wait = this.typeVerse ? 1 / 24 : 1 / 42;
       if (ch === ',' || ch === ';' || ch === ':' || ch === '،' || ch === '؛') wait = 0.16;
       else if (ch === '.' || ch === '!' || ch === '?' || ch === '؟') wait = this.typeText[this.typeN] === '.' ? 0.09 : 0.3;
       else if (ch === '…' || ch === '—') wait = 0.28;
       this.typeWait += wait;
       // Voice every other letter so speech babbles instead of buzzing.
-      if (/[\p{L}\p{N}]/u.test(ch) && this.typeN % 2 === 1) this.onVoice(ch);
+      if (!this.typeVerse && /[\p{L}\p{N}]/u.test(ch) && this.typeN % 2 === 1) this.onVoice(ch);
     }
     if (changed) this.renderType();
   }
@@ -383,6 +389,6 @@ export class Hud {
     }
     this.flash = Math.max(0, this.flash - dt * 2.5);
     this.vignette.style.opacity = String(this.flash * 0.8);
-    this.fps.textContent = t('hud.fps', { n: fps.toFixed(0) });
+    this.fps.textContent = this.perf ? `${t('hud.fps', { n: fps.toFixed(0) })} · ${this.perf}` : t('hud.fps', { n: fps.toFixed(0) });
   }
 }

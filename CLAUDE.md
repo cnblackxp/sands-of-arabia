@@ -168,6 +168,8 @@ Run `npm install` and then `npm run dev` (port 5173; `.claude/launch.json` entry
 | `i18n.ts`, `locales/en.ts`, `locales/ar.ts` | Localisation (English and Arabic): `t()`, `tOr()`, `L()`, the saved language and the change hook. |
 | `beasts.ts` | Hounds and vultures (`Beast`): dog.glb / bird.glb, or procedural box models when those are missing. |
 | `settings.ts` | Player settings (camera mode, time of day, look, sound, interface size, look sensitivity) saved to localStorage; defaults and reset. |
+| `lore.ts` | Peoples of pre-Islamic Arabia (`Culture`): name pools by people, the culture of each map (level.json `culture`, then `MAP_CULTURE`, with a per-spawn override). |
+| `poetry.ts` | Real pre-Islamic verse: the Arabic text (vocalised) plus a translation written for this game, with sources, and the cultures that know each poem. |
 | `projectiles.ts` | Arrows and slingers' stones: ballistic flight, hits, stuck arrows and pickup, the aim-arc preview. |
 
 Decisions worth knowing:
@@ -250,5 +252,20 @@ Decisions worth knowing:
   - Shaders compile with `compileAsync` behind the loading screen.
 - **Input safety.** Losing focus, hiding the tab or a pointer-lock change releases all held keys, and `mousemove` drops buttons whose `mouseup` was missed. A stuck key used to close dialogue at once.
 - **Sky lighting** (PMREM environment) is rebuilt at most once a second, however fast time runs.
+- **People and speech.**
+  - NPC names come from their culture's pool (`lore.ts`).
+  - Conversations may open and close with that people's own greeting and farewell (`speech.<culture>` in the locales, naming the gods each people worshipped).
+  - New roles: `poet`, `kahin` (rhymed saj'), `elder`, `feast_master` (the Nabataean marzeah), `official` (Sabaean) and `caravaneer`. Merchants sometimes haggle (`lines.haggle`).
+  - Unknown roles behave as wanderers.
+- **Poetry.**
+  - Poets recite (`Npc.recite()` → `dialogue.recitation`): an opening remark, then the couplets as two centred lines, then the attribution. Arabic shows the vocalised original in Amiri; English shows the translation. Each couplet opens with an oud phrase (`Sfx.recite`) and types more slowly, without babble.
+  - Every map without a `poet` spawn gets one resident poet (a resting townsman or a traveller).
+  - Translations must be our own or public domain (Lyall, Blunt, Jones), never modern copyrighted ones. Record the source of every Arabic text in `poetry.ts`.
+  - Keep to the research doc's sensitivity notes: no prophets shown or voiced, no Mecca map, shrines as living cults.
+- **Big maps.**
+  - NPCs beyond 60 m update every 3rd frame, beyond 120 m every 8th (with the time they missed), and are hidden beyond 190 m. Idle enemies beyond 90 m update every 6th frame.
+  - Debug → "Performance readout" adds CPU ms, render ms, draw calls and triangles to the fps counter. Use it to check each new level.
+  - Ask the art session for tiled terrain/town (per-tile meshes for frustum culling) and EXT_mesh_gpu_instancing for repeated props, rather than editing generated assets.
+- **CSS check.** `npm run build` first runs `tools/check-css.mjs`. A missing `}` silently nests every later rule (CSS nesting), which once hid the interface-size, crosshair and quiver styles.
 - **Dropped arrows** that can be picked up show a short pale-gold light shaft with a glowing tip (`Projectiles.mark`).
 - **Interface size** (Settings) sets the `--ui` CSS variable, and the HUD panels and menu use CSS `zoom`. Screen-anchored items (enemy bars, float texts) divide their pixel positions by `Hud.uiScale`.

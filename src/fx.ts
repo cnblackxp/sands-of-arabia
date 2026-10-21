@@ -762,6 +762,21 @@ export class Sfx {
     this.tone(0.08, 400, 200, 0.2, 'square', 0.01);
   }
 
+  /**
+   * A recited couplet opens with a short oud phrase in maqam Hijaz
+   * (D, E-flat, F-sharp, G), each note a plucked string that fades.
+   */
+  recite(): void {
+    const notes = [146.8, 155.6, 185.0, 196.0];
+    const phrase = Math.random() < 0.5 ? [0, 2, 3, 2] : [3, 2, 1, 0];
+    phrase.forEach((n, i) => {
+      const f = notes[n] * 2;
+      this.tone(0.9, f, f * 0.995, 0.1, 'triangle', i * 0.16);
+      this.tone(0.5, f * 2, f * 1.99, 0.035, 'sawtooth', i * 0.16);
+      this.noiseBurst(0.03, 3000, 1500, 2, 0.04, 'bandpass', 0, i * 0.16);
+    });
+  }
+
   // --- camera ---------------------------------------------------------------------------
   cameraMode(on: boolean): void {
     this.tone(0.12, on ? 500 : 700, on ? 800 : 450, 0.1, 'triangle');

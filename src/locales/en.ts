@@ -83,9 +83,15 @@ export const en = {
     farmer: 'Farmer',
     prisoner: 'Prisoner',
     trader: 'Trader',
+    poet: 'Poet',
+    kahin: 'Soothsayer (kahin)',
+    elder: 'Elder of the tribe',
+    feast_master: 'Master of the feast',
+    official: 'Official of the king',
+    caravaneer: 'Caravaneer',
   } as Record<string, string>,
   /** Female forms of `titles`, where the language has them. */
-  titlesF: {} as Record<string, string>,
+  titlesF: { poet: 'Poetess', kahin: 'Soothsayer (kahina)' } as Record<string, string>,
   /** Person names (English spelling → localised). */
   names: {} as Record<string, string>,
   /** Enemy titles by kind; English is in enemy.ts (KINDS). */
@@ -96,7 +102,108 @@ export const en = {
   hurt: ['Ah! Are you mad?', 'Help! A madman with a sword!', 'Guards! Guards!', 'Stay back!'],
 
   /** Small talk by role. */
+  /**
+   * How each people greets and parts (lore.ts cultures). One of these may open
+   * or close a conversation. Gods named are the ones each people worshipped.
+   */
+  speech: {
+    hijazi: {
+      greet: ['Ahlan wa sahlan: you have come to kin and set foot on easy ground.', 'Good morning to you, stranger. The shade is yours.'],
+      farewell: ['Go safely, and come back to us.', 'May your road be short and your water sweet.'],
+    },
+    bedouin: {
+      greet: ['You are among family. Sit: here is camel\'s milk and dates, and three days of guesting before anyone asks your business.', 'By the life of your father, a guest! Tie your camel; the tent is yours.'],
+      farewell: ['By the life of your father, go in peace.', 'May the rain find your camping ground.'],
+    },
+    nabataean: {
+      greet: ['Shalam! Peace, in the name of Dushara.', 'Peace, traveller. Your sandals have the dust of Hegra on them.'],
+      farewell: ['Be remembered for good and for peace.', 'Dushara keep you on the incense road.'],
+    },
+    lihyanite: {
+      greet: ['Peace, by Dhu-Ghabat, lord of Dadan.', 'Welcome under the cliffs of Dadan, stranger.'],
+      farewell: ['Dhu-Ghabat guard your steps.', 'Go, and may the lions of the tombs watch over you.'],
+    },
+    thamudic: {
+      greet: ['By Ruda, a stranger! Sit by the rock and read what my fathers carved.', 'Peace to you. Mind the carvings; they are older than my grandfather\'s grandfather.'],
+      farewell: ['Ruda grant you a safe wadi.', 'Go well, and carve your name somewhere worthy.'],
+    },
+    kindite: {
+      greet: ['You stand in the court of Kinda. Speak plainly, and speak well.', 'The kings of Kinda keep their doors open and their swords sharp. Welcome.'],
+      farewell: ['Go, and tell the tribes how Kinda keeps its guests.', 'Kinda will remember your face.'],
+    },
+    sabaean: {
+      greet: ['In the name of Almaqah, lord of Awwam, the servant of the mukarrib greets you.', 'Be welcome in Saba, by Athtar and by Almaqah.'],
+      farewell: ['By Athtar and by Almaqah, go in safety.', 'May the dam hold and your fields drink.'],
+    },
+    minaean: {
+      greet: ['Wadd and Athtar be with you, friend of merchants.', 'Welcome to Ma\'in. Everything here is for sale except our gods.'],
+      farewell: ['May your caravan reach Gaza with all its incense.', 'Wadd keep your scales honest.'],
+    },
+    qatabanian: {
+      greet: ['May Amm, the moon of Timna, light your way.', 'Welcome to Qataban, where even the dust is taxed.'],
+      farewell: ['Go by the light of Amm.', 'Amm watch your road by night.'],
+    },
+    hadrami: {
+      greet: ['Sayin of Shabwa keep you. You smell of the road, not yet of incense.', 'Welcome to Hadramawt, where the trees weep frankincense.'],
+      farewell: ['Sayin go with you, and may the frankincense find you.', 'Go, and keep to the wells you know.'],
+    },
+    himyarite: {
+      greet: ['Peace upon you from the house of Himyar. The king\'s peace holds on this road.', 'Welcome to Zafar, stranger. Bow to no one but the king.'],
+      farewell: ['Go safely; Himyar remembers its guests.', 'The king\'s road is safe for those who pay its toll.'],
+    },
+    gulf: {
+      greet: ['Welcome from the shore. There are pearls in the market and salt in every breeze.', 'Welcome, traveller. The ships from India came in this morning.'],
+      farewell: ['May the sea be gentle with you.', 'Go, and may your water skins never taste of salt.'],
+    },
+  } as Record<string, { greet: string[]; farewell: string[] }>,
+  /** Recitation (poetry.ts): what a reciter says around the verse. */
+  poetry: {
+    intro: [
+      'Sit, and listen. This was recited at Ukaz before the red tent of al-Nabigha.',
+      'You want verse? Then give me silence. Verse needs silence the way fire needs air.',
+      'My father learned this from his father, and I will not lose a word of it.',
+    ],
+    after: 'That was {poet} — {title}.',
+  },
+
   lines: {
+    poet: [
+      'Verse is the record of the Arabs. Kings die; a good line outlives the kingdom.',
+      'At Ukaz the poets hang their best work in the market, and the crowd decides who is a poet and who is a fool.',
+      'A poet must know three things: the names of the camps, the faults of his rivals, and when to stop.',
+    ],
+    kahin: [
+      'By the earth and its red ochre, by the she-camel and her rider: your road twists, and your purse grows lighter.',
+      'By the wind that bears and the sand that buries: what you seek is near, yet it is not here.',
+      'Cloud on the peak, the well runs low; a guest shall come, and a guest shall go.',
+      'Cross my palm with silver and the jinn will whisper; cross it with copper and they will only mutter.',
+    ],
+    elder: [
+      'In my youth we raided for camels and paid in verse. Now the young raid for silver and pay in nothing.',
+      'Three things make a man: a sword he does not lend, a guest he does not turn away, and a tongue he can hold.',
+      'My grandfather saw the dam of Marib before it broke. He said the water sounded like a whole market talking.',
+      'Hatim of Tayyi\' killed his only horse to feed strangers. That is the measure we are all held to.',
+    ],
+    feast_master: [
+      'The banquet hall is cut from the mountain itself. Nine of us recline, and the tenth couch is Dushara\'s.',
+      'Wine for the god first, then for the guests. That is the order of a proper marzeah.',
+      'The rab marzeah keeps the accounts. I keep the cups full, which is harder.',
+    ],
+    official: [
+      'The qayl of this valley records your name and your goods. Speak them clearly.',
+      'By decree of the mukarrib, water from the sluices is shared by the tablets on the canal wall.',
+      'Strangers may trade in the market from sunrise to the third watch. After that the gates close, by order.',
+    ],
+    caravaneer: [
+      'Frankincense from Dhofar, myrrh from Qataban, and three months of road between them.',
+      'We pay a toll at every well. The kings of the road grow fat on our thirst.',
+      'A good camel knows the way to water better than any guide. A bad guide knows only the way to your purse.',
+    ],
+    haggle: [
+      'For you, a special price. For everyone else also a special price, but a different one.',
+      'Feel this cloth. Yemeni weave. You will not find it at Ukaz for less, by my mother\'s grave.',
+      'You offer me half? Half of that would be a crime against my children.',
+    ],
     wanderer: [
       'The caravan from Gerrha came in at noon. Frankincense, pearls, and a great deal of complaining.',
       'Mind the dunes past the tomb, friend. The sand moves when no one is looking.',
@@ -552,6 +659,8 @@ export const en = {
     } as Record<string, string>,
     foesAppear: '{kind} ×{n} appear.',
     world: 'World',
+    perf: 'Performance readout',
+    perfSub: 'Frame time, draw calls and triangles on the fps counter',
     horse: 'Spawn horse',
     winged: 'Spawn winged horse',
     wingedSub: 'Placeholder until the winged model arrives: huge jump, double jump, glide',

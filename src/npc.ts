@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { CharacterFactory, CLIP_SPEED, PAL, pick, type Accessory, type Rig } from './characters';
-import { conversation, personName, randomName, ROLES, type NpcRole } from './dialogue';
+import { conversation, personName, randomName, recitation, ROLES, type NpcRole } from './dialogue';
+import { cultureOf, type Culture } from './lore';
 import type { HitResult, PlayerView } from './combat';
 import { Flash, type Sfx } from './fx';
 import { tOr } from './i18n';
@@ -18,6 +19,9 @@ const RUN = 4.6;
 const RADIUS = 0.3;
 const HALF = 0.55;
 
+/** Distance bands (m) for NPC sleep: every frame / every 3rd / every 8th; hidden beyond `hide`. */
+const LOD = { near: 60, far: 120, hide: 190 };
+
 export class Npc {
   readonly pos = new THREE.Vector3();
   yaw: number;
@@ -33,6 +37,13 @@ export class Npc {
   refIndex = 0;
   /** Small-talk pool override (quest givers placed as generic NPCs). */
   linesRole: NpcRole | null = null;
+  /** Time missed while asleep (far from the player); spent on the next update. */
+  slept = 0;
+  /** Their people (names, greetings, which poems they know). */
+  readonly culture: Culture;
+  /** Recites poetry when talked to (poets; one resident poet per map). */
+  reciter = false;
+  private poemIdx = 0;
   /** Spawn id from level.json (quest givers, shopkeepers). */
   refId = '';
   /** Sells wares (opens the shop instead of small talk). */
@@ -65,7 +76,8 @@ export class Npc {
     this.yaw = spawn.yaw;
     this.home = this.pos.clone();
     this.homeYaw = spawn.yaw;
-    this.nameId = sys.uniqueName(female);
+    this.culture = sys.cultureOf(spawn);
+    this.nameId = sys.uniqueName(female, this.culture);
     this.follow = new PathFollower(sys.world.nav);
     this.flash.attach(rig.root);
     this.titleId = role;
@@ -122,12 +134,19 @@ export class Npc {
   }
 
   /** Begin a conversation; returns the lines to show. */
+  /** A poem (when this NPC recites), the next one each time. Starts the talk pose too. */
+  recite(): { lines: string[]; verse: boolean[] } | null {
+    if (!this.reciter) return null;
+    this.startTalk();
+    return recitation(this.culture, this.poemIdx++, this.sys.rnd);
+  }
+
   startTalk(): string[] {
     this.resume = this.state === 'sit' ? 'sit' : this.role === 'wanderer' || this.role === 'water_carrier' ? 'idle' : this.state;
     if (this.state !== 'sit') this.enter('talk');
     else this.state = 'talk';
     this.rig.anim.playOverlay('Talk', { loop: true, fade: 0.25 });
-    return conversation(this.linesRole ?? this.role, this.sys.rnd);
+    return conversation(this.linesRole ?? this.role, this.sys.rnd, this.culture);
   }
 
   endTalk(): void {
@@ -486,6 +505,16 @@ export class NpcSystem {
       scene.add(rig.root);
       this.npcs.push(npc);
     }
+    // Poets recite. A map without one gets a resident poet: a resting townsman
+    // (or a traveller) who knows the verses of their people.
+    for (const n of this.npcs) if (n.role === 'poet') n.reciter = true;
+    if (!this.npcs.some((n) => n.reciter)) {
+      const host = this.npcs.find((n) => n.role === 'sitter' && !n.refId) ?? this.npcs.find((n) => n.role === 'wanderer' && !n.refId);
+      if (host) {
+        host.reciter = true;
+        host.titleId = 'poet';
+      }
+    }
     // No explicit shopkeeper: the merchant nearest the arrival point trades.
     if (!explicitShop) {
       const ps = level.spawns.find((s) => s.role === 'player' && !s.from);
@@ -508,15 +537,23 @@ export class NpcSystem {
       acc.push('Veil');
     } else {
       const h = r();
-      if (role === 'priest') acc.push('Turban');
+      if (role === 'priest' || role === 'kahin' || role === 'official' || role === 'feast_master') acc.push('Turban');
       else if (role === 'guard') acc.push(h < 0.5 ? 'Turban' : 'Keffiyeh');
+      else if (role === 'elder' || role === 'poet' || role === 'caravaneer') acc.push('Keffiyeh');
       else acc.push(h < 0.45 ? 'Keffiyeh' : h < 0.75 ? 'Turban' : 'Hair');
-      if (role === 'guard' || role === 'priest' || r() < 0.65) acc.push('Beard');
+      if (role === 'elder') acc.push('BeardLong');
+      else if (role === 'guard' || role === 'priest' || role === 'kahin' || r() < 0.65) acc.push('Beard');
+      if (role === 'feast_master' || role === 'official') acc.push('Belly');
+      if (role === 'official') acc.push('Vest');
+      if (role === 'caravaneer') acc.push('FaceWrap', 'Waterskin');
     }
     if (role === 'water_carrier') acc.push('Jar');
     if (role === 'guard') acc.push('Sword');
     let robe = pick(PAL.robe, r);
     if (role === 'priest') robe = 0xf4f0e6;
+    if (role === 'kahin') robe = 0x2b2622;
+    if (role === 'poet') robe = pick([0x7b2a24, 0x2c3e73, 0x5b2d6e, 0xc9902e], r);
+    if (role === 'official' || role === 'feast_master') robe = pick([0x9a3d22, 0x5b2d6e, 0x2f6d4f], r);
     if (role === 'guard') robe = pick([0x2c3e73, 0x7b2a24, 0x3b3530], r);
     if (female && r() < 0.5) robe = pick([0x2c3e73, 0x7b2a24, 0x5b2d6e, 0x3b3530, 0x9a3d22], r);
     const colours = {
@@ -525,15 +562,20 @@ export class NpcSystem {
       P_Pants: pick(PAL.pants, r),
       P_Skin: pick(PAL.skin, r),
       P_Wrap: role === 'priest' ? 0xf4f0e6 : female ? pick([0x2b2622, 0x2c3e73, 0x6d2f5e, 0x7b2a24, 0xe5dcc8], r) : pick(PAL.wrap, r),
-      P_Hair: pick(PAL.hair, r),
+      P_Hair: role === 'elder' ? 0x8f8a82 : pick(PAL.hair, r),
     };
     return { acc, colours, female };
   }
 
   private usedNames = new Set<string>();
-  uniqueName(female: boolean): string {
-    let name = randomName(female, this.rnd);
-    for (let i = 0; i < 12 && this.usedNames.has(name); i++) name = randomName(female, this.rnd);
+  /** The people of a spawn (its own `culture`, the level's, or the map's). */
+  cultureOf(spawn?: Spawn): Culture {
+    return cultureOf(this.world.map.name, this.world.level as { culture?: string }, spawn as { culture?: string } | undefined);
+  }
+
+  uniqueName(female: boolean, culture: Culture = 'hijazi'): string {
+    let name = randomName(female, this.rnd, culture);
+    for (let i = 0; i < 12 && this.usedNames.has(name); i++) name = randomName(female, this.rnd, culture);
     this.usedNames.add(name);
     return name;
   }
@@ -550,10 +592,29 @@ export class NpcSystem {
     return p;
   }
 
+  private tick = 0;
+
+  /**
+   * Near NPCs update every frame. Far ones (big maps) sleep: they update every
+   * few frames with the time they missed, and beyond sight they are hidden.
+   */
   update(dt: number, player: PlayerView, focus: THREE.Vector3): void {
-    for (const n of this.npcs) {
+    this.tick++;
+    for (let i = 0; i < this.npcs.length; i++) {
+      const n = this.npcs[i];
       const d = Math.hypot(n.pos.x - focus.x, n.pos.z - focus.z);
-      n.update(dt, player, d);
+      n.rig.root.visible = d < LOD.hide || n.hostile;
+      if (d < LOD.near || n.hostile || n.state === 'flee' || n.state === 'chase') {
+        n.update(dt + n.slept, player, d);
+        n.slept = 0;
+        continue;
+      }
+      n.slept += dt;
+      const every = d < LOD.far ? 3 : 8;
+      if ((this.tick + i) % every === 0) {
+        n.update(n.slept, player, d);
+        n.slept = 0;
+      }
     }
   }
 

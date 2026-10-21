@@ -105,6 +105,10 @@ class Game {
   /** Interface size (Settings), applied as CSS zoom on the HUD panels. */
   uiScale = 1;
   private lastFrame: Frame | null = null;
+  /** Debug: draw calls / triangles / frame time on the fps counter. */
+  private showPerf = false;
+  private perfAcc = 0;
+  private perfN = 0;
   private npcTargets = new Map<Npc, ProjTarget>();
   private hadPointerLock = false;
   particles!: Particles;
@@ -118,7 +122,7 @@ class Game {
   pickups: Pickup[] = [];
   lostPile: GoldPile | null = null;
   private icons = new Map<Npc, Icon>();
-  dialogue: { npc: Npc; lines: string[]; i: number; onDone?: () => void; voice: number } | null = null;
+  dialogue: { npc: Npc; lines: string[]; i: number; onDone?: () => void; voice: number; verse?: boolean[]; shown?: number } | null = null;
   private last = performance.now();
   private fpsAcc = 0;
   private fpsFrames = 0;
@@ -1290,6 +1294,14 @@ class Game {
           { label: t('debug.slinger'), kind: 'button', sub: () => t('debug.slingerSub'), activate: () => this.debugSpawnFoes('slinger', 1, 15) },
           { label: t('debug.clubman'), kind: 'button', sub: () => t('debug.clubmanSub'), activate: () => this.debugSpawnFoes('clubman', 1, 9) },
           { label: t('debug.world'), kind: 'header' },
+          {
+            label: t('debug.perf'),
+            kind: 'choice',
+            sub: () => t('debug.perfSub'),
+            value: () => t(this.showPerf ? 'menu.on' : 'menu.off'),
+            adjust: () => this.togglePerf(),
+            activate: () => this.togglePerf(),
+          },
           { label: t('debug.horse'), kind: 'button', activate: () => this.debugSpawnHorse(false) },
           { label: t('debug.winged'), kind: 'button', sub: () => t('debug.wingedSub'), activate: () => this.debugSpawnHorse(true) },
           { label: t('debug.gold'), kind: 'button', activate: () => this.progress.addGold(500) },
@@ -1477,6 +1489,11 @@ class Game {
     this.hud.showToast(t(winged ? 'toast.wingedHorse' : 'toast.horse'), 2);
   }
 
+  private togglePerf(): void {
+    this.showPerf = !this.showPerf;
+    if (!this.showPerf) this.hud.perf = '';
+  }
+
   /** Debug: drop a group of a given enemy kind a short way ahead of the player. */
   private debugSpawnFoes(kind: string, n: number, dist: number): void {
     const p = this.player.pos;
@@ -1569,9 +1586,11 @@ class Game {
       this.openShop(npc);
       return;
     }
-    const lines = quest ? quest.lines : npc.startTalk();
+    // Poets recite (quest talk comes first).
+    const poem = quest ? null : npc.recite();
+    const lines = quest ? quest.lines : poem ? poem.lines : npc.startTalk();
     if (quest) npc.startTalk();
-    this.dialogue = { npc, lines: quest ? lines : withFiller(lines, npc.name), i: 0, onDone: quest?.onDone, voice: voiceOf(npc) };
+    this.dialogue = { npc, lines: quest || poem ? lines : withFiller(lines, npc.name), i: 0, onDone: quest?.onDone, voice: voiceOf(npc), verse: poem?.verse };
     this.player.talking = true;
     // Turn to face the stranger.
     this.player.yawTarget = Math.atan2(npc.pos.x - this.player.pos.x, npc.pos.z - this.player.pos.z);
@@ -1581,7 +1600,11 @@ class Game {
 
   private showLine(): void {
     const d = this.dialogue!;
-    this.hud.showDialogue(`${d.npc.name} — ${d.npc.title}`, d.lines[d.i], d.i === d.lines.length - 1);
+    const verse = !!d.verse?.[d.i];
+    // Each couplet opens with a phrase on the oud.
+    if (verse && d.shown !== d.i) this.sfx.recite();
+    d.shown = d.i;
+    this.hud.showDialogue(`${d.npc.name} — ${d.npc.title}`, d.lines[d.i], d.i === d.lines.length - 1, verse);
   }
 
   /** `finished`: the last line was read (quest effects apply). */
@@ -1609,6 +1632,7 @@ class Game {
       return;
     }
     const now = performance.now();
+    const frameStart = now;
     const realDt = Math.min((now - this.last) / 1000, 1 / 20);
     this.fpsAcc += (now - this.last) / 1000;
     this.last = now;
@@ -1693,8 +1717,19 @@ class Game {
     this.world.setNightGlow(this.day.grade);
     this.updateCutout();
     for (const b of this.beacons) (b.material as THREE.ShaderMaterial).uniforms.opacity.value = 0.26 + 0.08 * Math.sin(now / 400);
+    const t0 = this.showPerf ? performance.now() : 0;
     this.renderer.render(this.world.scene, this.cam.camera);
     this.day.renderGrade(this.renderer);
+    if (this.showPerf) {
+      const r = this.renderer.info.render;
+      this.perfAcc += performance.now() - frameStart;
+      this.perfN++;
+      if (this.perfN >= 20) {
+        this.hud.perf = `${(this.perfAcc / this.perfN).toFixed(1)} ms cpu · render ${(performance.now() - t0).toFixed(1)} ms · ${r.calls} draws · ${(r.triangles / 1000).toFixed(0)}k tris`;
+        this.perfAcc = 0;
+        this.perfN = 0;
+      }
+    }
   }
 
   /** Stereo position of a world point relative to the camera, -1 … 1. */
