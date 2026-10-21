@@ -19,7 +19,8 @@ export type Action =
   | 'adjust'
   | 'block'
   | 'heal'
-  | 'inventory';
+  | 'inventory'
+  | 'look';
 
 /** Button glyphs per device. Gamepad uses Xbox-style labels on a standard pad. */
 const GLYPH: Record<Device, Record<Action, string>> = {
@@ -43,6 +44,7 @@ const GLYPH: Record<Device, Record<Action, string>> = {
     block: '<kbd>RMB</kbd>',
     heal: '<kbd>R</kbd>',
     inventory: '<kbd>Tab</kbd>',
+    look: '<kbd>Mouse</kbd>',
   },
   gamepad: {
     move: '<span class="pad stick">L</span>',
@@ -64,6 +66,7 @@ const GLYPH: Record<Device, Record<Action, string>> = {
     block: '<span class="pad bumper">LB</span>',
     heal: '<span class="pad x">X</span>',
     inventory: '<span class="pad menu">☰</span>',
+    look: '<span class="pad stick">R</span>',
   },
 };
 
@@ -113,6 +116,13 @@ export class Hud {
   private hpLagHold = 0;
   private lastHp = 1;
   device: Device = 'keyboard';
+  /** Interface size: panels use CSS zoom, so screen-anchored items divide by it. */
+  uiScale = 1;
+  /** Third-person camera: "camera" prompts show the look control instead. */
+  thirdPerson = false;
+  private cross: HTMLDivElement;
+  private ammo: HTMLDivElement;
+  private shownAmmo = '';
   private hintKey = '';
   private promptKey = '';
 
@@ -131,6 +141,8 @@ export class Hud {
       <div class="toast hidden"></div>
       <div class="dialogue hidden"><div class="dlg-name"></div><div class="dlg-text"></div><div class="dlg-more"></div></div>
       <div class="hint"></div>
+      <div class="crosshair hidden"><i></i></div>
+      <div class="ammo hidden"></div>
       <div class="vignette"></div>
       <div class="lowhp"></div>`;
     const q = <T extends HTMLElement>(s: string) => root.querySelector(s) as T;
@@ -157,10 +169,32 @@ export class Hud {
     this.flaskEl = q('.flasks');
     this.trackerEl = q('.tracker');
     this.floaters = q('.floaters');
+    this.cross = q('.crosshair');
+    this.ammo = q('.ammo');
+  }
+
+  /** Third-person crosshair: a dot, a closing ring while the bow draws. */
+  setCrosshair(show: boolean, draw: number, aiming: boolean): void {
+    this.cross.classList.toggle('hidden', !show);
+    if (!show) return;
+    this.cross.classList.toggle('aiming', aiming);
+    this.cross.classList.toggle('ready', aiming && draw >= 1);
+    (this.cross.firstElementChild as HTMLElement).style.transform = `translate(-50%, -50%) scale(${aiming ? 2.2 - 1.2 * draw : 1})`;
+  }
+
+  /** Arrows in the quiver (null hides the counter). */
+  setAmmo(n: number | null, max: number): void {
+    const key = n === null ? '' : `${n}/${max}`;
+    if (key === this.shownAmmo) return;
+    this.shownAmmo = key;
+    this.ammo.classList.toggle('hidden', n === null);
+    if (n !== null) this.ammo.innerHTML = `<span class="ammo-icon">➶</span> ${n}<small> / ${max}</small>`;
+    this.ammo.classList.toggle('empty', n === 0);
   }
 
   /** HTML glyph for an action on the current device. */
   key(a: Action): string {
+    if (a === 'camera' && this.thirdPerson) return GLYPH[this.device].look;
     return GLYPH[this.device][a];
   }
 
@@ -170,7 +204,7 @@ export class Hud {
 
   /** Bottom help bar: a list of [action, label] for the current context. */
   setHints(items: [Action, string][]): void {
-    const key = this.device + items.map((i) => i.join(':')).join('|');
+    const key = this.device + this.thirdPerson + items.map((i) => i.join(':')).join('|');
     if (key === this.hintKey) return;
     this.hintKey = key;
     this.hint.innerHTML = items.map(([a, l]) => `<span class="hint-item">${this.key(a)} ${l}</span>`).join('');
@@ -215,8 +249,8 @@ export class Hud {
     const el = document.createElement('div');
     el.className = `floater ${cls}`;
     el.textContent = text;
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
+    el.style.left = `${x / this.uiScale}px`;
+    el.style.top = `${y / this.uiScale}px`;
     this.floaters.appendChild(el);
     setTimeout(() => el.remove(), 1400);
   }
@@ -320,7 +354,7 @@ export class Hud {
         return;
       }
       el.style.display = '';
-      el.style.transform = `translate(${b.x.toFixed(0)}px, ${b.y.toFixed(0)}px) translate(-50%, -100%)`;
+      el.style.transform = `translate(${(b.x / this.uiScale).toFixed(0)}px, ${(b.y / this.uiScale).toFixed(0)}px) translate(-50%, -100%)`;
       (el.children[0] as HTMLElement).textContent = b.name;
       (el.children[1].firstChild as HTMLElement).style.width = `${b.frac * 100}%`;
       (el.children[2] as HTMLElement).textContent = b.dmg > 0 ? String(Math.round(b.dmg)) : '';

@@ -28,6 +28,8 @@ export interface ProgressData {
   openedChests: string[];
   /** Free (non-quest) pickups already taken, e.g. the white feather. */
   taken: string[];
+  /** Arrows in the quiver (max 10); loosed ones can be picked up again. */
+  arrows: number;
 }
 
 const KEY = 'sands-of-arabia.save.v1';
@@ -48,6 +50,7 @@ export function freshProgress(): ProgressData {
     trackedQuest: null,
     openedChests: [],
     taken: [],
+    arrows: 10,
   };
 }
 
@@ -80,6 +83,9 @@ export class Progress {
   }
   get doubleJump(): boolean {
     return (this.data.upgrades.double_jump ?? 0) > 0;
+  }
+  get hasBow(): boolean {
+    return this.data.weapons.includes('composite_bow');
   }
   get shield(): boolean {
     return (this.data.upgrades.shield ?? 0) > 0;

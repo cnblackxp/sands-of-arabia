@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { CharacterFactory, CLIP_SPEED, type Accessory, type Rig } from './characters';
-import type { HitResult, PlayerView } from './combat';
+import { BEAST_KINDS, createBeast, type Beast, type BeastKind, type Ear } from './beasts';
+import type { Foe, HitResult, PlayerView } from './combat';
 import { Flash, type Sfx } from './fx';
 import type { Spawn } from './level';
 import { PathFollower } from './nav';
 import { angleTo, dampAngle, mulberry32, turnToward, wrapAngle } from './util';
+import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { World } from './world';
 
 /**
@@ -14,7 +16,7 @@ import type { World } from './world';
  * recovery is the opening. Poise decides whether a hit makes them flinch.
  */
 
-export type EnemyKind = 'raider' | 'skirmisher' | 'brute' | 'chief';
+export type EnemyKind = 'raider' | 'skirmisher' | 'brute' | 'chief' | 'slinger' | 'clubman';
 
 interface KindDef {
   title: string;
@@ -46,6 +48,10 @@ interface KindDef {
   block: number;
   /** Skirmish-style: hop back out of reach after a combo. */
   backstep: number;
+  /** Throws stones from range instead of closing in (slingers). */
+  ranged?: { min: number; max: number; cooldown: [number, number]; dmg: number };
+  /** Big wooden club: heavier swing sounds. */
+  club?: boolean;
 }
 
 const KINDS: Record<EnemyKind, KindDef> = {
@@ -149,6 +155,58 @@ const KINDS: Record<EnemyKind, KindDef> = {
     block: 0.25,
     backstep: 0.15,
   },
+  slinger: {
+    title: 'Slinger',
+    hp: 55,
+    poise: 1,
+    walk: 1.9,
+    run: 4.6,
+    scale: 0.95,
+    dmg: 8,
+    knock: 0.9,
+    range: 1.6,
+    windup: 0.6,
+    comboWindup: 0.3,
+    strikeSpeed: 1.6,
+    recover: 0.7,
+    maxCombo: 1,
+    comboChance: 0,
+    sight: 24,
+    turn: 4,
+    lunge: 1.4,
+    acc: ['Keffiyeh', 'FaceWrap', 'Waterskin', 'Sling'],
+    colours: { P_Robe: 0xb8a48a, P_Sash: 0x7b2a24, P_Wrap: 0xe5dcc8, P_Pants: 0x5a3f2c, P_Skin: 0x9a6440 },
+    swings: [4],
+    block: 0,
+    backstep: 0.5,
+    ranged: { min: 6, max: 21, cooldown: [2.0, 3.4], dmg: 12 },
+  },
+  clubman: {
+    title: 'Clubman',
+    hp: 200,
+    poise: 3,
+    walk: 1.35,
+    run: 3.2,
+    scale: 1.24,
+    dmg: 30,
+    knock: 3.2,
+    range: 2.4,
+    windup: 0.95,
+    comboWindup: 0.55,
+    strikeSpeed: 1.25,
+    recover: 1.3,
+    maxCombo: 2,
+    comboChance: 0.3,
+    sight: 13,
+    turn: 2,
+    lunge: 2.6,
+    acc: ['Turban', 'BeardLong', 'Belly', 'Vest', 'Club'],
+    colours: { P_Robe: 0x6b4a32, P_Sash: 0x2b2622, P_Wrap: 0x7b2a24, P_Pants: 0x3d3128, P_Skin: 0x7d4f31, P_Vest: 0x4a2a17 },
+    swings: [5, 0],
+    block: 0,
+    backstep: 0,
+    club: true,
+  },
 };
 
 // Clip timing (seconds of clip time, from the manifest): arm raised / blade lands.
@@ -168,6 +226,10 @@ const SWINGS: Swing[] = [
   { clip: 'Attack2', raise: 0.17, hit: 0.333, raiseSpeed: 0.55, strike: null, heavy: false },
   { clip: 'HeavyAttack', raise: 0.75, hit: 1.042, raiseSpeed: 1, strike: 1.15, heavy: true },
   { clip: 'Thrust', raise: 0.18, hit: 0.333, raiseSpeed: 0.6, strike: null, heavy: false },
+  // Overhand stone throw (Throw clip when the model has it, else the Attack raise).
+  { clip: 'Throw', raise: 0.2, hit: 0.333, raiseSpeed: 0.5, strike: null, heavy: false },
+  // Clubman's overhead slam: authored raise and hold like HeavyAttack.
+  { clip: 'ClubSwing', raise: 0.708, hit: 0.875, raiseSpeed: 1, strike: 1.1, heavy: true },
 ];
 const BACKSTEP = { duration: 0.5, distance: 1.6 };
 
@@ -184,7 +246,7 @@ const ATTACKING: ReadonlySet<string> = new Set(['windup', 'strike', 'recover']);
 const ENGAGED: ReadonlySet<string> = new Set(['alert', 'approach', 'reposition', 'windup', 'strike', 'recover', 'stagger', 'block', 'backstep']);
 const TAU = Math.PI * 2;
 
-export class Enemy {
+export class Enemy implements Foe {
   readonly pos = new THREE.Vector3();
   readonly def: KindDef;
   yaw: number;
@@ -199,7 +261,10 @@ export class Enemy {
   /** Assigned angle around the player (atan2(dx, dz) from the player), NaN = none. */
   slotAngle = NaN;
   /** Called once when this enemy dies (gold, quests). */
-  onKilled: (e: Enemy) => void = () => {};
+  onKilled: (e: Foe) => void = () => {};
+  /** Slingers: loose a stone from the hand toward the player. */
+  onThrow: (e: Enemy, from: THREE.Vector3, dmg: number) => void = () => {};
+  readonly flying = false;
   /** Called at the telegraph moment of a windup (glint VFX). */
   onTell: (e: Enemy) => void = () => {};
   private home: THREE.Vector3;
@@ -223,7 +288,7 @@ export class Enemy {
   private guardHits = 0;
   /** Grunt pitch: brutes are deep, skirmishers light. */
   private get voicePitch(): number {
-    return this.kind === 'brute' ? 85 : this.kind === 'skirmisher' ? 165 : this.kind === 'chief' ? 105 : 130;
+    return this.kind === 'brute' || this.kind === 'clubman' ? 85 : this.kind === 'skirmisher' || this.kind === 'slinger' ? 165 : this.kind === 'chief' ? 105 : 130;
   }
   private sawPlayerAttack = false;
 
@@ -254,6 +319,31 @@ export class Enemy {
 
   get dead(): boolean {
     return this.state === 'dead';
+  }
+  get maxHp(): number {
+    return this.def.hp;
+  }
+  get moving(): boolean {
+    return !this.dead && (this.state === 'approach' || this.state === 'reposition' || this.state === 'return' || (this.state === 'idle' && this.rig.anim.base === 'Walk'));
+  }
+  get running(): boolean {
+    return this.state === 'approach' && this.rig.anim.base === 'Run';
+  }
+  get hitRadius(): number {
+    return 0.38 * this.def.scale;
+  }
+  get hitLo(): number {
+    return 0.15;
+  }
+  get hitHi(): number {
+    return 1.85 * this.def.scale;
+  }
+  get root(): THREE.Object3D {
+    return this.rig.root;
+  }
+  /** Arrows (and the occasional stone) hit like a light blow, but never stagger brutes. */
+  shot(dmg: number, from: THREE.Vector3): HitResult | null {
+    return this.damage(dmg, from);
   }
   get title(): string {
     return this.def.title;
@@ -408,6 +498,7 @@ export class Enemy {
     const dz = player.pos.z - this.pos.z;
     const dist = Math.hypot(dx, dz);
     const toPlayer = Math.atan2(dx, dz);
+    this.lastPlayer.copy(player.pos);
     const fromHome = Math.hypot(this.pos.x - this.home.x, this.pos.z - this.home.z);
     const playerHere = !player.dead && Math.hypot(player.pos.x - this.home.x, player.pos.z - this.home.z) < LEASH + 6;
 
@@ -482,6 +573,10 @@ export class Enemy {
           this.goHome();
           break;
         }
+        if (d.ranged) {
+          this.rangedApproach(dt, player, dist, toPlayer);
+          break;
+        }
         if (this.hasToken && dist < d.range + 0.3 && this.cooldown <= 0) {
           this.startSwing(true);
           break;
@@ -521,7 +616,7 @@ export class Enemy {
       }
       case 'windup': {
         this.timer -= dt;
-        const s = SWINGS[this.swing];
+        const s = this.swingDef;
         const a = this.rig.anim;
         // Raise slowly, then hold at the top until the windup expires.
         const t = a.overlayTime();
@@ -532,7 +627,8 @@ export class Enemy {
         if (!this.told && this.timer < 0.18) {
           this.told = true;
           this.flash.tell(0.16);
-          this.sfx.tell();
+          if (d.ranged && this.swing === 4) this.sfx.slingWhirl();
+          else this.sfx.tell();
           this.onTell(this);
         }
         if (this.timer <= 0 && (t < 0 || t >= s.raise - 0.02)) {
@@ -544,8 +640,26 @@ export class Enemy {
         break;
       }
       case 'strike': {
-        const s = SWINGS[this.swing];
+        const s = this.swingDef;
         const t = this.rig.anim.overlayTime();
+        if (d.ranged) {
+          // Let the stone fly at the release point; no lunge.
+          if (!this.struck && (t < 0 || t >= s.hit)) {
+            this.struck = true;
+            const hand = this.rig.bones.get('hand_R');
+            const from = hand ? hand.getWorldPosition(new THREE.Vector3()) : this.pos.clone().setY(this.pos.y + 1.7);
+            this.onThrow(this, from, d.ranged.dmg);
+            this.rig.anim.setOverlayTimeScale(1);
+          }
+          this.timer -= dt;
+          if (this.struck && this.timer <= 0) {
+            this.cooldown = d.ranged.cooldown[0] + this.rnd() * (d.ranged.cooldown[1] - d.ranged.cooldown[0]);
+            this.timer = d.recover;
+            this.combo = 0;
+            this.enter('recover');
+          }
+          break;
+        }
         // Committed: no tracking, a short lunge into the blow.
         if (!this.struck) {
           const step = d.lunge * dt;
@@ -553,10 +667,11 @@ export class Enemy {
         }
         if (!this.struck && (t < 0 || t >= s.hit)) {
           this.struck = true;
-          this.sfx.swing(this.kind === 'brute');
+          if (d.club) this.sfx.clubSwing();
+          else this.sfx.swing(this.kind === 'brute');
           const facing = Math.cos(wrapAngle(toPlayer - this.yaw)) > 0.45;
           const reach = d.range + (player.mounted ? 0.6 : 0.25);
-          if (facing && dist < reach && !player.dead) player.hurt(s.heavy ? d.dmg * 1.15 : d.dmg, this.pos, s.heavy ? d.knock * 1.3 : d.knock);
+          if (facing && dist < reach && !player.dead && player.hurt(s.heavy ? d.dmg * 1.15 : d.dmg, this.pos, s.heavy ? d.knock * 1.3 : d.knock) && d.club) this.sfx.clubHit();
           this.rig.anim.setOverlayTimeScale(1);
         }
         this.timer -= dt;
@@ -627,6 +742,41 @@ export class Enemy {
 
   private comboStep = 0;
 
+  /**
+   * Slingers keep their distance: back off when the player closes in, come
+   * closer when out of range, otherwise stand and throw when the line is clear.
+   */
+  private rangedApproach(dt: number, player: PlayerView, dist: number, toPlayer: number): void {
+    const d = this.def;
+    const r = d.ranged!;
+    const anim = this.rig.anim;
+    if (dist < r.min) {
+      // Too close: retreat away from the player.
+      const ax = this.pos.x - player.pos.x;
+      const az = this.pos.z - player.pos.z;
+      const len = Math.hypot(ax, az) || 1;
+      const tx = this.pos.x + (ax / len) * 3;
+      const tz = this.pos.z + (az / len) * 3;
+      if (!this.world.nav.isBlocked(tx, tz)) {
+        anim.setBase('Run', d.run / CLIP_SPEED.personRun, 0.15);
+        this.moveToward(tx, tz, d.run * 0.85, dt);
+        return;
+      }
+      // Cornered: fight with what it has.
+      if (dist < d.range + 0.3 && this.cooldown <= 0) {
+        this.startSwing(true);
+        return;
+      }
+    } else if (dist > r.max || !this.world.nav.lineClear(this.pos.x, this.pos.z, player.pos.x, player.pos.z)) {
+      anim.setBase('Run', d.run / CLIP_SPEED.personRun, 0.15);
+      this.moveToward(player.pos.x, player.pos.z, d.run, dt, r.min + 1);
+      return;
+    }
+    anim.setBase('Idle', 1, 0.2);
+    this.yaw = turnToward(this.yaw, toPlayer, d.turn, dt);
+    if (this.cooldown <= 0 && Math.abs(wrapAngle(toPlayer - this.yaw)) < 0.3) this.startSwing(true);
+  }
+
   private startSwing(first: boolean): void {
     const d = this.def;
     if (first) {
@@ -637,7 +787,12 @@ export class Enemy {
       this.comboStep = (this.comboStep + 1) % d.swings.length;
     }
     this.swing = d.swings[this.comboStep];
-    const s = SWINGS[this.swing];
+    // Slinger up close: a quick swing instead of a throw.
+    if (d.ranged && Math.hypot(this.pos.x - this.lastPlayer.x, this.pos.z - this.lastPlayer.z) < d.ranged.min - 1) this.swing = 0;
+    let s = SWINGS[this.swing];
+    // Older models: the club falls back to HeavyAttack, the throw to the Attack raise.
+    if (!this.rig.anim.hasOverlay(s.clip)) s = s.clip === 'ClubSwing' ? SWINGS[2] : { ...SWINGS[0], raiseSpeed: s.raiseSpeed };
+    this.swingDef = s;
     // The hold can't be shorter than the time the raise takes to play.
     const minHold = s.raise / s.raiseSpeed + 0.05;
     this.timer = Math.max(minHold, (first ? d.windup : d.comboWindup) * (0.85 + this.rnd() * 0.3));
@@ -645,6 +800,10 @@ export class Enemy {
     this.rig.anim.playOverlay(s.clip, { fade: 0.08, timeScale: s.raiseSpeed });
     this.enter('windup');
   }
+
+  /** The swing being played (the authored one, or its fallback clip). */
+  private swingDef: Swing = SWINGS[0];
+  private lastPlayer = new THREE.Vector3();
 
   private pickReposition(p: THREE.Vector3): void {
     // Step to the side around the player, Souls-style spacing.
@@ -712,39 +871,105 @@ export class Enemy {
   }
 }
 
-export class EnemySystem {
-  readonly list: Enemy[] = [];
-  private hand = new THREE.Vector3();
+/** Procedural club (until the Club accessory exists): a knobbed acacia club with bronze studs. */
+function buildClub(): THREE.Group {
+  const g = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({ color: 0x6b4426, roughness: 0.85, flatShading: true });
+  const stud = new THREE.MeshStandardMaterial({ color: 0xb98a3e, roughness: 0.4, metalness: 0.7 });
+  const add = (geo: THREE.BufferGeometry, m: THREE.Material, y: number) => {
+    const b = new THREE.Mesh(geo, m);
+    b.position.y = y;
+    b.castShadow = true;
+    g.add(b);
+    return b;
+  };
+  add(new THREE.BoxGeometry(0.06, 0.55, 0.06), wood, -0.2);
+  add(new THREE.BoxGeometry(0.13, 0.32, 0.13), wood, -0.6);
+  for (const [x, y, z] of [[0.07, -0.55, 0], [-0.07, -0.66, 0], [0, -0.6, 0.07], [0, -0.7, -0.07]]) {
+    const st = add(new THREE.BoxGeometry(0.04, 0.04, 0.04), stud, y);
+    st.position.x = x;
+    st.position.z = z;
+  }
+  return g;
+}
 
-  constructor(world: World, factory: CharacterFactory, scene: THREE.Scene, sfx: Sfx) {
-    let seed = 100;
+export class EnemySystem {
+  /** Every hostile: raiders and beasts. */
+  readonly list: Foe[] = [];
+  /** Raiders (people): the ones that share attack tokens and ring slots. */
+  readonly humans: Enemy[] = [];
+  readonly beasts: Beast[] = [];
+  private hand = new THREE.Vector3();
+  /** Pan/gain of a world point for beast sounds (set by the game). */
+  ear: Ear = () => ({ pan: 0, gain: 1 });
+
+  constructor(
+    private world: World,
+    private factory: CharacterFactory,
+    private scene: THREE.Scene,
+    private sfx: Sfx,
+    private models: { dog: GLTF | null; bird: GLTF | null },
+  ) {
     for (const s of world.level.spawns) {
       if (s.role !== 'enemy') continue;
-      const kind = (s.title === 'chief' ? 'chief' : (s.kind ?? 'raider')) as EnemyKind;
-      const def = KINDS[kind] ?? KINDS.raider;
-      const rig = factory.createPerson(def.acc, def.colours, def.scale);
-      const at = new THREE.Vector3(...s.pos);
-      at.y = world.floor(at.x, at.z, s.pos[1]);
-      const col = world.physics.addActor(RADIUS * def.scale, 0.55 * def.scale, at);
-      const e = new Enemy(kind, rig, s, s.camp ?? '', col, world, sfx, seed++);
-      scene.add(rig.root);
-      this.list.push(e);
+      this.spawn(s);
     }
+  }
+
+  private seed = 100;
+
+  /** Add an enemy from a spawn entry (level.json, or the debug menu). */
+  spawn(s: Spawn): Foe {
+    const kindName = s.title === 'chief' ? 'chief' : (s.kind ?? 'raider');
+    if (BEAST_KINDS.has(kindName)) {
+      const b = createBeast(kindName as BeastKind, s, this.world, this.sfx, (p) => this.ear(p), this.models, this.seed++);
+      this.scene.add(b.root);
+      this.beasts.push(b);
+      this.list.push(b);
+      return b;
+    }
+    const kind = (KINDS[kindName as EnemyKind] ? kindName : 'raider') as EnemyKind;
+    const def = KINDS[kind];
+    const rig = this.factory.createPerson(def.acc, def.colours, def.scale);
+    if (def.club && !this.factory.hasPart('Club')) rig.bones.get('hand_R')?.add(buildClub());
+    const at = new THREE.Vector3(...s.pos);
+    at.y = this.world.floor(at.x, at.z, s.pos[1]);
+    const col = this.world.physics.addActor(RADIUS * def.scale, 0.55 * def.scale, at);
+    const e = new Enemy(kind, rig, s, s.camp ?? '', col, this.world, this.sfx, this.seed++);
+    e.onThrow = (en, from, dmg) => this.onThrow(en, from, dmg);
+    e.onTell = this.tellFx ? this.tellFor(e) : () => {};
+    e.onKilled = this.killHook;
+    this.scene.add(rig.root);
+    this.humans.push(e);
+    this.list.push(e);
+    return e;
+  }
+
+  /** A slinger lets a stone fly (the game turns it into a projectile). */
+  onThrow: (e: Enemy, from: THREE.Vector3, dmg: number) => void = () => {};
+  private tellFx: ((follow: () => THREE.Vector3) => void) | null = null;
+  private killHook: (e: Foe) => void = () => {};
+
+  private tellFor(e: Enemy): (e: Enemy) => void {
+    const hand = e.rig.bones.get('hand_R');
+    return () => this.tellFx?.(() => (hand ? hand.getWorldPosition(this.hand) : this.hand.copy(e.pos).setY(e.headY)));
   }
 
   /** Hook the telegraph glint to the enemy's sword hand. */
   setTellFx(spawn: (follow: () => THREE.Vector3) => void): void {
-    for (const e of this.list) {
-      const hand = e.rig.bones.get('hand_R');
-      e.onTell = () => spawn(() => (hand ? hand.getWorldPosition(this.hand) : this.hand.copy(e.pos).setY(e.headY)));
-    }
+    this.tellFx = spawn;
+    for (const e of this.humans) e.onTell = this.tellFor(e);
   }
 
   update(dt: number, player: PlayerView): void {
     this.assignTokensAndSlots(player);
-    for (const e of this.list) {
+    for (const e of this.humans) {
       const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
       e.update(dt, player, d);
+    }
+    for (const b of this.beasts) {
+      const d = Math.hypot(b.pos.x - player.pos.x, b.pos.z - player.pos.z);
+      b.update(dt, player, d);
     }
     this.separate(player);
   }
@@ -757,9 +982,10 @@ export class EnemySystem {
   private assignTokensAndSlots(player: PlayerView): void {
     const p = player.pos;
     const dist = (e: Enemy) => Math.hypot(e.pos.x - p.x, e.pos.z - p.z);
-    const near = this.list.filter((e) => !e.dead && e.combatant && dist(e) < 25);
+    // Slingers keep their own distance: no tokens, no ring slots.
+    const near = this.humans.filter((e) => !e.dead && e.combatant && !e.def.ranged && dist(e) < 25);
     const nearSet = new Set(near);
-    for (const e of this.list) {
+    for (const e of this.humans) {
       if (nearSet.has(e)) continue;
       e.hasToken = false;
       e.slotAngle = NaN;
@@ -812,7 +1038,7 @@ export class EnemySystem {
 
   /** Hard separation: raiders never overlap each other or the player. */
   private separate(player: PlayerView): void {
-    const live = this.list.filter((e) => !e.dead);
+    const live: (Enemy | Beast)[] = [...this.humans.filter((e) => !e.dead), ...this.beasts.filter((b) => !b.dead && !b.flying)];
     for (let iter = 0; iter < 2; iter++) {
       for (let i = 0; i < live.length; i++) {
         const a = live[i];
@@ -852,8 +1078,10 @@ export class EnemySystem {
       const dx = e.pos.x - origin.x;
       const dz = e.pos.z - origin.z;
       const d = Math.hypot(dx, dz);
-      const r = RADIUS * e.def.scale;
-      if (d > range + r || Math.abs(e.pos.y - origin.y) > 2.5) continue;
+      const r = e.hitRadius;
+      // Flying foes are only in reach while they swoop low.
+      const dy = e.flying ? e.pos.y - (origin.y + 1.2) : e.pos.y - origin.y;
+      if (d > range + r || Math.abs(dy) > (e.flying ? 1.3 : 2.5)) continue;
       if (d > 0.4 && (dx * fx + dz * fz) / d < cosMax) continue;
       out.push(e.damage(dmg, origin));
     }
@@ -861,11 +1089,11 @@ export class EnemySystem {
   }
 
   /** Nearest living enemy within `range` and the cone in front (for aim assist). */
-  aimTarget(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number): Enemy | null {
-    let best: Enemy | null = null;
+  aimTarget(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, air = false): Foe | null {
+    let best: Foe | null = null;
     let bd = range;
     for (const e of this.list) {
-      if (e.dead) continue;
+      if (e.dead || (e.flying && !air && e.pos.y - origin.y > 2.5)) continue;
       const d = Math.hypot(e.pos.x - origin.x, e.pos.z - origin.z);
       if (d > bd) continue;
       const a = Math.abs(wrapAngle(angleTo(origin, e.pos) - yaw));
@@ -877,7 +1105,8 @@ export class EnemySystem {
   }
 
   /** Hook every enemy's death. */
-  setKillHook(cb: (e: Enemy) => void): void {
+  setKillHook(cb: (e: Foe) => void): void {
+    this.killHook = cb;
     for (const e of this.list) e.onKilled = cb;
   }
 

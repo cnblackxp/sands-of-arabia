@@ -29,6 +29,13 @@ export interface CommonAssets {
   wingedHorse: GLTF | null;
   bonfireProp: GLTF | null;
   chestProp: GLTF | null;
+  /** Bow and beasts (placeholders are built in code until these exist). */
+  arrowProp: GLTF | null;
+  rockProp: GLTF | null;
+  dog: GLTF | null;
+  bird: GLTF | null;
+  dogClips: Record<string, ClipMeta>;
+  birdClips: Record<string, ClipMeta>;
   envHdr: THREE.DataTexture;
   bg: THREE.Texture;
   personClips: Record<string, ClipMeta>;
@@ -63,9 +70,9 @@ function counter(total: number, onProgress: Progress) {
 }
 
 export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
-  const tick = counter(10, onProgress);
+  const tick = counter(14, onProgress);
   const optional = (path: string, label: string) => tick(label, gltf.loadAsync(asset(path)).catch(() => null));
-  const [person, horse, camel, envHdr, bg, manifest, maps, wingedHorse, bonfireProp, chestProp] = await Promise.all([
+  const [person, horse, camel, envHdr, bg, manifest, maps, wingedHorse, bonfireProp, chestProp, arrowProp, rockProp, dog, bird] = await Promise.all([
     tick('people', gltf.loadAsync(asset('characters/person.glb'))),
     tick('horses', gltf.loadAsync(asset('characters/horse.glb'))),
     tick('camels', gltf.loadAsync(asset('characters/camel.glb'))),
@@ -81,6 +88,10 @@ export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
     optional('characters/horse_winged.glb', 'winged horse'),
     optional('props/bonfire.glb', 'bonfire'),
     optional('props/chest.glb', 'chest'),
+    optional('props/arrow.glb', 'arrows'),
+    optional('props/rock_throw.glb', 'stones'),
+    optional('characters/dog.glb', 'hounds'),
+    optional('characters/bird.glb', 'vultures'),
   ]);
   bg.mapping = THREE.EquirectangularReflectionMapping;
   bg.colorSpace = THREE.SRGBColorSpace;
@@ -92,6 +103,12 @@ export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
     wingedHorse,
     bonfireProp,
     chestProp,
+    arrowProp,
+    rockProp,
+    dog,
+    bird,
+    dogClips: manifest?.assets?.dog?.clips ?? {},
+    birdClips: manifest?.assets?.bird?.clips ?? {},
     envHdr,
     bg,
     personClips: manifest?.assets?.person?.clips ?? {},

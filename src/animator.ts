@@ -94,6 +94,11 @@ export class Animator {
     return this.baseName;
   }
 
+  /** Whether an upper-body overlay clip exists (newer model exports add clips). */
+  hasOverlay(name: string): boolean {
+    return this.overlays.has(name);
+  }
+
   get overlay(): string {
     return this.ovTarget > 0 ? this.ovName : '';
   }

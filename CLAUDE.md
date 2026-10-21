@@ -133,6 +133,11 @@ Windows quirks: long heredocs that contain Python break in Git Bash, so write sc
 - Verify gameplay in the built-in browser preview: set up `.claude/launch.json` for the Vite dev server, check the console for errors, and take screenshots.
 - Keep performance in mind for about 80 NPCs: share geometry and materials, and use simple per-NPC state machines. Raycasts against the heightfield are cheaper than physics for NPCs.
 - Never add Claude attribution, such as Co-Authored-By trailers or "Generated with" lines, to commits, PRs or docs.
+- Every new feature ships with all of these. They are acceptance criteria, not extras:
+  - **keyboard and gamepad** support, with prompts for both;
+  - **on-theme art** (pre-Islamic Arabia; ask the Blender art session for assets, and use code placeholders until they land);
+  - **sound effects** (`Sfx` in `fx.ts`);
+  - **English and Arabic text** through the localization layer, with Arabic in readable classical style and no harakat except in poetry.
 
 ## Game code (`src/`)
 Run `npm install` and then `npm run dev` (port 5173; `.claude/launch.json` entry `arabia-dev`). `npm run build` typechecks and bundles to `dist/`. Vite serves `assets/` as the public root, so `assets/level/town.glb` is fetched as `/level/town.glb`. `.npmrc` sets `legacy-peer-deps`, because npm 10 trips over Vite 8's optional peers.
@@ -159,6 +164,8 @@ Run `npm install` and then `npm run dev` (port 5173; `.claude/launch.json` entry
 | `input.ts` | Keyboard, mouse and gamepad input. |
 | `hud.ts` | HUD. |
 | `dialogue.ts` | NPC lines and names. |
+| `beasts.ts` | Hounds and vultures (`Beast`): dog.glb / bird.glb, or procedural box models when those are missing. |
+| `projectiles.ts` | Arrows and slingers' stones: ballistic flight, hits, stuck arrows and pickup, the aim-arc preview. |
 
 Decisions worth knowing:
 - **Ground.** Ground height comes from the heightfield, and the Rapier controller only resolves horizontal collisions against the level boxes and actor capsules. If the terrain were part of the controller sweep, the slope-slide would push the character sideways (the `movement_facing_bug.png` drift).
@@ -173,7 +180,13 @@ Decisions worth knowing:
   - **Shop:** a `shopkeeper` spawn, or the merchant nearest the arrival point. It sells weapons (`items.ts`: damage, reach, arc, speed, stamina, clips) and upgrades: vitality, endurance, waterskins, shield, double jump.
 - **Quests** (`quests.ts`): kill a camp, talk to someone, or fetch an item. NPCs are referenced by map, spawn role and index. Givers show `!` or `?` icons; objectives are marked on the minimap and the full map (including the exit that leads to another region's objective). The HUD shows the tracked quest.
 - **Platforming.** The player lands on and walks along the tops of level boxes (`Physics.support`). The step-up is 0.42 m. Boxes within a step of the feet are left out of the horizontal sweep. The jump is variable (about 1.8 m held), with coyote time and an optional double jump. Sprinting and jumping cost no stamina unless enemies are near (`Player.inCombat`).
-- **Menu** (`menu.ts`): tabs for Inventory, Map (full map with a legend), Quests, Travel (lit bonfires, plus a quick level change to any region), Settings and Debug. Debug can spawn a horse or a winged horse (a placeholder that jumps very high, double jumps and glides), give gold, toggle god mode, unlock everything, kill nearby enemies, show colliders, teleport to the next exit, and start a new game.
+- **Menu** (`menu.ts`): tabs for Inventory, Map (full map with a legend), Quests, Travel (lit bonfires, plus a quick level change to any region), Settings and Debug.
+  - Debug can:
+    - switch to the true third-person camera and set look sensitivity and invert-Y;
+    - give the bow and arrows;
+    - spawn hounds, vultures, slingers, clubmen, a horse or a winged horse;
+    - give gold, toggle god mode and unlock everything;
+    - kill nearby enemies, show colliders, teleport to the next exit and start a new game.
 - **Stamina.** Attacks, rolls, jumps and sprinting cost stamina, and regen pauses briefly after each action. Rolls have i-frames from 0.06 to 0.42 s.
 - **Enemies.** Enemy spawns live in level.json as `role: "enemy"` with a `kind` and a `camp` (from `export_assets.py`). Enemy windups use the Attack and Attack2 overlays, slowed to the raise and then held. There's no separate windup clip.
 - **Clips added for the game.** The `Roll` and `Jump` clips are in `rigs.py` and play as one-shot base clips.
@@ -197,3 +210,23 @@ Decisions worth knowing:
   - The tracks are Kevin MacLeod's, CC BY 4.0. Keep the credits in the README and in `music.json`.
 - **Z-fighting.** The Blender export runs `fix_coplanar()` on every static mesh, so faces of different materials never share a plane (Lime ranks highest). `tools/blender/check_zfight.py` counts any remaining pairs.
 - **Debug.** The backquote key toggles wireframes of the level.json colliders.
+- **True third-person camera** (Debug tab, a test option; the iso and perspective modes are unchanged). `FollowCamera.thirdPerson`:
+  - The camera sits behind the player's right shoulder. A ray against the level boxes pulls the boom in so it never clips a wall.
+  - Mouse look uses pointer lock: the first click captures the mouse, and Esc frees it and opens the menu. The gamepad's right stick looks around. Zoom is the wheel or D-pad up/down.
+  - Sensitivity and invert-Y live in the Debug tab. `Input.thirdPerson` switches the stick mapping.
+- **Bow** (`composite_bow` in `items.ts`, `kind: 'bow'`). It is two-handed, so there is no shield.
+  - Block (RMB / LB) draws and aims. Attack (LMB / RB / RT) looses the arrow once it is fully drawn; pressing early queues the shot. Attack without aiming makes a quick shot with aim assist. Every arrow needs a fresh draw (`draw` seconds).
+  - Aim direction:
+    - third person: along the crosshair ray;
+    - overhead camera with a mouse: at the cursor, with a ballistic solve;
+    - overhead camera with a gamepad: the left stick turns the aim (you stand still), snapping to foes in a 22° cone.
+  - The aim arc is shown as dots plus a landing ring, which turns red over a target.
+  - The quiver holds 10 arrows (`progress.data.arrows`). Arrows stick in the ground, walls and bodies; walk over them to take them back (not out of a living foe). Resting at a bonfire refills the quiver.
+  - Uses `BowDraw`, `BowAim` and `BowRelease` with `BowHeld` and `Quiver`. Older models fall back to a procedural pose and bow.
+- **New foes.** Enemy spawns can have `kind` hound, vulture, slinger or clubman. The Debug tab spawns each next to the player.
+  - Hounds chase, circle, crouch (the tell), then lunge with a bite.
+  - Vultures circle out of sword reach, screech (the tell), dive, then skim low. Swords hit them only while they are low (`EnemySystem.hitArc`); arrows reach them anywhere.
+  - Slingers keep 6–21 m away and throw stones (`Throw` clip). The stones are projectiles aimed with lead: roll through them or block them with the shield.
+  - Clubmen use `ClubSwing` and the `Club` accessory, with hyper-armour like brutes.
+  - All of them are `Foe`s (`combat.ts`). `EnemySystem.list` holds every foe; `humans` are the raiders that share attack tokens and ring slots.
+- **Interface size** (Settings) sets the `--ui` CSS variable, and the HUD panels and menu use CSS `zoom`. Screen-anchored items (enemy bars, float texts) divide their pixel positions by `Hud.uiScale`.

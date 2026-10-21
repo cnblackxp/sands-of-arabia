@@ -201,6 +201,18 @@ export class Physics {
     );
   }
 
+  /**
+   * Distance along a ray to the first level box (static colliders only), or
+   * `max` if nothing is hit. `dir` must be normalised.
+   */
+  rayStatic(from: THREE.Vector3, dir: THREE.Vector3, max: number): number {
+    const R = this.R;
+    const ray = new R.Ray({ x: from.x, y: from.y, z: from.z }, { x: dir.x, y: dir.y, z: dir.z });
+    // Query groups: member of everything, filter = static boxes.
+    const hit = this.world.castRay(ray, max, true, undefined, (0xffff << 16) | G_STATIC);
+    return hit ? hit.timeOfImpact : max;
+  }
+
   step(): void {
     this.world.step();
   }

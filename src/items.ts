@@ -11,8 +11,12 @@ export interface WeaponDef {
   name: string;
   desc: string;
   price: number;
-  /** Mesh accessory held in the right hand. */
-  mesh: Accessory;
+  /** Mesh accessory held in the right hand (null: built in code, e.g. the held bow placeholder). */
+  mesh: Accessory | null;
+  /** 'bow': two-handed; block aims, attack looses an arrow. */
+  kind?: 'melee' | 'bow';
+  /** Bow: seconds to nock and draw before an arrow can be loosed. */
+  draw?: number;
   dmg: number;
   /** Reach of the swing arc (m). */
   range: number;
@@ -81,6 +85,21 @@ export const WEAPONS: WeaponDef[] = [
     clips: ['HeavyAttack'],
     heavy: true,
   },
+  {
+    id: 'composite_bow',
+    name: 'Composite Bow',
+    desc: 'Horn, wood and sinew, Bedouin-made. Two hands: aim, then loose. Arrows can be pulled out again.',
+    price: 400,
+    mesh: null,
+    kind: 'bow',
+    draw: 0.65,
+    dmg: 32,
+    range: 60,
+    arc: 0,
+    stamina: 8,
+    speed: 1,
+    clips: [],
+  },
 ];
 
 export interface UpgradeDef {
@@ -120,5 +139,9 @@ export const GOLD_DROP: Record<string, [number, number]> = {
   skirmisher: [14, 24],
   raider: [22, 34],
   brute: [60, 90],
+  clubman: [55, 80],
+  slinger: [18, 30],
+  hound: [8, 14],
+  vulture: [10, 18],
   chief: [350, 420],
 };

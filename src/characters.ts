@@ -23,6 +23,8 @@ export type Accessory =
   | 'BeardLong'
   | 'Belly'
   | 'Bow'
+  | 'BowHeld'
+  | 'Club'
   | 'Cloak'
   | 'FaceWrap'
   | 'Hair'
@@ -31,7 +33,9 @@ export type Accessory =
   | 'Jar'
   | 'Keffiyeh'
   | 'Lamellar'
+  | 'Quiver'
   | 'Shield'
+  | 'Sling'
   | 'Spear'
   | 'Sword'
   | 'Turban'
@@ -193,6 +197,11 @@ export class CharacterFactory {
 
   createHorse(colours: Record<string, number>, saddle: boolean): Rig {
     return this.build(this.horse, this.horseLib, colours, new Set(saddle ? ['Saddle'] : []), new THREE.Sphere(new THREE.Vector3(0, 1.2, 0), 2.4));
+  }
+
+  /** Whether the person model has an accessory part (newer exports add more). */
+  hasPart(name: string): boolean {
+    return !!this.person.scene.getObjectByName(name);
   }
 
   /** Use the dedicated winged-horse model when it is available. */
