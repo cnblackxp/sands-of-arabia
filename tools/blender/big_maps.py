@@ -269,8 +269,14 @@ class JabalIthlib(MapDef):
         # ---- arrival, bonfires, exit
         ctx.exits.append({"to": "hegra", "x": -284, "y": -284, "r": 6, "label": "Back to Hegra",
                           "label_ar": "العودة إلى الحجر"})
-        ctx.spawn("player", -268, -268, R(-135) + math.pi, **{"from": "hegra"})
-        ctx.spawn("player", -268, -268, R(-135) + math.pi)
+        ctx.spawn("player", -268, -268, face(-268, -268, 0, 0), **{"from": "hegra"})
+        ctx.spawn("player", -268, -268, face(-268, -268, 0, 0))
+        # south-east: the road to the fair of Ukaz
+        ctx.exits.append({"to": "ukaz", "x": 284, "y": -284, "r": 6, "label": "South to the fair of Ukaz",
+                          "label_ar": "جنوبا إلى سوق عكاظ"})
+        ctx.spawn("player", 268, -268, face(268, -268, 0, 0), **{"from": "ukaz"})
+        K.cairn(mb, ctx, 279, -276)
+        ctx.keepout += [(270, -270, 16)]
         K.cairn(mb, ctx, -279, -276)
         ctx.spawn("bonfire", -256, -262, 0.0, id="ithlib_arrival")
         ctx.spawn("bonfire", bx - 6, by - 18, 0.0, id="ithlib_bowl")
@@ -578,8 +584,14 @@ class Marib(MapDef):
         # ---- bonfires, arrival, exit to the caravanserai
         ctx.exits.append({"to": "caravanserai", "x": 486, "y": 386, "r": 7, "label": "North to the caravanserai",
                           "label_ar": "شمالا إلى الخان"})
-        ctx.spawn("player", 468, 368, R(225), **{"from": "caravanserai"})
-        ctx.spawn("player", 468, 368, R(225))
+        ctx.spawn("player", 468, 368, face(468, 368, 0, 0), **{"from": "caravanserai"})
+        ctx.spawn("player", 468, 368, face(468, 368, 0, 0))
+        # north: the road to the fair of Ukaz
+        ctx.exits.append({"to": "ukaz", "x": 0, "y": 388, "r": 7, "label": "North to the fair of Ukaz",
+                          "label_ar": "شمالا إلى سوق عكاظ"})
+        ctx.spawn("player", 0, 372, face(0, 372, 0, 0), **{"from": "ukaz"})
+        K.cairn(mb, ctx, 6, 382)
+        ctx.keepout += [(0, 372, 18)]
         K.cairn(mb, ctx, 480, 380)
         for (x, y, bid) in [(452, 352, "marib_arrival"), (136, 8, "marib_city_gate"), (-250, 40, "marib_dam_foot"),
                             (ax, ay + 52, "marib_awwam")]:
@@ -602,5 +614,247 @@ class MaribBreach(Marib):
     fog = {"color": "#b8ad98", "near": 80, "far": 560}
 
 
-for _m in (JabalIthlib(), Marib(), MaribBreach()):
+# ================================================================== Ukaz fair
+class Ukaz(MapDef):
+    """Suq 'Ukaz: the poets' fair on a gravel plain ringed by granite hills (holy-month truce)."""
+    name = "ukaz"
+    title = "The fair of Ukaz"
+    title_ar = "سوق عكاظ"
+    bounds = (-400.0, 400.0, -400.0, 400.0)
+    step = 4.0
+    tile = 125.0
+    instanced = True
+    culture = "hijazi"
+    batch = 2
+    sun = (18.0, -115.0)                                 # golden afternoon
+    fog = {"color": "#e7cfa4", "near": 140, "far": 760}
+    FAIR = (-110.0, 60.0)
+    NABIGHA = (-110.0, 150.0)
+    RACE_C, RACE_A, RACE_B = (190.0, -20.0), 115.0, 75.0
+    TRUCE = (-60.0, 20.0, 260.0)
+    TORS = [(-300, 230, 9), (300, 250, 7), (-300, -280, 8), (330, -120, 6), (90, 300, 6)]
+    GRANITE = ["#9c8a80", "#b49a8c", "#c4ab9c", "#8a7a72"]
+    TRIBES = [  # key, english, arabic, banner colour, camp centre
+        ("thaqif", "Thaqif", "ثقيف", "#3d6b4f", (-265, 120)),
+        ("hawazin", "Hawazin", "هوازن", "#2e3f7a", (-280, 10)),
+        ("kinana", "Kinana", "كنانة", "#d39a2c", (-230, -115)),
+        ("tamim", "Tamim", "تميم", "#8b1e1e", (-30, -135)),
+        ("dhubyan", "Dhubyan", "ذبيان", "#1e1a18", (10, 150)),
+        ("taghlib", "Taghlib", "تغلب", "#5b2e5e", (30, 70)),
+    ]
+    _granite = K.bands(GRANITE, "Granite")
+
+    def race_ell(self, x, y):
+        return math.hypot((x - self.RACE_C[0]) / self.RACE_A, (y - self.RACE_C[1]) / self.RACE_B)
+
+    def height(self, x, y):
+        r = math.hypot(x, y)
+        pass_ = 1.0 - (1 - L.smooth(14, 44, abs(x))) * L.smooth(250, 300, abs(y))       # passes north and south
+        hills = (26 * L.smooth(330, 395, r) + 7 * noise.noise(Vector((x * 0.015, y * 0.015, 9.0))) * L.smooth(300, 360, r))
+        hills *= pass_
+        tors = sum(h * (1 - L.smooth(10, 32, math.hypot(x - tx, y - ty))) for tx, ty, h in self.TORS)
+        nab = 9 * (1 - L.smooth(16, 40, math.hypot(x - self.NABIGHA[0], y - self.NABIGHA[1])))
+        base = 0.5 * noise.noise(Vector((x * 0.01, y * 0.01, 4.0))) + 0.25 * noise.noise(Vector((x * 0.05, y * 0.05, 2.0)))
+        return base + hills + tors + nab
+
+    def color(self, c, nz):
+        if c.z > 6 or nz < 0.82:
+            u = 0.5 + 0.5 * math.sin(c.z * 0.45 + noise.noise(c * 0.05) * 3)
+            col = L.lin(self.GRANITE[min(3, int(u * 4))])
+        elif abs(self.race_ell(c.x, c.y) - 1.0) < 0.075:
+            col = L.lin("#a8916e")                                                      # trampled race course
+        else:
+            f = noise.noise(Vector((c.x * 0.02, c.y * 0.02, 0.5))) * 0.5 + 0.5
+            col = M.lerp3(L.lin("#b8a48a"), L.lin("#d2bea0"), f)
+        k = 1 + noise.noise(c * 0.9) * 0.05
+        return tuple(min(1, v * k) for v in col)
+
+    def build(self, mb, ctx):
+        N = ctx.names
+        fx, fy = self.FAIR
+        ctx.truce = self.TRUCE
+        ctx.landmarks["fair"] = (fx, fy)
+        N["fair"] = ("The fair grounds of Ukaz", "ساحة سوق عكاظ")
+        # ---- al-Nabigha's red leather tent on its hill, and the poets' ground below it
+        nx_, ny_ = self.NABIGHA
+        red = L.mat("RedLeather", "#8b2a1e", 0.7)
+        K.big_tent(mb, ctx, nx_, ny_, face(nx_, ny_, fx, fy), 1.5, m=L.mat("RedLeatherDark", "#6e1f16", 0.7), body=red)
+        ctx.landmarks["nabigha_tent"] = (nx_, ny_)
+        N["nabigha_tent"] = ("The red tent of al-Nabigha", "قبة النابغة الحمراء")
+        nz_ = L.height(nx_, ny_ - 8)
+        ctx.spawn("poet", nx_, ny_ - 7.5, face(nx_, ny_ - 7.5, fx, fy), id="ukaz_nabigha", title="judge of poets",
+                  name="al-Nabigha al-Dhubyani", name_ar="النابغة الذبياني", tribe="dhubyan")
+        sx_, sy_ = fx, fy + 52                                                         # the recitation stage
+        S.pbox(mb, ctx, sx_, sy_, L.height(sx_, sy_) + 0.6, 14, 6, K.STONE, 0.0, tag="stage")
+        for k in range(2):
+            K.banner(mb, sx_ + (k * 2 - 1) * 8, sy_ + 1, red)
+        ctx.landmarks["poets_ground"] = (sx_, sy_ - 8)
+        N["poets_ground"] = ("The poets' ground", "مجلس الشعراء")
+        poets = [("al-A'sha", "الأعشى", "bakr"), ("Zuhayr ibn Abi Sulma", "زهير بن أبي سلمى", "muzayna"),
+                 ("Amr ibn Kulthum", "عمرو بن كلثوم", "taghlib"), ("Tarafa ibn al-Abd", "طرفة بن العبد", "bakr"),
+                 ("Imru' al-Qais", "امرؤ القيس", "kinda"), ("al-Harith ibn Hilliza", "الحارث بن حلزة", "bakr")]
+        for i, (en, ar, tribe) in enumerate(poets):
+            px = sx_ - 5 + i * 2.0
+            ctx.spawn("poet", px, sy_ + (0.4 if i in (2, 3) else -1.6), math.pi if i in (2, 3) else 0.0,
+                      id=f"ukaz_poet_{i + 1}", name=en, name_ar=ar, tribe=tribe,
+                      **({"z": round(L.height(sx_, sy_) + 0.6, 3)} if i in (2, 3) else {}))
+        for k in range(18):                                                            # listeners in a half ring
+            a = math.pi * (0.12 + 0.76 * k / 17)
+            lx, ly = sx_ + math.cos(a) * 14, sy_ - 4 - math.sin(a) * 9
+            ctx.spawn("sitter", lx, ly, face(lx, ly, sx_, sy_), group="audience")
+        ctx.keepout += [(nx_, ny_, 26), (sx_, sy_ - 6, 22)]
+        # ---- the market street: two facing rows of stalls, the best shop in the game
+        stalls = []
+        for i in range(10):
+            x = -200 + i * 20
+            stalls.append(L.stall(x, -34, math.pi, awning=i % 6))
+            stalls.append(L.stall(x + 10, -48, 0.0, awning=(i + 3) % 6))
+        for st in stalls:
+            r = st.rotation_euler.z
+            ctx.spawn("merchant", st.location.x - math.sin(r) * 1.3, st.location.y + math.cos(r) * 1.3, r)
+        ctx.spawn("shopkeeper", -100, -41, 0.0, id="ukaz_trader")
+        ctx.landmarks["market"] = (-100, -41)
+        N["market"] = ("The market street", "سوق التجار")
+        ctx.keepout.append((-100, -41, 110))
+        kx, ky = -214, -26                                                             # the kahin's tent
+        I.tent(ctx, kx - 6, ky + 6, 0.3)
+        ctx.spawn("kahin", kx, ky, R(200), id="ukaz_kahin")
+        # ---- tribal camps: a chief's tent in the tribe's colour, goat-hair tents, banners, an elder, camels
+        for key, en, ar, hexc, (cx, cy) in self.TRIBES:
+            tm = L.mat(f"Tribe_{key}", hexc, 0.85)
+            rot = face(cx, cy, fx, fy)
+            K.big_tent(mb, ctx, cx, cy, rot, 1.3, m=tm)
+            for j in range(6):
+                a = rot + math.pi / 2 + (j - 2.5) * 0.6 + math.pi
+                tx, ty = cx + math.cos(a) * 27, cy + math.sin(a) * 27
+                I.tent(ctx, tx, ty, face(tx, ty, cx, cy) + random.uniform(-0.3, 0.3))
+            for sgn in (-1, 1):
+                K.banner(mb, cx + math.cos(rot) * sgn * 7, cy + math.sin(rot) * sgn * 7, tm, h=6.0)
+            fx2, fy2 = cx + math.sin(rot) * 9, cy - math.cos(rot) * 9
+            K.campfire(mb, ctx, fx2, fy2)
+            ex_, ey_ = cx + math.sin(rot) * 5.5, cy - math.cos(rot) * 5.5
+            ctx.spawn("elder", ex_, ey_, rot, id=f"ukaz_elder_{key}", tribe=key, name_ar=ar)
+            people(ctx, "wanderer", wander_pts(3, fx2, fy2, 10, 10), tribe=key)
+            for j in range(2):
+                ctx.spawn("camel", cx + math.cos(rot + 2.2 + j) * 26, cy + math.sin(rot + 2.2 + j) * 26,
+                          random.uniform(-3, 3), sitting=True)
+            ctx.landmarks[f"camp_{key}"] = (cx, cy)
+            N[f"camp_{key}"] = (f"Camp of {en}", f"مضارب {ar}")
+            ctx.keepout.append((cx, cy, 34))
+        people(ctx, "wanderer", wander_pts(30, fx, fy - 30, 120, 90))
+        # wells with palm groves, and pilgrims' tents scattered across the fair
+        for k, (wx, wy) in enumerate([(-40.0, 10.0), (-190.0, 70.0)]):
+            K.well(mb, ctx, wx, wy)
+            for j in range(9):
+                a = j / 9 * math.tau + random.uniform(-0.2, 0.2)
+                I.palm(ctx, wx + math.cos(a) * random.uniform(7, 12), wy + math.sin(a) * random.uniform(7, 12),
+                       random.uniform(0.85, 1.1), lite=True)
+            ctx.landmarks[f"well_{k + 1}"] = (wx, wy)
+            N[f"well_{k + 1}"] = ("Well of the fair", "بئر السوق")
+            ctx.keepout.append((wx, wy, 15))
+        placed = 0
+        for _ in range(600):
+            if placed >= 44:
+                break
+            a, r = random.uniform(0, math.tau), random.uniform(60, 215)
+            x, y = fx + math.cos(a) * r, fy + math.sin(a) * r * 0.9
+            if ctx.free(x, y, 6) and abs(self.race_ell(x, y) - 1) > 0.25 and math.hypot(x, y) < 300:
+                I.tent(ctx, x, y, random.uniform(0, math.tau))
+                ctx.keepout.append((x, y, 6))
+                placed += 1
+        # ---- the race course: a cairn-marked oval (~600 m), brushwood hurdles, start and checkpoints
+        rcx, rcy = self.RACE_C
+        A, B = self.RACE_A, self.RACE_B
+        n = 26
+        race = []
+        for k in range(n):
+            t = k / n * math.tau
+            race.append((rcx + math.cos(t) * A, rcy + math.sin(t) * B))
+            for off in (-9.0, 9.0):
+                K.cairn(mb, ctx, rcx + math.cos(t) * (A + off), rcy + math.sin(t) * (B + off * B / A),
+                        L.mat("RaceFlag", "#efe2c4", 0.9))
+        race.append(race[0])
+        ctx.paths["race"] = race
+        for t in (0.55, 1.9, 3.5, 5.0):                                                # hurdles across the course
+            px, py = rcx + math.cos(t) * A, rcy + math.sin(t) * B
+            tx, ty = -A * math.sin(t), B * math.cos(t)
+            rot = math.atan2(ty, tx) + math.pi / 2
+            S.pbox(mb, ctx, px, py, L.height(px, py) + 0.85, 16.0, 0.7, K.DRY, rot, tag="hurdle")
+        st_t = -math.pi / 2
+        sx2, sy2 = rcx + math.cos(st_t) * A, rcy + math.sin(st_t) * B
+        ctx.spawn("race_start", sx2, sy2, R(90), id="ukaz_race_start")
+        for k in range(8):
+            t = st_t + (k + 1) / 8 * math.tau
+            ctx.spawn("race_checkpoint", rcx + math.cos(t) * A, rcy + math.sin(t) * B, 0.0, id=f"ukaz_race_cp_{k + 1}")
+        for k in range(3):
+            ctx.spawn("racer", sx2 - 6 - k * 3.5, sy2 + 5, R(90), id=f"ukaz_racer_{k + 1}")
+            ctx.spawn("horse", sx2 - 6 - k * 3.5, sy2 + 8, R(90), racer=f"ukaz_racer_{k + 1}")
+        ctx.landmarks["race_course"] = (rcx, rcy)
+        N["race_course"] = ("The race course", "مضمار السباق")
+        ctx.keepout += [(x, y, 13) for x, y in race]
+        # ---- the ransom ground: a pen, prisoners from the raider fort, the broker
+        rx, ry = -200.0, -220.0
+        for (a, b) in [((rx - 6, ry - 4), (rx + 6, ry - 4)), ((rx + 6, ry - 4), (rx + 6, ry + 4)),
+                       ((rx - 6, ry + 4), (rx - 6, ry - 4))]:
+            K.palisade(mb, ctx, a[0], a[1], b[0], b[1], h=1.6)
+        ctx.spawn("prisoner", rx, ry, 0.0, id="ukaz_ransom_prisoner")
+        for k in range(2):
+            ctx.spawn("prisoner", rx - 2 + k * 4, ry + 1.5, 0.0)
+        ctx.spawn("official", rx, ry - 9, math.pi, id="ukaz_ransom_broker", title="ransom broker", culture="bedouin")
+        ctx.landmarks["ransom_ground"] = (rx, ry)
+        N["ransom_ground"] = ("The ransom ground", "ساحة الفداء")
+        ctx.keepout.append((rx, ry, 16))
+        # ---- the duelling ground outside the truce: a ring of stones, the champion of Ukaz
+        dx, dy = 150.0, -250.0
+        for k in range(14):
+            a = k / 14 * math.tau
+            K.rock(mb, ctx, dx + math.cos(a) * 14, dy + math.sin(a) * 14, 0.8, self._granite, collide=False)
+        ctx.spawn("enemy", dx, dy + 4, math.pi, kind="champion", boss=True, id="ukaz_champion", camp="duel",
+                  title="champion of Ukaz")
+        ctx.landmarks["duel_ground"] = (dx, dy)
+        N["duel_ground"] = ("The duelling ground", "ساحة المبارزة")
+        ctx.keepout.append((dx, dy, 20))
+        # ---- the lost ode: a palm-leaf rib on top of a granite tor (a boulder climb)
+        tx_, ty_ = -300.0, 230.0
+        g0 = L.height(tx_, ty_)
+        steps = [(8, -6, 1.2), (5, -8, 2.4), (2, -6.5, 3.6), (0, -3.5, 4.8), (-1.5, -0.5, 6.0), (0, 2, 7.2)]
+        for (ox, oy, t) in steps:
+            px, py = tx_ + ox, ty_ + oy
+            S.pbox(mb, ctx, px, py, g0 + t, 2.6, 2.4, self._granite[int(t) % 4], random.uniform(0, 1),
+                   bottom=g0 - 1.0, tag="rock")
+        ctx.spawn("pickup", tx_, ty_ + 2, 0.0, id="lost_ode", z=round(g0 + 7.2, 3))
+        ctx.landmarks["lost_ode_tor"] = (tx_, ty_)
+        N["lost_ode_tor"] = ("Tor of the lost ode", "صخرة القصيدة الضائعة")
+        ctx.keepout.append((tx_, ty_, 14))
+        # ---- outside the truce: night hyenas, jackals, hill bandits
+        for (x, y) in [(260, 230), (268, 222), (252, 238), (-250, -300)]:
+            ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind="hound", variant="hyena", camp="hills", night_only=True)
+        for (x, y) in [(330, 40), (336, 46), (-340, 110), (-334, 118)]:
+            ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind="hound", variant="jackal", camp="jackals")
+        for (kind, x, y) in [("raider", 290, -180), ("skirmisher", 296, -172), ("archer", 284, -168)]:
+            ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind=kind, camp="hill_bandits")
+        # ---- horses, more camels, bonfires, exits
+        for k in range(5):
+            ctx.spawn("horse", -60 + k * 4, 10, R(30))
+        for k in range(6):
+            ctx.spawn("camel", -150 + k * 5, -70, R(90), sitting=k % 2 == 0)
+        for (x, y, bid) in [(-14, 352, "ukaz_north"), (14, -352, "ukaz_south"), (fx + 10, fy - 16, "ukaz_fair"),
+                            (dx - 24, dy + 22, "ukaz_duel")]:
+            ctx.spawn("bonfire", x, y, 0.0, id=bid)
+        ctx.exits.append({"to": "jabal_ithlib", "x": 0, "y": 392, "r": 7, "label": "North to Jabal Ithlib",
+                          "label_ar": "شمالا إلى جبل إثلب"})
+        ctx.exits.append({"to": "marib", "x": 0, "y": -392, "r": 7, "label": "South to Marib",
+                          "label_ar": "جنوبا إلى مأرب"})
+        ctx.spawn("player", 0, 362, face(0, 362, fx, fy), **{"from": "jabal_ithlib"})
+        ctx.spawn("player", 0, -362, face(0, -362, fx, fy), **{"from": "marib"})
+        ctx.spawn("player", 0, -362, face(0, -362, fx, fy))
+        K.cairn(mb, ctx, 6, 384)
+        K.cairn(mb, ctx, 6, -384)
+        ctx.keepout += [(0, 362, 20), (0, -362, 20)]
+        I.dress(mb, ctx, self, lambda x, y: True, rocks=70, singles=140, shrubs=180, dry=110, acacias=34, dead=6,
+                ruins=1, nbones=4, palette=self._granite, pal_name="granite")
+        print("UKAZ stalls", len(stalls), "race cairns", n * 2)
+
+
+for _m in (JabalIthlib(), Marib(), MaribBreach(), Ukaz()):
     M.MAPS[_m.name] = _m

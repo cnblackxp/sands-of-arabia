@@ -73,6 +73,14 @@
    "variant_of": "marib",
    "batch": 2,
    "culture": "sabaean"
+  },
+  {
+   "name": "ukaz",
+   "title": "The fair of Ukaz",
+   "title_ar": "\u0633\u0648\u0642 \u0639\u0643\u0627\u0638",
+   "level": "level/ukaz/level.json",
+   "batch": 2,
+   "culture": "hijazi"
   }
  ]
 }

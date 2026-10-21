@@ -372,6 +372,8 @@ def level_dict(m, ctx, heights, rel_dir):
     return {
         "name": m.name, "title": m.title, **({"title_ar": m.title_ar} if m.title_ar else {}),
         **({"culture": m.culture} if m.culture else {}),
+        **({"truce": {"center": to3((ctx.truce[0], ctx.truce[1], L.height(ctx.truce[0], ctx.truce[1]))),
+                      "radius": ctx.truce[2]}} if getattr(ctx, "truce", None) else {}),
         **({"variant_of": m.variant_of} if m.variant_of else {}),
         **({"landmark_names": names} if names else {}),
         "terrain": f"{rel_dir}/terrain.glb", "town": f"{rel_dir}/town.glb",
@@ -423,6 +425,15 @@ def export_map(ex, m):
         nchunks = join_export(ex, objs, f"{rel_dir}/town.glb", chunk=m.chunk)
     lvl = level_dict(m, ctx, heights, rel_dir)
     enforce_spacing(lvl, m.height, m.name)
+    bx, bz = lvl["bounds"]["x"], lvl["bounds"]["z"]
+    cxz = ((bx[0] + bx[1]) / 2, (bz[0] + bz[1]) / 2)
+    for s_ in lvl["spawns"]:                                   # arrivals must look into the map, not at its edge
+        if s_["role"] == "player":
+            fx, fz = math.sin(s_["yaw"]), math.cos(s_["yaw"])
+            vx, vz = cxz[0] - s_["pos"][0], cxz[1] - s_["pos"][2]
+            n = math.hypot(vx, vz) or 1.0
+            if (fx * vx + fz * vz) / n < 0.2:
+                print(f"FACING WARN {m.name}: arrival from {s_.get('from')} at {s_['pos']} faces away from the map")
     with open(os.path.join(ex.ASSETS, rel_dir, "level.json"), "w", encoding="utf8") as f:
         json.dump(lvl, f, indent=1)
     ex.MANIFEST["assets"][f"level_{m.name}"] = {"file": f"{rel_dir}/level.json", "kind": "level-data", "title": m.title}

@@ -981,66 +981,7 @@ def build_dog(col):
     o = c.skinned("Collar", col, arm)
     o["accessory"] = True
 
-    def legs(t, amp, ph, reach=0.0):
-        return {f"leg_{k}": {"rot": (-amp * S(t, p) - reach, 0, 0)} for k, p in ph.items()}
-    clip(arm, "Idle", 48, cyc(48, 4, lambda t: {
-        "body": {"loc": (0, 0.004 * S(t), 0)}, "tail": {"rot": (0, 0, 12 * S(t))},
-        "head": {"rot": (2 * S(t, 0.2), 8 * S(t * 0.5), 0)}, "neck": {"rot": (2 * S(t), 0, 0)}}))
-    clip(arm, "Walk", 24, cyc(24, 2, lambda t: {                                     # ~1.6 m/s
-        **legs(t, 22, {"BL": 0.0, "FL": 0.25, "BR": 0.5, "FR": 0.75}),
-        "body": {"loc": (0, 0.012 * S(t * 2), 0)}, "neck": {"rot": (3 * S(t * 2, 0.25), 0, 0)},
-        "tail": {"rot": (8, 0, 10 * S(t))}}))
-    clip(arm, "Run", 8, cyc(8, 1, lambda t: {                                        # rotary gallop ~7 m/s
-        **legs(t, 56, {"BL": 0.0, "BR": 0.1, "FR": 0.5, "FL": 0.6}, reach=2),
-        "body": {"loc": (0, 0.06 * S(t, 0.1), 0), "rot": (8 * S(t, 0.35), 0, 0)},
-        "neck": {"rot": (-8 * S(t, 0.35) - 4, 0, 0)}, "head": {"rot": (6, 0, 0)},
-        "tail": {"rot": (45 + 6 * S(t), 0, 0)}}))
-    crouch = {"body": {"loc": (0, -0.12, 0)}, "leg_FL": {"rot": (26, 0, 0)}, "leg_FR": {"rot": (24, 0, 0)},
-              "leg_BL": {"rot": (-22, 0, 0)}, "leg_BR": {"rot": (-20, 0, 0)}, "neck": {"rot": (12, 0, 0)},
-              "tail": {"rot": (-10, 0, 0)}}
-    clip(arm, "Lunge", 17, {                                                         # ~0.7 s, bite at frame 11
-        1: {},
-        5: crouch,
-        9: {"root": {"rot": (-16, 0, 0), "loc": (0, 0.35, 0)}, "leg_FL": {"rot": (-72, 0, 0)},
-            "leg_FR": {"rot": (-68, 0, 0)}, "leg_BL": {"rot": (66, 0, 0)}, "leg_BR": {"rot": (62, 0, 0)},
-            "neck": {"rot": (-6, 0, 0)}, "jaw": {"rot": (28, 0, 0)}, "tail": {"rot": (40, 0, 0)}},
-        11: {"root": {"rot": (4, 0, 0), "loc": (0, 0.24, 0)}, "leg_FL": {"rot": (-55, 0, 0)},
-             "leg_FR": {"rot": (-50, 0, 0)}, "leg_BL": {"rot": (50, 0, 0)}, "leg_BR": {"rot": (48, 0, 0)},
-             "neck": {"rot": (16, 0, 0)}, "jaw": {"rot": (0, 0, 0)}, "tail": {"rot": (36, 0, 0)}},
-        14: {"body": {"loc": (0, -0.06, 0)}, "leg_FL": {"rot": (-12, 0, 0)}, "leg_FR": {"rot": (-8, 0, 0)},
-             "leg_BL": {"rot": (14, 0, 0)}, "leg_BR": {"rot": (10, 0, 0)}, "neck": {"rot": (10, 0, 0)}},
-        18: {},
-    }, loop=False)
-    bpy.data.actions["Lunge"]["hit"] = 11
-    clip(arm, "Bite", 12, {
-        1: {},
-        4: {"neck": {"rot": (-12, 0, 0)}, "head": {"rot": (-10, 0, 0)}, "jaw": {"rot": (32, 0, 0)},
-            "body": {"loc": (0, -0.03, 0)}},
-        6: {"neck": {"rot": (26, 0, 0)}, "head": {"rot": (10, 0, 0)}, "jaw": {"rot": (0, 0, 0)},
-            "body": {"loc": (0, -0.02, 0), "rot": (4, 0, 0)}},
-        13: {},
-    }, loop=False)
-    bpy.data.actions["Bite"]["hit"] = 6
-    clip(arm, "Hit", 10, {
-        1: {}, 3: {"body": {"rot": (-10, 0, 6), "loc": (0, 0.03, 0)}, "neck": {"rot": (-18, 0, 0)},
-                   "jaw": {"rot": (14, 0, 0)}}, 11: {},
-    }, loop=False)
-    clip(arm, "Death", 24, {
-        1: {},
-        8: {"body": {"loc": (0, -0.14, 0)}, "leg_FL": {"rot": (30, 0, 0)}, "leg_FR": {"rot": (28, 0, 0)},
-            "neck": {"rot": (20, 0, 0)}},
-        16: {"root": {"rot": (0, 0, 84), "loc": (0, 0.1, 0)}, "leg_FL": {"rot": (-20, 0, -10)},
-             "leg_FR": {"rot": (-30, 0, 8)}, "leg_BL": {"rot": (20, 0, -8)}, "leg_BR": {"rot": (10, 0, 6)},
-             "neck": {"rot": (6, 0, 14)}, "jaw": {"rot": (12, 0, 0)}, "tail": {"rot": (30, 0, 0)}},
-        24: {"root": {"rot": (0, 0, 88), "loc": (0, 0.1, 0)}, "leg_FL": {"rot": (-22, 0, -10)},
-             "leg_FR": {"rot": (-32, 0, 8)}, "leg_BL": {"rot": (22, 0, -8)}, "leg_BR": {"rot": (12, 0, 6)},
-             "neck": {"rot": (6, 0, 16)}, "jaw": {"rot": (14, 0, 0)}, "tail": {"rot": (32, 0, 0)}},
-    }, loop=False)
-    clip(arm, "Growl", 24, cyc(24, 3, lambda t: {
-        "body": {"loc": (0, -0.07, 0), "rot": (4, 0, 0)}, "neck": {"rot": (18, 0, 0)},
-        "head": {"rot": (-12 + 2 * S(t * 2), 0, 0)}, "jaw": {"rot": (6 + 4 * S(t * 2), 0, 0)},
-        "tail": {"rot": (-18, 0, 4 * S(t))}, "leg_FL": {"rot": (-8, 0, 0)}, "leg_FR": {"rot": (-8, 0, 0)},
-        "leg_BL": {"rot": (12, 0, 0)}, "leg_BR": {"rot": (12, 0, 0)}}))
+    dog_clips(arm, 1.0)
     return arm
 
 
@@ -1136,4 +1077,124 @@ def build_bird(col):
              "wing_R": {"rot": (0, -12, -22)}, "neck": {"rot": (44, 0, 18)}, "head": {"rot": (10, 0, 0)},
              "leg_L": {"rot": (50, 0, 0)}, "leg_R": {"rot": (60, 0, 0)}, "tail": {"rot": (-6, 0, 0)}},
     }, loop=False)
+    return arm
+
+
+
+def _scale_locs(keys, k):
+    out = {}
+    for f, bones in keys.items():
+        out[f] = {b: {**d, **({"loc": tuple(v * k for v in d["loc"])} if "loc" in d else {})} for b, d in bones.items()}
+    return out
+
+
+def dog_clips(arm, k=1.0):
+    """Quadruped predator clips (hound, rat): Idle, Walk, Run, Lunge, Bite, Hit, Death, Growl.
+    k scales every root/body offset so a smaller animal (k < 1) keeps the same motion."""
+    def clipk(arm, name, length, keys, loop=True):
+        return clip(arm, name, length, _scale_locs(keys, k), loop)
+    def legs(t, amp, ph, reach=0.0):
+        return {f"leg_{k}": {"rot": (-amp * S(t, p) - reach, 0, 0)} for k, p in ph.items()}
+    clipk(arm, "Idle", 48, cyc(48, 4, lambda t: {
+        "body": {"loc": (0, 0.004 * S(t), 0)}, "tail": {"rot": (0, 0, 12 * S(t))},
+        "head": {"rot": (2 * S(t, 0.2), 8 * S(t * 0.5), 0)}, "neck": {"rot": (2 * S(t), 0, 0)}}))
+    clipk(arm, "Walk", 24, cyc(24, 2, lambda t: {                                     # ~1.6 m/s
+        **legs(t, 22, {"BL": 0.0, "FL": 0.25, "BR": 0.5, "FR": 0.75}),
+        "body": {"loc": (0, 0.012 * S(t * 2), 0)}, "neck": {"rot": (3 * S(t * 2, 0.25), 0, 0)},
+        "tail": {"rot": (8, 0, 10 * S(t))}}))
+    clipk(arm, "Run", 8, cyc(8, 1, lambda t: {                                        # rotary gallop ~7 m/s
+        **legs(t, 56, {"BL": 0.0, "BR": 0.1, "FR": 0.5, "FL": 0.6}, reach=2),
+        "body": {"loc": (0, 0.06 * S(t, 0.1), 0), "rot": (8 * S(t, 0.35), 0, 0)},
+        "neck": {"rot": (-8 * S(t, 0.35) - 4, 0, 0)}, "head": {"rot": (6, 0, 0)},
+        "tail": {"rot": (45 + 6 * S(t), 0, 0)}}))
+    crouch = {"body": {"loc": (0, -0.12, 0)}, "leg_FL": {"rot": (26, 0, 0)}, "leg_FR": {"rot": (24, 0, 0)},
+              "leg_BL": {"rot": (-22, 0, 0)}, "leg_BR": {"rot": (-20, 0, 0)}, "neck": {"rot": (12, 0, 0)},
+              "tail": {"rot": (-10, 0, 0)}}
+    clipk(arm, "Lunge", 17, {                                                         # ~0.7 s, bite at frame 11
+        1: {},
+        5: crouch,
+        9: {"root": {"rot": (-16, 0, 0), "loc": (0, 0.35, 0)}, "leg_FL": {"rot": (-72, 0, 0)},
+            "leg_FR": {"rot": (-68, 0, 0)}, "leg_BL": {"rot": (66, 0, 0)}, "leg_BR": {"rot": (62, 0, 0)},
+            "neck": {"rot": (-6, 0, 0)}, "jaw": {"rot": (28, 0, 0)}, "tail": {"rot": (40, 0, 0)}},
+        11: {"root": {"rot": (4, 0, 0), "loc": (0, 0.24, 0)}, "leg_FL": {"rot": (-55, 0, 0)},
+             "leg_FR": {"rot": (-50, 0, 0)}, "leg_BL": {"rot": (50, 0, 0)}, "leg_BR": {"rot": (48, 0, 0)},
+             "neck": {"rot": (16, 0, 0)}, "jaw": {"rot": (0, 0, 0)}, "tail": {"rot": (36, 0, 0)}},
+        14: {"body": {"loc": (0, -0.06, 0)}, "leg_FL": {"rot": (-12, 0, 0)}, "leg_FR": {"rot": (-8, 0, 0)},
+             "leg_BL": {"rot": (14, 0, 0)}, "leg_BR": {"rot": (10, 0, 0)}, "neck": {"rot": (10, 0, 0)}},
+        18: {},
+    }, loop=False)
+    bpy.data.actions["Lunge"]["hit"] = 11
+    clipk(arm, "Bite", 12, {
+        1: {},
+        4: {"neck": {"rot": (-12, 0, 0)}, "head": {"rot": (-10, 0, 0)}, "jaw": {"rot": (32, 0, 0)},
+            "body": {"loc": (0, -0.03, 0)}},
+        6: {"neck": {"rot": (26, 0, 0)}, "head": {"rot": (10, 0, 0)}, "jaw": {"rot": (0, 0, 0)},
+            "body": {"loc": (0, -0.02, 0), "rot": (4, 0, 0)}},
+        13: {},
+    }, loop=False)
+    bpy.data.actions["Bite"]["hit"] = 6
+    clipk(arm, "Hit", 10, {
+        1: {}, 3: {"body": {"rot": (-10, 0, 6), "loc": (0, 0.03, 0)}, "neck": {"rot": (-18, 0, 0)},
+                   "jaw": {"rot": (14, 0, 0)}}, 11: {},
+    }, loop=False)
+    clipk(arm, "Death", 24, {
+        1: {},
+        8: {"body": {"loc": (0, -0.14, 0)}, "leg_FL": {"rot": (30, 0, 0)}, "leg_FR": {"rot": (28, 0, 0)},
+            "neck": {"rot": (20, 0, 0)}},
+        16: {"root": {"rot": (0, 0, 84), "loc": (0, 0.1, 0)}, "leg_FL": {"rot": (-20, 0, -10)},
+             "leg_FR": {"rot": (-30, 0, 8)}, "leg_BL": {"rot": (20, 0, -8)}, "leg_BR": {"rot": (10, 0, 6)},
+             "neck": {"rot": (6, 0, 14)}, "jaw": {"rot": (12, 0, 0)}, "tail": {"rot": (30, 0, 0)}},
+        24: {"root": {"rot": (0, 0, 88), "loc": (0, 0.1, 0)}, "leg_FL": {"rot": (-22, 0, -10)},
+             "leg_FR": {"rot": (-32, 0, 8)}, "leg_BL": {"rot": (22, 0, -8)}, "leg_BR": {"rot": (12, 0, 6)},
+             "neck": {"rot": (6, 0, 16)}, "jaw": {"rot": (14, 0, 0)}, "tail": {"rot": (32, 0, 0)}},
+    }, loop=False)
+    clipk(arm, "Growl", 24, cyc(24, 3, lambda t: {
+        "body": {"loc": (0, -0.07, 0), "rot": (4, 0, 0)}, "neck": {"rot": (18, 0, 0)},
+        "head": {"rot": (-12 + 2 * S(t * 2), 0, 0)}, "jaw": {"rot": (6 + 4 * S(t * 2), 0, 0)},
+        "tail": {"rot": (-18, 0, 4 * S(t))}, "leg_FL": {"rot": (-8, 0, 0)}, "leg_FR": {"rot": (-8, 0, 0)},
+        "leg_BL": {"rot": (12, 0, 0)}, "leg_BR": {"rot": (12, 0, 0)}}))
+
+
+def build_rat(col):
+    """Giant rat (the dam's vermin), facing -Y, ~0.35 m nose to rump plus a long tail. Hound clip names."""
+    arm = make_armature("Rat", [
+        ("root", None, (0, 0, 0)),
+        ("body", "root", (0, 0, 0.08)),
+        ("leg_FL", "body", (-0.03, -0.07, 0.06)), ("leg_FR", "body", (0.03, -0.07, 0.06)),
+        ("leg_BL", "body", (-0.035, 0.06, 0.06)), ("leg_BR", "body", (0.035, 0.06, 0.06)),
+        ("neck", "body", (0, -0.1, 0.085)),
+        ("head", "neck", (0, -0.13, 0.09)),
+        ("jaw", "head", (0, -0.17, 0.075)),
+        ("tail", "body", (0, 0.12, 0.08)),
+    ], col)
+    fur = mat("R_Fur", "#6b5a4a", 0.95)
+    skin = mat("R_Skin", "#c99a8a", 0.7)
+    eyes = mat("R_Eyes", "#0e0a08", 0.3)
+    tooth = mat("R_Tooth", "#e8d9a8", 0.5)
+    mb = RigMB()
+    mb.grp("body")
+    mb.box((0, 0.0, 0.08), (0.11, 0.22, 0.09), fur)
+    mb.box((0, 0.08, 0.085), (0.12, 0.1, 0.1), fur)
+    for name, sx, sy in (("FL", -0.03, -0.07), ("FR", 0.03, -0.07), ("BL", -0.035, 0.06), ("BR", 0.035, 0.06)):
+        mb.grp("leg_" + name)
+        mb.box((sx, sy, 0.03), (0.025, 0.03, 0.06), fur)
+        mb.box((sx, sy - 0.01, 0.006), (0.03, 0.04, 0.012), skin)
+    mb.grp("neck")
+    mb.box((0, -0.11, 0.09), (0.07, 0.05, 0.065), fur)
+    mb.grp("head")
+    mb.box((0, -0.145, 0.095), (0.07, 0.07, 0.06), fur)
+    mb.box((0, -0.195, 0.085), (0.04, 0.05, 0.035), fur)
+    mb.box((0, -0.222, 0.088), (0.014, 0.01, 0.012), skin)
+    mb.box((0, -0.214, 0.07), (0.016, 0.006, 0.012), tooth)
+    for sx in (-0.03, 0.03):
+        mb.box((sx, -0.13, 0.13), (0.03, 0.008, 0.03), skin)
+        mb.box((sx * 1.15, -0.165, 0.105), (0.006, 0.012, 0.012), eyes)
+    mb.grp("jaw")
+    mb.box((0, -0.19, 0.068), (0.03, 0.04, 0.01), fur)
+    mb.grp("tail")
+    mb.box((0, 0.19, 0.07), (0.012, 0.13, 0.012), skin, rot=(R(12), 0, 0))
+    mb.box((0, 0.3, 0.05), (0.01, 0.11, 0.01), skin, rot=(R(-6), 0, 0))
+    mb.box((0, 0.395, 0.055), (0.008, 0.08, 0.008), skin, rot=(R(-14), 0, 0))
+    mb.skinned("Body", col, arm)
+    dog_clips(arm, 0.25)
     return arm

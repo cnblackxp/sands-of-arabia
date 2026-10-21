@@ -590,17 +590,18 @@ def goods(mb, ctx, x, y, n=6, spread=1.6):
     ctx.col(x, y, z + 0.5, spread * 1.6, spread * 1.6, 1.0, 0, "prop")
 
 
-def big_tent(mb, ctx, x, y, rot, s=1.6, m=None):
-    """Chief's tent: striped walls, peaked roof."""
+def big_tent(mb, ctx, x, y, rot, s=1.6, m=None, body=None):
+    """Chief's tent: striped walls, peaked roof. body= replaces the pale cloth (e.g. red leather)."""
     z = L.height(x, y)
     lc = Local(mb, x, y, z, rot)
     stripe = m or CLOTH[0]
-    lc.box((0, 0, 1.2 * s), (6 * s, 5 * s, 2.4 * s), L.mat("TentCloth", "#d9c9a3", 0.95))
+    _cloth = body or L.mat("TentCloth", "#d9c9a3", 0.95)
+    lc.box((0, 0, 1.2 * s), (6 * s, 5 * s, 2.4 * s), _cloth)
     for k in range(6):
         lc.box((-2.5 * s + k * s, -2.52 * s, 1.2 * s), (0.45 * s, 0.04, 2.4 * s), stripe)
     for k in range(4):
         lc.box((0, 0, 2.5 * s + k * 0.35 * s), ((6 - k * 1.4) * s, (5 - k * 1.2) * s, 0.36 * s), stripe if k % 2 else
-               L.mat("TentCloth", "#d9c9a3", 0.95))
+               _cloth)
     lc.box((0, -2.53 * s, 0.9 * s), (1.2 * s, 0.05, 1.8 * s), L.SHADOW)
     lc.col(ctx, (0, 0, 1.4 * s), (6 * s, 5 * s, 2.8 * s), "tent")
 

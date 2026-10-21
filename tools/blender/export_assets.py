@@ -414,6 +414,14 @@ def export_characters():
                   "Recolour D_Coat / D_Dark."),
     })
     clear_scene()
+    arm = rigs.build_rat(col)
+    clips = clip_info()
+    export([arm], "characters/rat.glb", "character", anim=True, extra={
+        "clips": clips,
+        "notes": ("Giant rat (enemy kind 'rat'), ~0.35 m plus tail. Same clip names as the hound (Idle, Walk, Run, "
+                  "Lunge, Bite, Hit, Death, Growl), offsets scaled to its size. Recolour R_Fur / R_Skin."),
+    })
+    clear_scene()
     arm = rigs.build_bird(col)
     clips = clip_info()
     export([arm], "characters/bird.glb", "character", anim=True, extra={

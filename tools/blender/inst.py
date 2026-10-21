@@ -225,3 +225,18 @@ def field(ctx, x, y, m, w=29.0, d=21.0):
     def build(m=m):
         return _mb_build(lambda mb: S.field_plot(mb, 0, 0, w, d, 0.0, m, furrows=True), key)()
     place(key, build, x, y, L.height(x, y), 0.0, 1.0)
+
+
+
+def tent(ctx, x, y, rot, s=1.0):
+    """Instanced goat-hair tent (3 stripe variants) with its 7 x 4 collider."""
+    v = random.randrange(3)
+    key = f"tent{v}"
+
+    def build(v=v):
+        random.seed(3700 + v)
+        before = set(bpy.data.objects)
+        L.tent(0, 0, 0.0, 1.0)
+        return [o for o in bpy.data.objects if o not in before][0]
+    place(key, build, x, y, L.height(x, y), rot, s)
+    ctx.col(x, y, L.height(x, y) + 1 * s, 7 * s, 4 * s, 2 * s, rot, "tent")
