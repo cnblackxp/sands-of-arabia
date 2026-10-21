@@ -22,6 +22,8 @@ export interface Settings {
   soundtrack: string;
   /** The player chose the soundtrack in Settings (otherwise the default applies, even after the default changes). */
   soundtrackPicked: boolean;
+  /** Saves from before third person became everyone's camera are switched to it once. */
+  camV: number;
   uiScale: number;
   mouseSens: number;
   stickSens: number;
@@ -41,6 +43,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   music: 0.45,
   soundtrack: 'lmms',
   soundtrackPicked: false,
+  camV: 2,
   uiScale: 1,
   mouseSens: 0.0026,
   stickSens: 2.6,
@@ -58,6 +61,12 @@ export function loadSettings(): Settings {
     if (raw) {
       const d = JSON.parse(raw) as Partial<Settings>;
       if (d && d.version === 1) {
+        // Third person for everyone, once; afterwards Settings decides again.
+        if (d.camV !== 2) {
+          d.thirdPerson = true;
+          d.perspective = false;
+          d.camV = 2;
+        }
         // Keep only known keys with the right type (an old or edited save can't break the game).
         for (const k of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
           const v = d[k];

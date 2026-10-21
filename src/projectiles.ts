@@ -13,7 +13,7 @@ import type { Physics } from './physics';
  * the fallen can be walked over to pick them up again.
  */
 
-export const ARROW = { speed: 40, gravity: 12, life: 6, max: 10 };
+export const ARROW = { speed: 40, gravity: 12, life: 6, max: 100 };
 export const ROCK = { speed: 17, gravity: 12 };
 
 /** Something a projectile can hit: a vertical cylinder around `pos`. */

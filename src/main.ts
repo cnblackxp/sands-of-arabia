@@ -34,6 +34,33 @@ const CUT_RADIUS = 2.6;
 const MOUNT_RANGE = 2.8;
 const USE_RANGE = 2.2;
 
+/**
+ * Fade a character to `k` opacity (1 = solid). Its meshes get their own copies of
+ * the shared materials the first time; flash materials swapped in for a moment are left alone.
+ */
+function seeThrough(root: THREE.Object3D, k: number): void {
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    if (!m.userData.ownMats) {
+      if (k >= 1) return;
+      const own = (Array.isArray(m.material) ? m.material : [m.material]).map((x) => {
+        const c = x.clone();
+        c.userData.seeThrough = true;
+        return c;
+      });
+      m.material = Array.isArray(m.material) ? own : own[0];
+      m.userData.ownMats = true;
+    }
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+      if (!mat.userData.seeThrough) continue;
+      mat.transparent = k < 1;
+      mat.opacity = k;
+      mat.depthWrite = k >= 1;
+    }
+  });
+}
+
 /** Landmarks whose surroundings take the sacred music mood. */
 const SACRED = /temple|shrine|sanctuary|altar|tomb|khazneh|betyl|marzeah|mrzh|ruda|kahl|shams/;
 const ROBES: (number | null)[] = [null, 0xf1ece0, 0x2c3e73, 0x7b2a24, 0xc9902e, 0x2f6d4f, 0x5b2d6e, 0x2b2622, 0xb8a48a];
@@ -135,6 +162,21 @@ class Game {
   loreStones: LoreStone[] = [];
   /** Reading an inscription (lore spawn): its lines and the line shown. */
   private reading: { stone: LoreStone; lines: string[]; i: number } | null = null;
+  /** Aiming in third person: the player (and their horse) fade so they don't block the view. */
+  private seeK = 1;
+  private seeHorse: Horse | null = null;
+  private updateSeeThrough(dt: number): void {
+    const p = this.player;
+    const want = this.cam.thirdPerson && p.aiming && !this.menu.isOpen ? (p.horse ? 0.3 : 0.45) : 1;
+    this.seeK += (want - this.seeK) * (1 - Math.exp(-dt * 10));
+    const k = this.seeK > 0.98 ? 1 : this.seeK;
+    // A horse left behind (dismounted mid-aim) gets its looks back.
+    if (this.seeHorse && this.seeHorse !== p.horse) seeThrough(this.seeHorse.rig.root, 1);
+    this.seeHorse = p.horse;
+    seeThrough(p.rig.root, k);
+    if (p.horse) seeThrough(p.horse.rig.root, k);
+  }
+
   /** What the bow's aim arc is on (a tick when it settles on a new foe). */
   private aimTarget: unknown = null;
   /** Temples, shrines and tombs of this map (the sacred music mood). */
@@ -2019,6 +2061,7 @@ class Game {
     focus.y += p.horse ? 1.6 : 1.0;
     this.cam.aiming = p.aiming && this.cam.thirdPerson;
     this.cam.mounted = !!p.horse;
+    this.updateSeeThrough(realDt);
     this.cam.occlusion = (o, d, max) => this.physics.rayStatic(o, d, max);
     this.cam.groundAt = (x, z) => this.world.ground(x, z);
     this.cam.update(realDt, focus);

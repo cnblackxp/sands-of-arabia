@@ -30,6 +30,8 @@ export interface ProgressData {
   taken: string[];
   /** Arrows in the quiver (max 10); loosed ones can be picked up again. */
   arrows: number;
+  /** The quiver grew from 10 to 100 arrows: older saves are topped up once. */
+  quiver100?: boolean;
   /** Maps entered at least once (new lands show "New" until then). */
   visited: string[];
   /** Places changed for good: map → the variant now in its place (marib → marib_breach). */
@@ -55,7 +57,8 @@ export function freshProgress(): ProgressData {
     trackedQuest: null,
     openedChests: [],
     taken: [],
-    arrows: 10,
+    arrows: 100,
+    quiver100: true,
     visited: [],
     variants: {},
   };
@@ -72,9 +75,13 @@ export class Progress {
       const raw = localStorage.getItem(KEY);
       if (raw) {
         const d = JSON.parse(raw) as ProgressData;
-        if (d && d.version === 1) this.data = { ...freshProgress(), ...d };
+        if (d && d.version === 1) this.data = { ...freshProgress(), ...d, quiver100: !!d.quiver100 };
         // Older saves predate the starting bow.
         if (!this.data.weapons.includes('composite_bow')) this.data.weapons.push('composite_bow');
+        if (!this.data.quiver100) {
+          this.data.arrows = 100;
+          this.data.quiver100 = true;
+        }
       }
     } catch {
       // No storage: play without saving.

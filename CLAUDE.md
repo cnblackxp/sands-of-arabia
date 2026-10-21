@@ -227,7 +227,7 @@ Decisions worth knowing:
 - **True third-person camera** (the default; Settings → Camera cycles third person → orthographic → perspective, and the Debug tab has the same toggle). `FollowCamera.thirdPerson`:
   - The camera sits behind the player's right shoulder. A ray against the level boxes pulls the boom in so it never clips a wall.
   - The character sits left of centre (shoulder offset 0.75 m, 1.05 m aiming). Riding (`FollowCamera.mounted`), the pivot rises to the rider's chest (+1.75 m over the horse's feet), the boom is about 1.3× longer plus 1.2 m, the shoulder offset grows to 1.15–1.45 m and the view tilts down at least 8°, so the horse never fills the screen, even when looking back.
-  - The boom starts at 6.5 m and zooms from 1.6 m out to 22 m. The D-pad zooms (9 steps a second) and turns the camera (2.8 rad a second).
+  - The boom starts at 6.5 m and zooms from 1.6 m out to 22 m. Looking up, the camera slides in along the boom to stay above the ground (keeping the view direction) instead of being lifted. Aiming in third person fades the player to 45% (rider and horse to 30%) with their own material copies (`seeThrough` in main.ts). Old settings were switched to third person once (`Settings.camV`). The D-pad zooms (9 steps a second) and turns the camera (2.8 rad a second).
   - Mouse look uses pointer lock: the first click captures the mouse, and Esc frees it and opens the menu. The gamepad's right stick looks around. Zoom is the wheel or D-pad up/down.
   - Sensitivity and invert-Y live in the Debug tab. `Input.thirdPerson` switches the stick mapping.
 - **Bow** (`composite_bow` in `items.ts`, `kind: 'bow'`). It is two-handed, so there is no shield.
@@ -238,7 +238,7 @@ Decisions worth knowing:
     - overhead camera with a gamepad: the left stick turns the aim (you stand still), snapping to foes in a 22° cone.
   - The aim arc is shown as dots plus a landing ring. When the arc would hit a foe, the dots turn red, the ring hides and a small red arrow bobs above the foe pointing down (`Projectiles.aimMark`), with a soft tick (`Sfx.aimLock`) each time it settles on a new foe.
 - **Prompts** sit low on screen (`.prompt`, top 74%) and fade in and out. The dismount prompt only shows after the ridden horse has stood still for 2 s (`horseStillFor`); dismounting works at any time.
-  - The quiver holds 10 arrows (`progress.data.arrows`). Arrows stick in the ground, walls and bodies; walk over them to take them back (not out of a living foe). Resting at a bonfire refills the quiver.
+  - The quiver holds 100 arrows (`progress.data.arrows`; older saves were topped up once, `quiver100`). Arrows stick in the ground, walls and bodies; walk over them to take them back (not out of a living foe). Resting at a bonfire refills the quiver.
   - Uses `BowDraw`, `BowAim` and `BowRelease` with `BowHeld` and `Quiver`. Older models fall back to a procedural pose and bow.
 - **New foes.** Enemy spawns can have `kind` hound, vulture, slinger or clubman. The Debug tab spawns each next to the player.
   - Hounds chase, circle, crouch (the tell), then lunge with a bite.

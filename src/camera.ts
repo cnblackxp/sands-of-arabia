@@ -193,7 +193,7 @@ export class FollowCamera {
     const pv = this.tpPivot.copy(follow).add(this.shake);
     pv.y += THREE.MathUtils.lerp(0.55, 1.75, m);
     // Riding, look a little down from above so the horse's back and neck don't block the view.
-    const pitch = Math.max(this.tpPitch, 0.14 * m);
+    const pitch = THREE.MathUtils.lerp(this.tpPitch, Math.max(this.tpPitch, 0.14), m);
     const cp = Math.cos(pitch);
     const back = new THREE.Vector3(Math.sin(this.tpYaw) * cp, Math.sin(pitch), Math.cos(this.tpYaw) * cp);
     const right = new THREE.Vector3(Math.cos(this.tpYaw), 0, -Math.sin(this.tpYaw));
@@ -205,7 +205,15 @@ export class FollowCamera {
     const origin = pv.clone().addScaledVector(right, shoulder);
     // Keep the boom out of walls.
     const reach = this.occlusion(origin, back, dist + 0.25);
-    const d = Math.max(0.35, Math.min(dist, reach - 0.25));
+    let d = Math.max(0.35, Math.min(dist, reach - 0.25));
+    // Looking up drops the camera toward the ground: slide it in along the boom
+    // (keeping the view direction) rather than lifting it, which would tilt the view back down.
+    for (let i = 0; i < 3 && back.y < -0.02; i++) {
+      const c = origin.clone().addScaledVector(back, d);
+      const g = this.groundAt(c.x, c.z) + 0.3;
+      if (c.y >= g) break;
+      d = Math.max(0.35, (origin.y - g) / -back.y);
+    }
     const cam = origin.addScaledVector(back, d);
     const g = this.groundAt(cam.x, cam.z) + 0.25;
     if (cam.y < g) cam.y = g;
