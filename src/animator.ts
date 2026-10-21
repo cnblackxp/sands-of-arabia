@@ -66,6 +66,8 @@ export class Animator {
   private ovTarget = 0;
   private ovRate = 8;
   private ovLoop = false;
+  /** One-shot overlay that freezes on its last frame instead of fading out. */
+  private ovHold = false;
   private ovFadeOut = 0.15;
 
   constructor(root: THREE.Object3D, lib: ClipLibrary) {
@@ -129,8 +131,11 @@ export class Animator {
     if (layer.upper) layer.upper.timeScale = timeScale;
   }
 
-  /** Play an upper-body overlay clip (non-looping unless `loop`). */
-  playOverlay(name: string, opts: { loop?: boolean; fade?: number; timeScale?: number } = {}): void {
+  /**
+   * Play an upper-body overlay clip (non-looping unless `loop`). One-shots fade
+   * out as they end, unless `hold` keeps their last frame until the next call.
+   */
+  playOverlay(name: string, opts: { loop?: boolean; fade?: number; timeScale?: number; hold?: boolean } = {}): void {
     const a = this.overlays.get(name);
     if (!a) return;
     if (this.ov && this.ov !== a) this.ov.stop();
@@ -141,6 +146,7 @@ export class Animator {
     this.ov = a;
     this.ovName = name;
     this.ovLoop = loop;
+    this.ovHold = !loop && !!opts.hold;
     this.ovTarget = 1;
     this.ovRate = 1 / Math.max(opts.fade ?? 0.1, 0.001);
     this.ovFadeOut = 0.15;
@@ -172,7 +178,7 @@ export class Animator {
   update(dt: number): void {
     // Overlay weight.
     if (this.ov) {
-      if (!this.ovLoop && this.ovTarget > 0) {
+      if (!this.ovLoop && !this.ovHold && this.ovTarget > 0) {
         const d = this.ov.getClip().duration;
         if (this.ov.time >= d - this.ovFadeOut * this.ov.timeScale) {
           this.ovTarget = 0;
