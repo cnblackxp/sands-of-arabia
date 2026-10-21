@@ -51,6 +51,10 @@ export interface Foe {
   readonly hitLo: number;
   readonly hitHi: number;
   readonly root: THREE.Object3D;
+  /** Night-only foes: away (dormant) by day. */
+  readonly nightOnly: boolean;
+  readonly dormant: boolean;
+  setDormant(on: boolean): void;
   onKilled: (e: Foe) => void;
   damage(dmg: number, from: THREE.Vector3): HitResult;
   shot(dmg: number, from: THREE.Vector3, kind: 'arrow' | 'rock'): HitResult | null;

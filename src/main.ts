@@ -11,7 +11,7 @@ import { Input, type Frame } from './input';
 import { applyDocument, L, lang, LANGS, onLangChange, setLang, t, tOr } from './i18n';
 import { GOLD_DROP, itemName, UPGRADES, upgradePrice, upgradeText, WEAPONS, weapon, weaponText, type WeaponDef } from './items';
 import type { Exit, Spawn, Vec3 } from './level';
-import { beam, Bonfire, Chest, GoldPile, Icon, type IconKind, Pickup } from './markers';
+import { beam, Bonfire, Chest, GoldPile, Icon, LoreStone, Pickup, Sluice, type IconKind } from './markers';
 import { Menu, type MenuRow, type MenuTab } from './menu';
 import { BADGE, Minimap, type BadgeKind, type MapMarker } from './minimap';
 import { type Npc, NpcSystem } from './npc';
@@ -20,7 +20,7 @@ import { Player, type BowAim } from './player';
 import { ARROW, Projectiles, solveBallistic, type ProjTarget } from './projectiles';
 import { Progress } from './progress';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './settings';
-import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, type QuestDef } from './quests';
+import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, sameMap, setMapAliases, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
 import { mulberry32 } from './util';
 import { cutout, isNewLand, loadCommon, loadMap, mapRequested, World, type CommonAssets, type MapEntry } from './world';
@@ -119,6 +119,12 @@ class Game {
   camels: Camel[] = [];
   bonfires: Bonfire[] = [];
   chests: Chest[] = [];
+  sluices: Sluice[] = [];
+  loreStones: LoreStone[] = [];
+  /** Reading an inscription (lore spawn): its lines and the line shown. */
+  private reading: { stone: LoreStone; lines: string[]; i: number } | null = null;
+  private visitT = 0;
+  private lyreT = 2;
   pickups: Pickup[] = [];
   lostPile: GoldPile | null = null;
   private icons = new Map<Npc, Icon>();
@@ -154,6 +160,7 @@ class Game {
     this.quests = new QuestSystem(this.progress, {
       toast: (t) => this.hud.showToast(t, 3.5),
       reward: (q) => this.questReward(q),
+      effect: (name) => this.questEffect(name),
       sound: (k) => (k === 'accept' ? this.sfx.questAccept() : this.sfx.pickup()),
     });
     // Animal Crossing-style babble: each typed letter is voiced in the speaker's pitch.
@@ -261,6 +268,8 @@ class Game {
       msg.textContent = t('loading.loaded', { label: tOr(`loading.assets.${label}`, label) });
     });
     const c = this.common;
+    // Variants of one place (Marib after the flood) share quests and people.
+    setMapAliases(Object.fromEntries(c.maps.maps.filter((m) => m.variant_of).map((m) => [m.name, m.variant_of!])));
     void this.music.load();
     this.factory = new CharacterFactory(c.person, c.horse, c.camel, c.personClips);
     this.factory.setWingedHorse(c.wingedHorse);
@@ -325,7 +334,28 @@ class Game {
     this.closeDialogue(false);
     if (this.menu.isOpen) this.menu.close();
     this.sfx.travel();
-    await this.enterMap(to, this.mapName, at);
+    await this.enterMap(this.resolveMap(to), this.mapName, at);
+  }
+
+  /** A place that changed for good (Marib after the flood) is reached as its variant. */
+  private resolveMap(name: string): string {
+    return this.progress.data.variants[name] ?? name;
+  }
+
+  /** World effects of quests. */
+  private questEffect(name: string): void {
+    if (name !== 'flood_marib') return;
+    this.progress.data.variants.marib = 'marib_breach';
+    this.progress.save();
+    this.sfx.flood();
+    this.cam.addTrauma(0.6);
+    this.hud.showToast(t('flood.toast'), 6);
+    // Standing in Marib: the same ground, after the water.
+    if (this.mapName === 'marib') {
+      const p = this.player.pos.clone();
+      const yaw = this.player.yaw;
+      setTimeout(() => void this.enterMap('marib_breach', 'marib', { pos: [p.x, p.y, p.z], yaw }), 2500);
+    }
   }
 
   /**
@@ -440,6 +470,7 @@ class Game {
     }
     this.placeBonfires(level.spawns, ps);
     this.placeChests(level.spawns);
+    this.placeSluicesAndLore(level.spawns);
     this.spawnPickups();
     this.spawnLostGold();
 
@@ -568,16 +599,19 @@ class Game {
       if (d.arrows > before) this.floatAt(this.player.pos, 2, t(d.arrows - before > 1 ? 'float.arrows' : 'float.arrow', { n: d.arrows - before }), 'heal');
     };
     this.enemies.onThrow = (e, from, dmg) => {
-      // Aim at where the player will be when the stone arrives.
+      // Aim at where the player will be when the stone (or arrow) arrives.
+      const arrow = !!e.def.ranged?.arrow;
+      const speed = arrow ? ARROW.speed * 0.8 : 17;
       const p = this.player;
       const target = p.pos.clone().setY(p.pos.y + 1.1);
-      const flight = from.distanceTo(target) / 17;
+      const flight = from.distanceTo(target) / speed;
       target.addScaledVector(p.moveDir, p.speed * flight * 0.8);
-      const vel = solveBallistic(from, target, 17, 12) ?? solveBallistic(from, target, 17, 12, true);
+      const vel = solveBallistic(from, target, speed, 12) ?? solveBallistic(from, target, speed, 12, true);
       if (!vel) return;
-      pr.fire('rock', from, vel, dmg, 'enemy');
+      pr.fire(arrow ? 'arrow' : 'rock', from, vel, dmg, 'enemy');
       const ear = this.enemies.ear(e.pos);
-      this.sfx.rockThrow(ear.pan, Math.max(0.3, ear.gain));
+      if (arrow) this.sfx.bowRelease(ear.pan, Math.max(0.3, ear.gain));
+      else this.sfx.rockThrow(ear.pan, Math.max(0.3, ear.gain));
     };
   }
 
@@ -771,11 +805,61 @@ class Game {
       const pos = new THREE.Vector3(s.pos[0], this.world.floor(s.pos[0], s.pos[2], s.pos[1]), s.pos[2]);
       const c = new Chest(this.world.scene, id, pos, s.yaw, !!s.secret, prop);
       if (this.progress.data.openedChests.includes(id)) c.setOpen();
+      else if (s.buried) c.bury(this.world.scene);
       this.chests.push(c);
     }
   }
 
+  /** Marib's sluice gates and readable inscriptions from level.json. */
+  private placeSluicesAndLore(spawns: Spawn[]): void {
+    // Gates already worked by a rota stay open.
+    const open = new Set<string>();
+    for (const q of QUESTS) {
+      const st = this.quests.state(q.id);
+      if (!st) continue;
+      q.objectives.forEach((o, i) => {
+        if (o.kind === 'use' && (st.state !== 'active' || i < st.step)) open.add(o.target);
+      });
+    }
+    for (const s of spawns) {
+      const role = s.role as string;
+      if (!s.id) continue;
+      const pos = new THREE.Vector3(s.pos[0], this.world.floor(s.pos[0], s.pos[2], s.pos[1]), s.pos[2]);
+      if (role === 'sluice') {
+        const sl = new Sluice(this.world.scene, s.id, pos, s.yaw);
+        if (open.has(s.id)) sl.setOpen(true);
+        this.sluices.push(sl);
+      } else if (role === 'lore') {
+        this.loreStones.push(new LoreStone(this.world.scene, s.id, pos));
+      }
+    }
+  }
+
+  /** Work a sluice: advance a rota (in order), or just open/shut it. */
+  private useSluice(sl: Sluice): void {
+    const r = this.quests.used(this.mapName, sl.id);
+    if (r === 'wrong') {
+      const next = this.quests.nextUse(this.mapName);
+      this.sfx.denied();
+      this.hud.showToast(t('sluice.wrong', { gate: next ? tOr(`sluice.names.${next.target}`, next.target) : '' }), 3);
+      return;
+    }
+    const opening = r === 'ok' ? true : !sl.open;
+    sl.setOpen(opening);
+    const ear = this.enemies.ear(sl.pos);
+    this.sfx.sluice(opening, ear.pan);
+    this.hud.showToast(t(opening ? 'sluice.opened' : 'sluice.closed'), 2.2);
+  }
+
   private openChest(c: Chest): void {
+    if (c.buried) {
+      // First dig it up; opening is the next press.
+      c.dig();
+      this.sfx.dig();
+      this.particles.burst(c.pos.clone().setY(c.pos.y + 0.2), 18, { color: 0xc9a06a, speed: 2.2, up: 2.4, size: 0.1, life: 0.7, gravity: 5 });
+      this.hud.showToast(t('dig.found'), 2);
+      return;
+    }
     c.open();
     this.progress.data.openedChests.push(c.id);
     const [lo, hi] = c.secret ? [220, 380] : [50, 120];
@@ -820,6 +904,9 @@ class Game {
     this.icons.clear();
     this.bonfires = [];
     this.chests = [];
+    this.sluices = [];
+    this.loreStones = [];
+    this.reading = null;
     this.pickups = [];
     this.lostPile = null;
     this.projectiles?.dispose();
@@ -1126,7 +1213,9 @@ class Game {
             });
           }
           // The first journey's regions, then the new lands (marked until visited).
-          const maps = this.common.maps.maps;
+          // A variant (Marib after the flood) shows only once it has replaced its place.
+          const active = new Set(Object.values(d.variants));
+          const maps = this.common.maps.maps.filter((m) => (m.variant_of ? active.has(m.name) : !d.variants[m.name]));
           const groups: [string, MapEntry[]][] = [
             [t('travel.regionsFirst'), maps.filter((m) => !isNewLand(m))],
             [t('travel.regionsNew'), maps.filter((m) => isNewLand(m))],
@@ -1364,7 +1453,7 @@ class Game {
     if (this.travelling) return;
     this.closeDialogue(false);
     this.menu.close();
-    await this.enterMap(map, null);
+    await this.enterMap(this.resolveMap(map), null);
   }
 
   private async travelToBonfire(id: string): Promise<void> {
@@ -1508,6 +1597,30 @@ class Game {
   private togglePerf(): void {
     this.showPerf = !this.showPerf;
     if (!this.showPerf) this.hud.perf = '';
+  }
+
+  private readLore(stone: LoreStone): void {
+    const lines = L().lore[stone.id];
+    const list = Array.isArray(lines) ? lines : lines ? [lines] : [];
+    if (!list.length) return;
+    stone.read = true;
+    this.reading = { stone, lines: list, i: 0 };
+    this.sfx.readStone();
+    this.player.talking = true;
+    this.hud.showDialogue(tOr('lore.title', 'An inscription'), list[0], list.length === 1);
+  }
+
+  private closeReading(): void {
+    this.reading = null;
+    this.player.talking = false;
+    this.input.cancelHolds();
+    this.hud.hideDialogue();
+  }
+
+  /** Night for night-only foes: after dusk, before dawn. */
+  private isNight(): boolean {
+    const h = this.day.hours;
+    return h >= 19.6 || h < 5.6;
   }
 
   /** Debug: drop a group of a given enemy kind a short way ahead of the player. */
@@ -1678,7 +1791,7 @@ class Game {
       p.inCombat = this.inCombat();
       p.update(dt, f, this.cam);
       this.npcs.update(dt, p, p.pos);
-      this.enemies.update(dt, p);
+      this.enemies.update(dt, p, this.isNight());
       this.projectiles.update(dt, p.dead ? null : p.pos);
       for (const h of this.horses) {
         if (h === p.horse) continue;
@@ -1694,6 +1807,22 @@ class Game {
       this.glints.update(dt);
       for (const b of this.bonfires) b.update(dt);
       for (const c of this.chests) c.update(dt);
+      const nextGate = this.quests.nextUse(this.mapName)?.target;
+      for (const s of this.sluices) {
+        s.setHighlight(s.id === nextGate);
+        s.update(dt);
+      }
+      for (const l of this.loreStones) l.update();
+      // Visit objectives: reaching the place is enough.
+      this.visitT -= dt;
+      if (this.visitT <= 0 && !p.dead) {
+        this.visitT = 0.5;
+        const lm = this.world.level.landmarks;
+        this.quests.visit(this.mapName, (key) => {
+          const at = lm[key];
+          return !!at && Math.hypot(at[0] - p.pos.x, at[2] - p.pos.z) < 7 && Math.abs(at[1] - p.pos.y) < 6;
+        });
+      }
       for (const k of this.pickups) k.update(dt);
       this.lostPile?.update(dt);
       this.checkLostGold();
@@ -1813,6 +1942,16 @@ class Game {
         if (s.phase < 0.25 && ph >= 0.25) sfx.wing(pan, g);
         s.phase = ph;
         this.steps.set(h.rig, s);
+      }
+    }
+    // A musician's kinnara carries across the camp.
+    this.lyreT -= dt;
+    if (this.lyreT <= 0) {
+      this.lyreT = 1.4 + Math.random() * 1.2;
+      for (const n of this.npcs.npcs) {
+        if (n.dead || n.role !== 'musician') continue;
+        const d = Math.hypot(n.pos.x - pos.x, n.pos.z - pos.z);
+        if (d < 18) sfx.lyre(this.pan(n.pos.x, n.pos.z), 1 - d / 18);
       }
     }
     // Animals now and then.
@@ -1979,6 +2118,21 @@ class Game {
 
     const p = this.player;
     const k = (a: Action) => this.hud.key(a);
+    if (this.reading) {
+      // Reading an inscription: next line, or step away / cancel to stop.
+      const r = this.reading;
+      const far = Math.hypot(r.stone.pos.x - p.pos.x, r.stone.pos.z - p.pos.z) > USE_RANGE + 2;
+      if (f.cancel || far || Math.hypot(f.moveX, f.moveY) > 0.5 || f.attack || f.dodge) this.closeReading();
+      else if ((f.interact || f.confirm) && this.hud.typing) this.hud.finishTyping();
+      else if (f.interact || f.confirm) {
+        r.i++;
+        if (r.i >= r.lines.length) this.closeReading();
+        else this.hud.showDialogue(tOr('lore.title', 'An inscription'), r.lines[r.i], r.i === r.lines.length - 1);
+      }
+      f.interact = f.jump = f.pause = f.attack = f.dodge = f.heal = false;
+      this.hud.setPrompt(null);
+      return;
+    }
     if (this.dialogue) {
       const d = this.dialogue;
       const far = Math.hypot(d.npc.pos.x - p.pos.x, d.npc.pos.z - p.pos.z) > TALK_RANGE + 3;
@@ -2017,17 +2171,21 @@ class Game {
     const horse = p.horse ? null : this.nearestHorse();
     const npc = p.horse ? null : this.npcs.nearestTalkable(p.pos, TALK_RANGE);
     const pickup = p.horse || npc ? null : this.near(this.pickups, USE_RANGE);
-    const fire = p.horse || npc || pickup ? null : this.near(this.bonfires, USE_RANGE);
+    const lore = p.horse || npc || pickup ? null : this.near(this.loreStones, USE_RANGE + 0.6);
+    const sluice = p.horse || npc || pickup || lore ? null : this.near(this.sluices, USE_RANGE + 0.4);
+    const fire = p.horse || npc || pickup || lore || sluice ? null : this.near(this.bonfires, USE_RANGE);
     const chest = p.horse || npc || pickup || fire ? null : this.near(this.chests.filter((c) => !c.opened), USE_RANGE);
-    const exit = npc || pickup || fire || chest ? null : this.nearestExit();
+    const exit = npc || pickup || lore || sluice || fire || chest ? null : this.nearestExit();
     let prompt: string | null = null;
     if (npc) {
       const icon = this.quests.iconFor(this.npcRef(npc));
       const verb = t(icon === 'turnin' ? 'prompt.handIn' : icon === 'quest' ? 'prompt.talkTo' : npc.shop ? 'prompt.tradeWith' : 'prompt.talkTo');
       prompt = `${k('talk')} ${t('prompt.npc', { verb, name: npc.name, title: npc.title.toLowerCase() })}`;
     } else if (pickup) prompt = `${k('talk')} ${t('prompt.take', { label: this.pickupLabel(pickup) })}`;
+    else if (lore) prompt = `${k('talk')} ${tOr('lore.prompt', 'Read the inscription')}`;
+    else if (sluice) prompt = `${k('talk')} ${t(sluice.open ? 'sluice.close' : 'sluice.open')}`;
     else if (fire) prompt = `${k('talk')} ${t(fire.lit ? 'prompt.rest' : 'prompt.kindle')}`;
-    else if (chest) prompt = `${k('talk')} ${t('prompt.chest')}`;
+    else if (chest) prompt = `${k('talk')} ${t(chest.buried ? 'dig.prompt' : 'prompt.chest')}`;
     else if (exit) prompt = `${k('talk')} ${this.exitLabel(exit)}`;
     else if (p.horse) prompt = `${k('mount')} ${t('prompt.dismount')}`;
     else if (horse) prompt = `${k('mount')} ${t(horse.winged ? 'prompt.mountWinged' : 'prompt.mountHorse')}`;
@@ -2054,6 +2212,10 @@ class Game {
         this.sfx.pickup();
       } else if (fire) {
         this.restAt(fire);
+      } else if (lore) {
+        this.readLore(lore);
+      } else if (sluice) {
+        this.useSluice(sluice);
       } else if (chest) {
         this.openChest(chest);
       } else if (exit) {
@@ -2129,13 +2291,23 @@ class Game {
     // Chests: only the ones on the beaten path show before they are found.
     for (const c of this.chests) if (!c.opened && !c.secret) m.push({ x: c.pos.x, z: c.pos.z, kind: 'chest' });
     for (const k of this.pickups) m.push({ x: k.pos.x, z: k.pos.z, kind: 'objective', label: full ? this.pickupLabel(k) : undefined });
+    // The next sluice of a rota, and places to visit.
+    const gate = this.quests.nextUse(this.mapName);
+    const sl = gate && this.sluices.find((s) => s.id === gate.target);
+    if (sl) m.push({ x: sl.pos.x, z: sl.pos.z, kind: 'objective', label: full ? tOr(`sluice.names.${sl.id}`, sl.id) : undefined });
+    for (const a of this.quests.active()) {
+      if (a.obj?.kind === 'visit' && objMap(a.obj) === (this.mapEntry(this.mapName).variant_of ?? this.mapName)) {
+        const at = this.world.level.landmarks[a.obj.landmark];
+        if (at) m.push({ x: at[0], z: at[2], kind: 'objective', label: full ? questText(a.q.id).title : undefined });
+      }
+    }
     if (this.lostPile) m.push({ x: this.lostPile.pos.x, z: this.lostPile.pos.z, kind: 'gold', label: full ? t('markers.gold') : undefined });
     // Objectives in another region: mark the exit that leads there.
-    const elsewhere = new Set(this.quests.active().map((a) => (a.obj ? objMap(a.obj) : a.q.giver.map)).filter((mp) => mp !== this.mapName));
+    const elsewhere = new Set(this.quests.active().map((a) => (a.obj ? objMap(a.obj) : a.q.giver.map)).filter((mp) => !sameMap(mp, this.mapName)));
     for (const e of this.exits) if (elsewhere.has(e.to)) m.push({ x: e.pos[0], z: e.pos[2], kind: 'objective' });
     // Kill objectives in this map: mark the camp.
     for (const a of this.quests.active()) {
-      if (a.obj?.kind === 'kill_camp' && a.obj.map === this.mapName) {
+      if (a.obj?.kind === 'kill_camp' && sameMap(a.obj.map, this.mapName)) {
         const c = this.enemies.camps().find((x) => x.camp === (a.obj as { camp: string }).camp);
         if (c && c.alive > 0) m.push({ x: c.x, z: c.z, kind: 'objective', label: full ? questText(a.q.id).title : undefined });
       }

@@ -13,7 +13,7 @@ import { angleTo, dampAngle, mulberry32, turnToward } from './util';
 
 type State = 'idle' | 'walk' | 'sit' | 'talk' | 'stagger' | 'flee' | 'return' | 'chase' | 'strike' | 'dead';
 
-const NOT_NPC = new Set(['player', 'camel', 'horse', 'enemy', 'bonfire', 'pickup', 'chest', 'winged_horse']);
+const NOT_NPC = new Set(['player', 'camel', 'horse', 'enemy', 'bonfire', 'pickup', 'chest', 'winged_horse', 'lore', 'sluice']);
 const WALK = 1.4;
 const RUN = 4.6;
 const RADIUS = 0.3;
@@ -497,7 +497,19 @@ export class NpcSystem {
       if (giver && s.id) {
         npc.titleId = s.id;
         const id = s.id;
-        npc.linesRole = /priest|scholar/.test(id) ? 'priest' : /farmer/.test(id) ? 'farmer' : /prisoner/.test(id) ? 'prisoner' : 'wanderer';
+        npc.linesRole = /priest|scholar/.test(id)
+          ? 'priest'
+          : /feast/.test(id)
+            ? 'feast_master'
+            : /mukarrib|warden/.test(id)
+              ? 'official'
+              : /caravan/.test(id)
+                ? 'caravaneer'
+                : /farmer/.test(id)
+                  ? 'farmer'
+                  : /prisoner/.test(id)
+                    ? 'prisoner'
+                    : 'wanderer';
       }
       npc.refIndex = counts[s.role] ?? 0;
       counts[s.role] = npc.refIndex + 1;
@@ -531,7 +543,7 @@ export class NpcSystem {
   private dress(role: NpcRole): { acc: Accessory[]; colours: Record<string, number>; female: boolean } {
     const r = this.rnd;
     const acc: Accessory[] = [];
-    const canBeFemale = role === 'wanderer' || role === 'water_carrier' || role === 'sitter' || role === 'merchant';
+    const canBeFemale = role === 'wanderer' || role === 'water_carrier' || role === 'sitter' || role === 'merchant' || role === 'refugee' || role === 'musician' || role === 'poet';
     const female = canBeFemale && r() < (role === 'water_carrier' ? 0.6 : 0.3);
     if (female) {
       acc.push('Veil');
@@ -539,7 +551,9 @@ export class NpcSystem {
       const h = r();
       if (role === 'priest' || role === 'kahin' || role === 'official' || role === 'feast_master') acc.push('Turban');
       else if (role === 'guard') acc.push(h < 0.5 ? 'Turban' : 'Keffiyeh');
-      else if (role === 'elder' || role === 'poet' || role === 'caravaneer') acc.push('Keffiyeh');
+      else if (role === 'elder' || role === 'poet' || role === 'caravaneer' || role === 'refugee') acc.push('Keffiyeh');
+      else if (role === 'envoy') acc.push('Helmet');
+      else if (role === 'musician') acc.push('Headband');
       else acc.push(h < 0.45 ? 'Keffiyeh' : h < 0.75 ? 'Turban' : 'Hair');
       if (role === 'elder') acc.push('BeardLong');
       else if (role === 'guard' || role === 'priest' || role === 'kahin' || r() < 0.65) acc.push('Beard');
@@ -554,6 +568,8 @@ export class NpcSystem {
     if (role === 'kahin') robe = 0x2b2622;
     if (role === 'poet') robe = pick([0x7b2a24, 0x2c3e73, 0x5b2d6e, 0xc9902e], r);
     if (role === 'official' || role === 'feast_master') robe = pick([0x9a3d22, 0x5b2d6e, 0x2f6d4f], r);
+    if (role === 'envoy') robe = 0x1f2f5a;
+    if (role === 'refugee') robe = pick([0x8a7a62, 0x6b5a48, 0x9a8a70], r);
     if (role === 'guard') robe = pick([0x2c3e73, 0x7b2a24, 0x3b3530], r);
     if (female && r() < 0.5) robe = pick([0x2c3e73, 0x7b2a24, 0x5b2d6e, 0x3b3530, 0x9a3d22], r);
     const colours = {

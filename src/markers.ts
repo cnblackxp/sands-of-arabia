@@ -212,6 +212,10 @@ export class Chest {
   private lid: THREE.Object3D | null = null;
   private openT = -1;
   opened = false;
+  /** Buried: a mound of sand until dug up (then it rises and opens like any chest). */
+  buried = false;
+  private mound: THREE.Mesh | null = null;
+  private digT = -1;
 
   constructor(
     scene: THREE.Scene,
@@ -242,6 +246,22 @@ export class Chest {
     scene.add(this.group);
   }
 
+  /** Bury it: only a low mound of disturbed sand shows. */
+  bury(scene: THREE.Scene): void {
+    this.buried = true;
+    this.group.position.y = this.pos.y - 0.75;
+    this.mound = new THREE.Mesh(new THREE.ConeGeometry(0.75, 0.32, 7), new THREE.MeshStandardMaterial({ color: 0xc9a06a, roughness: 1, flatShading: true }));
+    this.mound.position.copy(this.pos).setY(this.pos.y + 0.12);
+    this.mound.receiveShadow = true;
+    scene.add(this.mound);
+  }
+
+  /** Dig it up: the mound sinks and the chest rises. */
+  dig(): void {
+    this.buried = false;
+    this.digT = 0;
+  }
+
   /** Open instantly (already looted on an earlier visit). */
   setOpen(): void {
     this.opened = true;
@@ -254,6 +274,16 @@ export class Chest {
   }
 
   update(dt: number): void {
+    if (this.digT >= 0) {
+      this.digT += dt;
+      const u = Math.min(1, this.digT / 0.9);
+      this.group.position.y = this.pos.y - 0.75 * (1 - u);
+      if (this.mound) this.mound.scale.setScalar(Math.max(0.01, 1 - u));
+      if (u >= 1) {
+        this.digT = -1;
+        this.mound?.removeFromParent();
+      }
+    }
     if (this.openT < 0 || !this.lid) return;
     this.openT += dt;
     const u = Math.min(1, this.openT / 0.6);
@@ -261,6 +291,94 @@ export class Chest {
     if (u >= 1) this.openT = -1;
   }
 }
+
+/**
+ * A sluice gate's lever post on Marib's canals: turn it to open or shut the
+ * gate (the water rota puzzle).
+ */
+export class Sluice {
+  readonly group = new THREE.Group();
+  private wheel: THREE.Group;
+  private beamMesh: THREE.Mesh;
+  private target = 0;
+  private angle = 0;
+  open = false;
+  constructor(
+    scene: THREE.Scene,
+    readonly id: string,
+    readonly pos: THREE.Vector3,
+    yaw: number,
+  ) {
+    const wood = new THREE.MeshStandardMaterial({ color: 0x6b4426, roughness: 0.85, flatShading: true });
+    const bronze = new THREE.MeshStandardMaterial({ color: 0xb98a3e, roughness: 0.4, metalness: 0.7 });
+    const post = (x: number) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.3, 0.14), wood);
+      m.position.set(x, 0.65, 0);
+      m.castShadow = true;
+      this.group.add(m);
+    };
+    post(-0.45);
+    post(0.45);
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.12, 0.16), wood);
+    beam.position.y = 1.25;
+    this.group.add(beam);
+    // Windlass with four spokes: it turns as the gate rises.
+    this.wheel = new THREE.Group();
+    this.wheel.position.y = 0.95;
+    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.95, 8), bronze);
+    axle.rotation.z = Math.PI / 2;
+    this.wheel.add(axle);
+    for (let i = 0; i < 4; i++) {
+      const sp = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.7, 0.05), wood);
+      sp.rotation.x = (i * Math.PI) / 4;
+      sp.position.x = 0.48;
+      this.wheel.add(sp);
+    }
+    this.group.add(this.wheel);
+    this.beamMesh = beam_(0x8fd4ff, 3, 0.22);
+    this.group.add(this.beamMesh);
+    this.group.position.copy(pos);
+    this.group.rotation.y = yaw;
+    scene.add(this.group);
+  }
+  setOpen(on: boolean): void {
+    this.open = on;
+    this.target = on ? Math.PI * 3 : 0;
+  }
+  /** Highlight it while it is the next gate of an active rota. */
+  setHighlight(on: boolean): void {
+    this.beamMesh.visible = on;
+  }
+  update(dt: number): void {
+    this.angle += (this.target - this.angle) * Math.min(1, dt * 2.5);
+    this.wheel.rotation.x = this.angle;
+    const u = (this.beamMesh.material as THREE.ShaderMaterial).uniforms.opacity;
+    u.value = 0.25 + 0.1 * Math.sin(performance.now() / 300);
+  }
+}
+
+/** An inscription to read: the carved face gets a faint pale glow. */
+export class LoreStone {
+  readonly group = new THREE.Group();
+  private beamMesh: THREE.Mesh;
+  read = false;
+  constructor(
+    scene: THREE.Scene,
+    readonly id: string,
+    readonly pos: THREE.Vector3,
+  ) {
+    this.beamMesh = beam_(0xe8e0ff, 2.2, 0.28);
+    this.group.add(this.beamMesh);
+    this.group.position.copy(pos);
+    scene.add(this.group);
+  }
+  update(): void {
+    const u = (this.beamMesh.material as THREE.ShaderMaterial).uniforms.opacity;
+    u.value = (this.read ? 0.12 : 0.3) + 0.08 * Math.sin(performance.now() / 500 + this.pos.x);
+  }
+}
+
+const beam_ = (c: THREE.ColorRepresentation, h: number, r: number) => beam(c, h, r);
 
 /** A glowing pile of gold coins with a golden beam (your lost gold / loot). */
 export class GoldPile {

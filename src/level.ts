@@ -40,6 +40,12 @@ export interface Spawn {
   id?: string;
   /** Chest: hidden off the beaten path. */
   secret?: boolean;
+  /** Chest: buried in the sand (dig it up). */
+  buried?: boolean;
+  /** Enemy: only abroad at night. */
+  night_only?: boolean;
+  /** Enemy look/kind variant (hound: jackal | hyena; raider: himyar). */
+  variant?: string;
   /** Flying enemies (vultures): `pos` is already at flight height. */
   airborne?: boolean;
 }
@@ -62,6 +68,12 @@ export interface LevelData {
   backdrop_ground?: string;
   dressing?: string;
   exits?: Exit[];
+  /** Flat water surfaces (Marib's reservoir): `level` is the surface height. */
+  water?: { level: number; x: [number, number]; z: [number, number] }[];
+  /** People of the map (lore.ts); optional. */
+  culture?: string;
+  /** This map is another state of `variant_of` (Marib after the flood). */
+  variant_of?: string;
   bounds: { x: [number, number]; z: [number, number] };
   heights: { file: string; cols: number; rows: number; step: number; x0: number; z0: number };
   sun: { direction_to_sun: Vec3; color: string; elevation_deg: number };

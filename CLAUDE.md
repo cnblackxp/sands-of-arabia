@@ -256,6 +256,17 @@ Decisions worth knowing:
   - The first journey's 8 maps (`FIRST_BATCH` in `world.ts`) stay as they are. The only allowed change to them is an added exit to a new land.
   - New lands carry `"batch": 2` in `maps.json`, plus `title_ar` and exits with `label_ar`.
   - The Travel tab lists "Regions of the first journey" and "New lands"; new lands are marked ✦ New until visited (`progress.data.visited`).
+- **New lands (batch 2).**
+  - jabal_ithlib (Nabataean), marib and marib_breach (Sabaean); cultures are set in `lore.ts`.
+  - **Water:** `level.water` sheets are drawn, and water deeper than 1 m blocks the player (`Physics.deepWater`) and the nav grid.
+  - **Spots:**
+    - `sluice` spawns become `Sluice` windlasses. The quest objective `use` must be done in order; a wrong gate names the next one.
+    - `lore` spawns are `LoreStone` inscriptions to read (`locales lore.<id>`, composed in the manner of the graffiti).
+    - `buried` chests are dug up first.
+  - **Foes:** `archer` (BowDraw tell, real arrows aimed with lead) and `rat` (a small hound). Hound `variant` jackal / hyena changes size, coat and stats; Himyarite raiders wear indigo. `night_only` foes are dormant (hidden, counted as absent) outside about 19:30–05:30.
+  - **New roles:** musician (kinnara phrases nearby), envoy and refugee.
+  - **Quest objectives:** `visit` a landmark (within 7 m).
+  - **Variants:** maps.json `variant_of` makes two maps one place. `QuestSystem` treats them as the same map (`setMapAliases`). The `flood_marib` quest effect sets `progress.variants.marib = marib_breach`; travel, exits and the Travel tab then lead there for good.
 - **People and speech.**
   - NPC names come from their culture's pool (`lore.ts`).
   - Conversations may open and close with that people's own greeting and farewell (`speech.<culture>` in the locales, naming the gods each people worshipped).

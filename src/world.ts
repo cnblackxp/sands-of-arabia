@@ -22,6 +22,8 @@ export interface MapEntry {
   level: string;
   /** 2 = the new big lands; the first journey's maps have none. */
   batch?: number;
+  /** Another state of this map (marib_breach is Marib after the flood). */
+  variant_of?: string;
 }
 
 /** The first journey's maps (kept as they are; new lands are added beside them). */
@@ -345,6 +347,23 @@ export class World {
     under.updateMatrix();
     under.name = 'Underlay';
     scene.add(under);
+    // Water surfaces (Marib's reservoir): drawn as a sheet, too deep to wade beyond a metre.
+    for (const wtr of level.water ?? []) {
+      const w = wtr.x[1] - wtr.x[0];
+      const d = wtr.z[1] - wtr.z[0];
+      const sheet = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, d, 1, 1),
+        new THREE.MeshStandardMaterial({ color: 0x3f6f78, roughness: 0.12, metalness: 0.15, transparent: true, opacity: 0.86 }),
+      );
+      sheet.rotation.x = -Math.PI / 2;
+      sheet.position.set((wtr.x[0] + wtr.x[1]) / 2, wtr.level, (wtr.z[0] + wtr.z[1]) / 2);
+      sheet.receiveShadow = true;
+      sheet.name = 'Water';
+      sheet.matrixAutoUpdate = false;
+      sheet.updateMatrix();
+      patchWorldMaterial(sheet.material, false);
+      scene.add(sheet);
+    }
     edge.uEdgeMin.value.set(level.bounds.x[0], level.bounds.z[0]);
     edge.uEdgeMax.value.set(level.bounds.x[1], level.bounds.z[1]);
     // The edge fade applies to every static piece of the map.
@@ -386,8 +405,13 @@ export class World {
     physics.addBoxes(level.colliders);
     physics.bounds = { x: [level.bounds.x[0] + 1, level.bounds.x[1] - 1], z: [level.bounds.z[0] + 1, level.bounds.z[1] - 1] };
     physics.groundAt = (x, z) => map.heights.height(x, z);
+    const water = level.water ?? [];
+    physics.deepWater = water.length
+      ? (x, z) => water.some((w) => x >= w.x[0] && x <= w.x[1] && z >= w.z[0] && z <= w.z[1] && map.heights.height(x, z) < w.level - 1.0)
+      : () => false;
     this.obstacles = new Obstacles(level.colliders);
     this.nav = new NavGrid(level.colliders, level.bounds.x[0], level.bounds.z[0], level.bounds.x[1], level.bounds.z[1]);
+    if (water.length) this.nav.blockWhere(physics.deepWater);
 
     // Lamps and fires: a fixed pool of point lights moved to the spots nearest
     // the player (keeps the shader light count constant).

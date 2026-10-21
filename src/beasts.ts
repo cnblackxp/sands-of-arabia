@@ -23,8 +23,8 @@ import type { World } from './world';
  * each beast is a small procedural box model in the same voxel style.
  */
 
-export type BeastKind = 'hound' | 'vulture';
-export const BEAST_KINDS: ReadonlySet<string> = new Set(['hound', 'vulture']);
+export type BeastKind = 'hound' | 'vulture' | 'rat';
+export const BEAST_KINDS: ReadonlySet<string> = new Set(['hound', 'vulture', 'rat']);
 
 type Pose = 'idle' | 'walk' | 'run' | 'growl' | 'crouch' | 'lunge' | 'hit' | 'dead' | 'fly' | 'glide' | 'dive';
 
@@ -326,14 +326,25 @@ interface BeastDef {
   /** Telegraph before the lunge / dive (s). */
   tell: number;
   cooldown: [number, number];
+  /** Body size relative to the hound (model scale, lunge reach). */
+  size?: number;
+  /** Coat colour (hound-model beasts). */
+  coat?: number;
 }
 
 const DEFS: Record<BeastKind, BeastDef> = {
   hound: { title: 'Desert Hound', hp: 55, sight: 18, walk: 1.6, run: 7.2, dmg: 14, knock: 1.8, tell: 0.45, cooldown: [1.4, 2.8] },
+  rat: { title: 'Rat', hp: 12, sight: 10, walk: 1.2, run: 6.5, dmg: 5, knock: 0.4, tell: 0.25, cooldown: [0.9, 1.8], size: 0.36, coat: 0x6b625a },
   vulture: { title: 'Vulture', hp: 40, sight: 16, walk: 4, run: 7, dmg: 11, knock: 1.2, tell: 0.6, cooldown: [2.4, 4.2] },
 };
 
 const LUNGE = { speed: 11, time: 0.42, hop: 0.55, range: 6.2, reach: 1.15 };
+
+/** Hound variants from level.json (`variant`). */
+const VARIANTS: Record<string, BeastDef> = {
+  jackal: { title: 'Jackal', hp: 40, sight: 16, walk: 1.6, run: 7.6, dmg: 10, knock: 1.4, tell: 0.4, cooldown: [1.2, 2.4], size: 0.82, coat: 0xb89a6a },
+  hyena: { title: 'Striped Hyena', hp: 85, sight: 14, walk: 1.4, run: 6.4, dmg: 18, knock: 2.2, tell: 0.5, cooldown: [1.6, 3], size: 1.12, coat: 0x8a7a5a },
+};
 const ORBIT = { radius: 7.5, alt: 5.2, homeAlt: 9, speed: 0.75 };
 const DIVE = { speed: 13, turn: 1.6, reach: 1.15, maxT: 1.5, low: 0.8 };
 const LEASH = 45;
@@ -379,7 +390,10 @@ export class Beast implements Foe {
     model: GLTF | null,
     seed: number,
   ) {
-    this.def = DEFS[kind];
+    this.variant = kind === 'hound' && spawn.variant && VARIANTS[spawn.variant] ? spawn.variant : null;
+    this.def = this.variant ? VARIANTS[this.variant] : DEFS[kind];
+    this.size = this.def.size ?? 1;
+    this.nightOnly = !!spawn.night_only;
     this.hp = this.def.hp;
     this.rnd = mulberry32(seed);
     this.pos.set(...spawn.pos);
@@ -393,14 +407,27 @@ export class Beast implements Foe {
     this.orbitA = this.rnd() * Math.PI * 2;
     this.orbitSide = this.rnd() < 0.5 ? -1 : 1;
     const coats = [0xc9a56b, 0xd9c09a, 0x8a5a33, 0xe8dcc8];
-    const coat = coats[Math.floor(this.rnd() * coats.length)];
-    this.model = model ? new GlbBeast(model, kind === 'vulture', kind === 'hound' ? coat : undefined) : kind === 'hound' ? new ProcHound(coat) : new ProcVulture();
+    const coat = this.def.coat ?? coats[Math.floor(this.rnd() * coats.length)];
+    const fourLegged = kind !== 'vulture';
+    this.model = model ? new GlbBeast(model, !fourLegged, fourLegged ? coat : undefined) : fourLegged ? new ProcHound(coat) : new ProcVulture();
+    if (this.size !== 1) this.model.root.scale.setScalar(this.size);
     this.model.pose(kind === 'vulture' ? 'glide' : 'idle', 0);
     this.sync();
   }
 
   get dead(): boolean {
-    return this.state === 'dead' || this.state === 'falling';
+    return this.dormant || this.state === 'dead' || this.state === 'falling';
+  }
+  /** Jackal / hyena (hounds), or null. */
+  readonly variant: string | null;
+  readonly size: number;
+  readonly nightOnly: boolean;
+  dormant = false;
+  setDormant(on: boolean): void {
+    if (on === this.dormant) return;
+    if (!on) this.reset();
+    this.dormant = on;
+    this.model.root.visible = !on;
   }
   get engaged(): boolean {
     return !this.dead && this.state !== 'idle' && this.state !== 'return';
@@ -409,7 +436,7 @@ export class Beast implements Foe {
     return this.def.hp;
   }
   get title(): string {
-    return tOr(`enemies.${this.kind}`, this.def.title);
+    return tOr(`enemies.${this.variant ?? this.kind}`, this.def.title);
   }
   get headY(): number {
     return this.pos.y + (this.flying ? 0.6 : 1.0);
@@ -430,13 +457,13 @@ export class Beast implements Foe {
     return this.speed > 3;
   }
   get hitRadius(): number {
-    return this.flying ? 0.75 : 0.42;
+    return this.flying ? 0.75 : 0.42 * Math.max(0.6, this.size);
   }
   get hitLo(): number {
-    return this.flying ? -0.3 : 0.15;
+    return this.flying ? -0.3 : 0.15 * this.size;
   }
   get hitHi(): number {
-    return this.flying ? 0.35 : 0.95;
+    return this.flying ? 0.35 : 0.95 * this.size;
   }
   get root(): THREE.Object3D {
     return this.model.root;
@@ -584,7 +611,7 @@ export class Beast implements Foe {
           this.sound((p, g) => this.sfx.houndBark(p, g * 0.8));
         }
         const clear = this.world.nav.lineClear(this.pos.x, this.pos.z, pp.x, pp.z);
-        if (this.cooldown <= 0 && dist < LUNGE.range && dist > 2 && clear) {
+        if (this.cooldown <= 0 && dist < LUNGE.range * Math.max(0.5, this.size) && dist > 2 * Math.min(1, this.size + 0.2) && clear) {
           this.setState('tell', d.tell);
           this.speed = 0;
           this.model.pose('crouch', 0);
@@ -626,10 +653,11 @@ export class Beast implements Foe {
       case 'lunge': {
         this.timer -= dt;
         const u = 1 - this.timer / LUNGE.time;
-        this.speed = LUNGE.speed;
-        this.step(this.dir.x * LUNGE.speed * dt, this.dir.z * LUNGE.speed * dt);
-        this.pos.y = this.world.floor(this.pos.x, this.pos.z, this.pos.y) + Math.sin(Math.PI * Math.min(1, u)) * LUNGE.hop;
-        if (!this.struck && dist < LUNGE.reach && !player.dead) {
+        const ls = LUNGE.speed * Math.max(0.55, this.size);
+        this.speed = ls;
+        this.step(this.dir.x * ls * dt, this.dir.z * ls * dt);
+        this.pos.y = this.world.floor(this.pos.x, this.pos.z, this.pos.y) + Math.sin(Math.PI * Math.min(1, u)) * LUNGE.hop * this.size;
+        if (!this.struck && dist < LUNGE.reach * Math.max(0.7, this.size) && !player.dead) {
           this.struck = true;
           player.hurt(d.dmg, this.pos, d.knock);
           this.sound((p, g) => this.sfx.bite(p, g));
@@ -895,5 +923,5 @@ export class Beast implements Foe {
 
 /** Build the beast for a spawn of kind hound / vulture. */
 export function createBeast(kind: BeastKind, s: Spawn, world: World, sfx: Sfx, ear: Ear, models: { dog: GLTF | null; bird: GLTF | null }, seed: number): Beast {
-  return new Beast(kind, s, s.camp ?? '', world, sfx, ear, kind === 'hound' ? models.dog : models.bird, seed);
+  return new Beast(kind, s, s.camp ?? '', world, sfx, ear, kind === 'vulture' ? models.bird : models.dog, seed);
 }

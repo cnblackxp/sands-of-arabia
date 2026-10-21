@@ -32,6 +32,8 @@ export interface ProgressData {
   arrows: number;
   /** Maps entered at least once (new lands show "New" until then). */
   visited: string[];
+  /** Places changed for good: map → the variant now in its place (marib → marib_breach). */
+  variants: Record<string, string>;
 }
 
 const KEY = 'sands-of-arabia.save.v1';
@@ -55,6 +57,7 @@ export function freshProgress(): ProgressData {
     taken: [],
     arrows: 10,
     visited: [],
+    variants: {},
   };
 }
 

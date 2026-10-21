@@ -89,9 +89,51 @@ export const en = {
     feast_master: 'Master of the feast',
     official: 'Official of the king',
     caravaneer: 'Caravaneer',
+    musician: 'Musician',
+    envoy: 'Envoy of Himyar',
+    refugee: 'Refugee of the flood',
+    ithlib_feast_master: 'Master of the feast',
+    ithlib_priest: 'Priest of Dushara',
+    marib_mukarrib: 'The mukarrib of Saba',
+    barran_priest: 'Priest of Barran',
+    awwam_priest: 'Priest of Awwam',
+    marib_warden_north: 'Warden of the north sluice',
+    marib_warden_south: 'Warden of the south sluice',
+    marib_caravan_master: 'Caravan master',
   } as Record<string, string>,
   /** Female forms of `titles`, where the language has them. */
   titlesF: { poet: 'Poetess', kahin: 'Soothsayer (kahina)' } as Record<string, string>,
+  /** Inscriptions to read (`lore` spawns by id), composed in the manner of the Nabataean and Dadanitic graffiti. */
+  lore: {
+    title: 'An inscription',
+    prompt: 'Read the inscription',
+    siq_inscription_1: ['Carved in Nabataean letters, worn smooth by passing hands:', '“Remembered be Kahilu son of Wa\'ilu, and his brothers, for good and for peace, before Dushara.”'],
+    siq_inscription_2: ['A shallow niche with an eye-idol cut into its back wall. Below it:', '“This is the god of Hegra. Whoever cuts his name here, may Dushara and al-Kutba remember him.”'],
+    siq_inscription_3: ['Lines in an older, rounder hand, Dadanitic perhaps, beside the Nabataean:', '“Talmi passed here with the caravan of Dadan, and gave thanks to Dhu-Ghabat.”'],
+  } as Record<string, string | string[]>,
+  /** Marib's sluice gates. */
+  sluice: {
+    open: 'Open the sluice gate',
+    close: 'Shut the sluice gate',
+    opened: 'The gate rises; water runs into the canal.',
+    closed: 'The gate drops shut.',
+    wrong: 'Not this gate. The rota tablet names {gate} next.',
+    names: {
+      sluice_north: 'the north sluice',
+      sluice_south: 'the south sluice',
+      gate_n1: 'the first north gate',
+      gate_n2: 'the second north gate',
+      gate_n3: 'the third north gate',
+      gate_s1: 'the first south gate',
+      gate_s2: 'the second south gate',
+      gate_s3: 'the third south gate',
+    } as Record<string, string>,
+  },
+  dig: { prompt: 'Dig in the disturbed sand', found: 'Something is buried here.' },
+  flood: {
+    toast: 'Years pass. One night the Great Dam of Marib gives way: the flood of al-\'Arim.',
+    after: 'Marib after the flood',
+  },
   /** Person names (English spelling → localised). */
   names: {} as Record<string, string>,
   /** Enemy titles by kind; English is in enemy.ts (KINDS). */
@@ -199,6 +241,21 @@ export const en = {
       'We pay a toll at every well. The kings of the road grow fat on our thirst.',
       'A good camel knows the way to water better than any guide. A bad guide knows only the way to your purse.',
     ],
+    musician: [
+      'The kinnara has seven strings, one for each night the moon takes to grow.',
+      'At the feast I play the songs of the singing-girls of al-Hira. The brotherhood pretends not to weep.',
+      'Hold still. Even the betyls listen while the strings are being tuned.',
+    ],
+    envoy: [
+      'The king of Saba and Dhu Raydan sends greeting, and asks how many soldiers your mukarrib keeps.',
+      'In Zafar the palace of Raydan has bronze lions at the door. Here you have... mud.',
+      'Himyar is patient. The mountains are ours; the valleys come in time.',
+    ],
+    refugee: [
+      'The water came at night. By morning the fields were a lake, and by evening a desert.',
+      'My father\'s father planted those palms. The flood took them in one breath.',
+      'They say we will scatter like the hands of Saba. They are saying it already.',
+    ],
     haggle: [
       'For you, a special price. For everyone else also a special price, but a different one.',
       'Feel this cloth. Yemeni weave. You will not find it at Ukaz for less, by my mother\'s grave.',
@@ -268,6 +325,163 @@ export const en = {
   // --- quests ------------------------------------------------------------------------
   /** Quest text by quest id; `objectives` follow the order in quests.ts. */
   quests: {
+    ithlib_banquet: {
+      title: 'The Banquet of the Brotherhood',
+      offer: [
+        'Tonight the marzeah meets in the Diwan: twelve couches cut from the mountain, and one left empty for Dushara.',
+        'But the wine skins came up from the wadi light, and the betyls have not been anointed. Bring me the wine left by the spring, and the oil from the niches.',
+      ],
+      waiting: 'Wine from the palm spring, oil for the betyls. The brotherhood is thirsty.',
+      turnIn: ['Wine for the god first, then for the guests. You have kept the feast. Recline with us, if you like; the cup goes round.'],
+      objectives: [{ text: 'Bring the skin of wine from the palm spring' }, { text: 'Fetch the anointing oil from the niches of the betyls' }],
+    },
+    ithlib_cup: {
+      title: 'The Stolen Cup',
+      offer: [
+        'The feast cup is gone: bronze, with the brotherhood\'s names cut round the rim. Robbers camp east of the mountain; they took it from the Diwan while we slept.',
+        'A marzeah without its cup is a crowd of thirsty men. Break the camp; the cup will be in their chest.',
+      ],
+      waiting: 'The robbers camp east of the mountain. Their chest holds our cup.',
+      turnIn: ['Our names on the rim, every one. The rab marzeah will write yours in the accounts, as a friend of the feast.'],
+      objectives: [{ text: 'Break the robbers\' camp east of Jabal Ithlib' }],
+    },
+    ithlib_lamps: {
+      title: 'Lamps of the Betyls',
+      offer: [
+        'Twenty-seven niches, twenty-seven lamps for the god-stones, and robbers from the north steal the oil before it can burn.',
+        'Drive them from the north plain, and the bowl will be bright again at dusk.',
+      ],
+      waiting: 'The robbers on the north plain still steal the lamp oil.',
+      turnIn: ['Look how the niches glow. Dushara is a god of the mountain; he likes to see his stones lit.'],
+      objectives: [{ text: 'Drive the robbers from the north plain' }],
+    },
+    ithlib_high_place: {
+      title: 'The High Place',
+      offer: [
+        'Above the bowl is the high place, where the altar looks down on Hegra and the basin catches the rain.',
+        'Climb the ledges of the west wall and stand there. Every one who keeps this sanctuary has made the climb once.',
+      ],
+      waiting: 'Climb the west wall to the high place on top of the mountain.',
+      turnIn: ['You have stood where the priests stand. Few strangers climb that far. Go with the god\'s favour.'],
+      objectives: [{ text: 'Climb to the high place on the plateau' }],
+    },
+    ithlib_night: {
+      title: 'Bows in the Dark',
+      offer: [
+        'At night, archers creep onto the ledges and the high place and shoot at the lamp-keepers. By day they are gone like dew.',
+        'Wait for dark, and find them.',
+      ],
+      waiting: 'The archers come only at night: the ledges, the plateau, the high place.',
+      turnIn: ['The lamp-keepers will sleep tonight. Take this, and the brotherhood\'s gratitude.'],
+      objectives: [{ text: 'Defeat the night archers on the mountain (they come after dark)' }],
+    },
+    marib_rota: {
+      title: 'The Water Rota',
+      offer: [
+        'The flood season is on us, and the north gardens drink by the rota cut on the canal tablet: first the great sluice, then the branch gates, one, two and three.',
+        'I left the tablet by the sluice tower and my knees will not take the steps today. Bring it, then work the gates in order. Out of order, and the first plots drown while the last ones die.',
+      ],
+      waiting: 'The rota tablet is by the north sluice tower. Then the gates, in order.',
+      turnIn: ['Listen: the water talking in the canals. That is the sound of Saba eating. Take this, and my thanks.'],
+      objectives: [
+        { text: 'Find the rota tablet by the north sluice' },
+        { text: 'Open the north sluice' },
+        { text: 'Open the first north branch gate' },
+        { text: 'Open the second north branch gate' },
+        { text: 'Open the third north branch gate' },
+      ],
+    },
+    marib_south: {
+      title: 'The South Gardens',
+      offer: [
+        'The north drank. Now the south. Our rota runs from the far plots back: the great south sluice, then the third gate, then the first, then the second.',
+        'Do it as the tablet says, and the south will remember your name at harvest.',
+      ],
+      waiting: 'South sluice first, then gates three, one and two.',
+      turnIn: ['The south gardens drink. You read a rota better than my nephew.'],
+      objectives: [
+        { text: 'Open the south sluice' },
+        { text: 'Open the third south branch gate' },
+        { text: 'Open the first south branch gate' },
+        { text: 'Open the second south branch gate' },
+      ],
+    },
+    marib_rats: {
+      title: 'Rats in the Dam',
+      offer: [
+        'The old women say a rat will one day gnaw through the dam and drown Saba. Laugh if you like. I have seen the holes.',
+        'They come out at night, in the stones of the dam. Kill them.',
+      ],
+      waiting: 'The rats come out at night among the stones of the dam.',
+      turnIn: ['Gone, for now. But I tell you, the dam is old, and old things break.'],
+      objectives: [{ text: 'Kill the rats in the dam (they come out at night)' }],
+    },
+    marib_himyar: {
+      title: 'Riders of Himyar',
+      offer: [
+        'Himyar sends envoys with greetings in one hand and a camp of riders in the hills in the other.',
+        'Break their camp in the south-west hills. Let the king of Raydan read in it that Saba still has a sword.',
+      ],
+      waiting: 'The Himyarite camp is in the south-west hills.',
+      turnIn: ['Good. Their envoy will be very polite at dinner tonight. Almaqah keep you.'],
+      objectives: [{ text: 'Break the Himyarite camp in the south-west hills' }],
+    },
+    marib_awwam: {
+      title: 'Frankincense for Almaqah',
+      offer: [
+        'This frankincense came up the road from Hadramawt: a whole season\'s tears of the tree. It belongs to Almaqah, lord of Awwam.',
+        'Carry it into the pillared hall and set it on the altar. Walk softly; the god is at home.',
+      ],
+      waiting: 'Lay the frankincense on the altar of Almaqah in the pillared hall of Awwam.',
+      turnIn: ['The smoke rose straight. The god is pleased, and so am I.'],
+      objectives: [{ text: 'Lay the frankincense on the altar of Almaqah' }],
+    },
+    marib_jackals: {
+      title: 'Jackals on the Road',
+      offer: ['Jackals follow my caravan from the eastern road and take a camel calf every night.', 'Drive the pack off, and I will pay as if you had saved a whole camel.'],
+      waiting: 'The jackal pack haunts the eastern road.',
+      turnIn: ['My calves sleep. Here: the price of a camel, as promised.'],
+      objectives: [{ text: 'Drive off the jackal pack on the eastern road' }],
+    },
+    barran_hyenas: {
+      title: 'The Cemetery at Night',
+      offer: ['Hyenas dig in the cemetery of Awwam after dark. They are not particular about whose fathers they eat.', 'Go at night. Give the dead back their quiet.'],
+      waiting: 'The hyenas come to the cemetery after dark.',
+      turnIn: ['The dead are quiet. Barran thanks you, and so do their children.'],
+      objectives: [{ text: 'Drive the hyenas from the cemetery (they come after dark)' }],
+    },
+    marib_arim: {
+      title: 'The Flood of al-\'Arim',
+      offer: [
+        'The wardens bring me bad words: water seeping through the dam, cracks in the earth bank, the rats.',
+        'Walk the crest of the dam and look with your own eyes. Then tell me Saba is safe.',
+      ],
+      waiting: 'Walk the crest of the Great Dam and look at the cracks.',
+      turnIn: ['Cracks. And rats. My fathers built this dam a thousand years ago, and every king has patched it. We will patch it again. We always have...'],
+      objectives: [{ text: 'Walk the crest of the Great Dam and inspect it' }],
+    },
+    breach_scattered: {
+      title: 'Scattered Like Saba',
+      offer: [
+        'The flood took the gardens, and the tribes are leaving: Ghassan to the north, Aws and Khazraj to Yathrib, others to Oman.',
+        'The caravan master is taking the families north. Tell him the temple will give what it can for the road.',
+      ],
+      waiting: 'Tell the caravan master the temple will provision the families.',
+      turnIn: ['They will go. "Scattered like the hands of Saba", people will say. At least they will go fed.'],
+      objectives: [
+        {
+          text: 'Speak to the caravan master about the families',
+          lines: ['The temple will provision them? Then we go at first light: the tribes of the dam, scattered to the north.', 'Tell the priest I will carry Marib\'s name to every well between here and Syria.'],
+        },
+      ],
+    },
+    breach_looters: {
+      title: 'Looters in the Mud',
+      offer: ['While the families dig for their dead, looters pick through the drowned houses.', 'Drive them out. Marib has lost enough.'],
+      waiting: 'Looters pick through the flooded houses.',
+      turnIn: ['Gone. It does not bring back the dam, but it is something. Take this, and go with Almaqah.'],
+      objectives: [{ text: 'Drive out the looters' }],
+    },
     tomb_robbers: {
       title: 'Thieves at the Tomb',
       offer: [
@@ -409,6 +623,10 @@ export const en = {
   /** Quest and key items. */
   items: {
     sweet_water: 'Skin of sweet water',
+    wine_skin: 'skin of wadi wine',
+    anointing_oil: 'flask of anointing oil',
+    rota_tablet: 'rota tablet of the canals',
+    frankincense: 'bundle of frankincense',
     caravan_letter: 'Sealed letter',
     tomb_tablet: 'tomb tablet',
     painted_jar: 'painted jar',

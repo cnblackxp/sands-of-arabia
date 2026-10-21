@@ -55,6 +55,9 @@ export const MAP_CULTURE: Record<string, Culture> = {
   rooftops: 'hijazi',
   cliffs: 'nabataean',
   ruined_temple: 'nabataean',
+  jabal_ithlib: 'nabataean',
+  marib: 'sabaean',
+  marib_breach: 'sabaean',
 };
 
 export function isCulture(c: unknown): c is Culture {

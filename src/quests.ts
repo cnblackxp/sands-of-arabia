@@ -22,21 +22,160 @@ export type Objective =
   | { kind: 'kill_camp'; map: string; camp: string }
   | { kind: 'talk'; npc: NpcRef }
   /** `pickup`: a `role: "pickup"` marker id in that map. */
-  | { kind: 'fetch'; map: string; pickup: string; item: string };
+  | { kind: 'fetch'; map: string; pickup: string; item: string }
+  /** Work something in the world (`target`: a `sluice` spawn id), in this order. */
+  | { kind: 'use'; map: string; target: string }
+  /** Go and see a place (`landmark` key in level.json). */
+  | { kind: 'visit'; map: string; landmark: string };
+
+/**
+ * Maps that are other states of one place (Marib and Marib after the flood):
+ * objectives and people of one count in the other. Set from maps.json.
+ */
+let MAP_ALIAS: Record<string, string> = {};
+export function setMapAliases(a: Record<string, string>): void {
+  MAP_ALIAS = a;
+}
+export function sameMap(a: string, b: string): boolean {
+  return a === b || (MAP_ALIAS[a] ?? a) === (MAP_ALIAS[b] ?? b);
+}
 
 /** Quest text (title, offer, waiting, turnIn, objectives) is in locales/ under `quests.<id>`. */
 export interface QuestDef {
   id: string;
   giver: NpcRef;
-  /** Quest that must be done before this one is offered. */
-  requires?: string;
+  /** Quest(s) that must be done before this one is offered. */
+  requires?: string | string[];
+  /** Something that happens to the world when it is handed in (the flood of Marib). */
+  effect?: 'flood_marib';
   objectives: Objective[];
   /** Items handed over when the quest starts (e.g. a letter to deliver). */
   gives?: string;
   reward: { gold: number; upgrade?: string; weapon?: string };
 }
 
+const ITHLIB = 'jabal_ithlib';
+const MARIB = 'marib';
+const BREACH = 'marib_breach';
+
 export const QUESTS: QuestDef[] = [
+  // --- Jabal Ithlib: the Nabataean sanctuary above Hegra ------------------------------
+  {
+    id: 'ithlib_banquet',
+    giver: { map: ITHLIB, id: 'ithlib_feast_master' },
+    objectives: [
+      { kind: 'fetch', map: ITHLIB, pickup: 'wadi_wine', item: 'wine_skin' },
+      { kind: 'fetch', map: ITHLIB, pickup: 'betyl_oil', item: 'anointing_oil' },
+    ],
+    reward: { gold: 320 },
+  },
+  {
+    id: 'ithlib_cup',
+    giver: { map: ITHLIB, id: 'ithlib_feast_master' },
+    requires: 'ithlib_banquet',
+    objectives: [{ kind: 'kill_camp', map: ITHLIB, camp: 'robbers_east' }],
+    reward: { gold: 380, upgrade: 'endurance' },
+  },
+  {
+    id: 'ithlib_lamps',
+    giver: { map: ITHLIB, id: 'ithlib_priest' },
+    objectives: [{ kind: 'kill_camp', map: ITHLIB, camp: 'robbers_north' }],
+    reward: { gold: 260 },
+  },
+  {
+    id: 'ithlib_high_place',
+    giver: { map: ITHLIB, id: 'ithlib_priest' },
+    requires: 'ithlib_lamps',
+    objectives: [{ kind: 'visit', map: ITHLIB, landmark: 'high_place' }],
+    reward: { gold: 300, upgrade: 'vitality' },
+  },
+  {
+    id: 'ithlib_night',
+    giver: { map: ITHLIB, id: 'ithlib_priest' },
+    requires: 'ithlib_high_place',
+    objectives: [{ kind: 'kill_camp', map: ITHLIB, camp: 'night_archers' }],
+    reward: { gold: 450 },
+  },
+  // --- Marib: the Great Dam of Saba -------------------------------------------------------
+  {
+    id: 'marib_rota',
+    giver: { map: MARIB, id: 'marib_warden_north' },
+    objectives: [
+      { kind: 'fetch', map: MARIB, pickup: 'warden_rota', item: 'rota_tablet' },
+      { kind: 'use', map: MARIB, target: 'sluice_north' },
+      { kind: 'use', map: MARIB, target: 'gate_n1' },
+      { kind: 'use', map: MARIB, target: 'gate_n2' },
+      { kind: 'use', map: MARIB, target: 'gate_n3' },
+    ],
+    reward: { gold: 420, upgrade: 'flask' },
+  },
+  {
+    id: 'marib_south',
+    giver: { map: MARIB, id: 'marib_warden_south' },
+    requires: 'marib_rota',
+    objectives: [
+      { kind: 'use', map: MARIB, target: 'sluice_south' },
+      { kind: 'use', map: MARIB, target: 'gate_s3' },
+      { kind: 'use', map: MARIB, target: 'gate_s1' },
+      { kind: 'use', map: MARIB, target: 'gate_s2' },
+    ],
+    reward: { gold: 360 },
+  },
+  {
+    id: 'marib_rats',
+    giver: { map: MARIB, id: 'marib_warden_south' },
+    requires: 'marib_south',
+    objectives: [{ kind: 'kill_camp', map: MARIB, camp: 'dam_rats' }],
+    reward: { gold: 300 },
+  },
+  {
+    id: 'marib_himyar',
+    giver: { map: MARIB, id: 'marib_mukarrib' },
+    objectives: [{ kind: 'kill_camp', map: MARIB, camp: 'himyar' }],
+    reward: { gold: 650, upgrade: 'endurance' },
+  },
+  {
+    id: 'marib_awwam',
+    giver: { map: MARIB, id: 'awwam_priest' },
+    gives: 'frankincense',
+    objectives: [{ kind: 'visit', map: MARIB, landmark: 'awwam_altar' }],
+    reward: { gold: 300 },
+  },
+  {
+    id: 'marib_jackals',
+    giver: { map: MARIB, id: 'marib_caravan_master' },
+    objectives: [{ kind: 'kill_camp', map: MARIB, camp: 'jackals' }],
+    reward: { gold: 260 },
+  },
+  {
+    id: 'barran_hyenas',
+    giver: { map: MARIB, id: 'barran_priest' },
+    objectives: [{ kind: 'kill_camp', map: MARIB, camp: 'cemetery' }],
+    reward: { gold: 420, upgrade: 'vitality' },
+  },
+  {
+    id: 'marib_arim',
+    giver: { map: MARIB, id: 'marib_mukarrib' },
+    requires: ['marib_himyar', 'marib_rats'],
+    objectives: [{ kind: 'visit', map: MARIB, landmark: 'dam' }],
+    reward: { gold: 500 },
+    effect: 'flood_marib',
+  },
+  // --- Marib after the flood of al-'Arim ---------------------------------------------------
+  {
+    id: 'breach_scattered',
+    giver: { map: BREACH, id: 'awwam_priest' },
+    requires: 'marib_arim',
+    objectives: [{ kind: 'talk', npc: { map: BREACH, id: 'marib_caravan_master' } }],
+    reward: { gold: 320 },
+  },
+  {
+    id: 'breach_looters',
+    giver: { map: BREACH, id: 'marib_mukarrib' },
+    requires: 'marib_arim',
+    objectives: [{ kind: 'kill_camp', map: BREACH, camp: 'looters' }],
+    reward: { gold: 480, upgrade: 'flask' },
+  },
   // --- oasis -------------------------------------------------------------------
   {
     id: 'tomb_robbers',
@@ -161,6 +300,8 @@ export function questText(id: string): QuestText {
 export interface QuestEvents {
   toast(text: string): void;
   reward(def: QuestDef): void;
+  /** A quest's world effect (QuestDef.effect). */
+  effect(name: string): void;
   /** A quest was taken on, or moved to its next step. */
   sound(kind: 'accept' | 'step'): void;
 }
@@ -181,7 +322,8 @@ export class QuestSystem {
 
   private available(q: QuestDef): boolean {
     if (this.state(q.id)) return false;
-    return !q.requires || this.state(q.requires)?.state === 'done';
+    const req = q.requires === undefined ? [] : Array.isArray(q.requires) ? q.requires : [q.requires];
+    return req.every((r) => this.state(r)?.state === 'done');
   }
 
   /** Icon over an NPC: a quest to offer, one to turn in, or nothing. */
@@ -268,6 +410,38 @@ export class QuestSystem {
     if (this.progress.data.trackedQuest === q.id) this.progress.data.trackedQuest = this.firstActive();
     this.progress.save();
     this.ev.reward(q);
+    if (q.effect) this.ev.effect(q.effect);
+  }
+
+  /** The `use` objective waiting in this map (the next sluice of a rota), if any. */
+  nextUse(map: string): Extract<Objective, { kind: 'use' }> | null {
+    for (const q of QUESTS) {
+      const st = this.state(q.id);
+      const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
+      if (obj?.kind === 'use' && sameMap(obj.map, map)) return obj;
+    }
+    return null;
+  }
+
+  /** Worked `target`: advances a rota if it was the right one ('ok'), 'wrong' if another comes first, or 'free'. */
+  used(map: string, target: string): 'ok' | 'wrong' | 'free' {
+    const next = this.nextUse(map);
+    if (!next) return 'free';
+    if (next.target !== target) return 'wrong';
+    for (const q of QUESTS) {
+      const st = this.state(q.id);
+      if (st?.state === 'active' && q.objectives[st.step] === next) this.advance(q);
+    }
+    return 'ok';
+  }
+
+  /** Visit objectives in this map whose place the player has reached. */
+  visit(map: string, near: (landmark: string) => boolean): void {
+    for (const q of QUESTS) {
+      const st = this.state(q.id);
+      const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
+      if (obj?.kind === 'visit' && sameMap(obj.map, map) && near(obj.landmark)) this.advance(q);
+    }
   }
 
   private firstActive(): string | null {
@@ -290,7 +464,7 @@ export class QuestSystem {
     for (const q of QUESTS) {
       const st = this.state(q.id);
       const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
-      if (obj?.kind === 'kill_camp' && obj.map === map && obj.camp === camp) this.advance(q);
+      if (obj?.kind === 'kill_camp' && sameMap(obj.map, map) && obj.camp === camp) this.advance(q);
     }
   }
 
@@ -310,7 +484,7 @@ export class QuestSystem {
     for (const q of QUESTS) {
       const st = this.state(q.id);
       const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
-      if (obj?.kind === 'fetch' && obj.map === map) out.push(obj);
+      if (obj?.kind === 'fetch' && sameMap(obj.map, map)) out.push(obj);
     }
     return out;
   }
@@ -343,11 +517,12 @@ export class QuestSystem {
 }
 
 export function objMap(o: Objective): string {
-  return o.kind === 'talk' ? o.npc.map : o.map;
+  const m = o.kind === 'talk' ? o.npc.map : o.map;
+  return MAP_ALIAS[m] ?? m;
 }
 
 export function sameRef(a: NpcRef, b: NpcRef): boolean {
-  if (a.map !== b.map) return false;
+  if (!sameMap(a.map, b.map)) return false;
   if (a.id || b.id) return !!a.id && a.id === b.id;
   return a.role === b.role && a.index === b.index;
 }

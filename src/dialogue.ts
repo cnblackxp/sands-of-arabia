@@ -18,9 +18,12 @@ export type NpcRole =
   | 'elder'
   | 'feast_master'
   | 'official'
-  | 'caravaneer';
+  | 'caravaneer'
+  | 'musician'
+  | 'envoy'
+  | 'refugee';
 
-export const ROLES: readonly NpcRole[] = ['wanderer', 'merchant', 'sitter', 'water_carrier', 'guard', 'priest', 'farmer', 'prisoner', 'poet', 'kahin', 'elder', 'feast_master', 'official', 'caravaneer'];
+export const ROLES: readonly NpcRole[] = ['wanderer', 'merchant', 'sitter', 'water_carrier', 'guard', 'priest', 'farmer', 'prisoner', 'poet', 'kahin', 'elder', 'feast_master', 'official', 'caravaneer', 'musician', 'envoy', 'refugee'];
 
 const MALE = ['Amr', 'Harith', 'Qays', 'Zayd', "Imru' al-Qays", 'Aws', 'Kalb', 'Malik', 'Hani', 'Thalaba', 'Uday', 'Shanfara', 'Tarafa', 'Labid', 'Antara', 'Nabigh', 'Hatim', 'Duraid'];
 const FEMALE = ['Hind', 'Salma', 'Laila', 'Rabab', 'Khawla', 'Asma', 'Mawiya', 'Zaynab', 'Su\'ad', 'Umayma'];

@@ -627,11 +627,11 @@ export class Sfx {
     this.noiseBurst(0.1, 900, 500, 1.5, 0.05, 'bandpass');
   }
   /** Loose: the string's twang and the arrow's hiss leaving. */
-  bowRelease(): void {
-    this.tone(0.22, 196, 180, 0.28, 'triangle');
-    this.tone(0.16, 392, 370, 0.1, 'sawtooth');
-    this.noiseBurst(0.06, 5000, 2500, 1, 0.18, 'highpass');
-    this.noiseBurst(0.35, 3200, 1200, 1.2, 0.12, 'bandpass', 0, 0.03);
+  bowRelease(pan = 0, gain = 1): void {
+    this.tone(0.22, 196, 180, 0.28 * gain, 'triangle', 0, pan);
+    this.tone(0.16, 392, 370, 0.1 * gain, 'sawtooth', 0, pan);
+    this.noiseBurst(0.06, 5000, 2500, 1, 0.18 * gain, 'highpass', pan);
+    this.noiseBurst(0.35, 3200, 1200, 1.2, 0.12 * gain, 'bandpass', pan, 0.03);
   }
   /** Where an arrow (or stone) lands. */
   impact(kind: 'arrow' | 'rock', surface: 'flesh' | 'shield' | 'wall' | 'ground' | 'water', pan = 0, gain = 1): void {
@@ -775,6 +775,40 @@ export class Sfx {
       this.tone(0.5, f * 2, f * 1.99, 0.035, 'sawtooth', i * 0.16);
       this.noiseBurst(0.03, 3000, 1500, 2, 0.04, 'bandpass', 0, i * 0.16);
     });
+  }
+
+  /** One phrase on the kinnara (lyre): three or four plucked notes in maqam Hijaz. */
+  lyre(pan = 0, gain = 1): void {
+    const notes = [293.7, 311.1, 370.0, 392.0, 440.0, 466.2];
+    const n = 3 + Math.floor(Math.random() * 2);
+    let at = 0;
+    for (let i = 0; i < n; i++) {
+      const f = notes[Math.floor(Math.random() * notes.length)];
+      this.tone(1.2, f, f * 0.997, 0.07 * gain, 'triangle', at, pan);
+      this.tone(0.6, f * 2, f * 1.99, 0.02 * gain, 'sine', at, pan);
+      at += 0.18 + Math.random() * 0.22;
+    }
+  }
+  /** Brushing sand from carved stone. */
+  readStone(): void {
+    this.noiseBurst(0.4, 1800, 900, 1.2, 0.08, 'bandpass');
+    this.noiseBurst(0.3, 2600, 1400, 1.5, 0.05, 'bandpass', 0, 0.35);
+  }
+  /** A sluice windlass: the creak of wood, then rushing water (or the gate's thud). */
+  sluice(opening: boolean, pan = 0): void {
+    for (let i = 0; i < 4; i++) this.tone(0.14, 120 + i * 8, 100, 0.08, 'sawtooth', i * 0.16, pan);
+    if (opening) this.noiseBurst(1.8, 300, 1200, 0.6, 0.22, 'lowpass', pan, 0.5);
+    else this.tone(0.3, 80, 45, 0.4, 'triangle', 0.6, pan);
+  }
+  /** Digging in sand. */
+  dig(): void {
+    for (let i = 0; i < 3; i++) this.noiseBurst(0.18, 1400, 400, 0.8, 0.18, 'lowpass', 0, i * 0.22);
+  }
+  /** The dam giving way: a long, deep roar. */
+  flood(): void {
+    this.noiseBurst(4, 120, 600, 0.5, 0.5, 'lowpass');
+    this.tone(3.5, 55, 35, 0.4, 'triangle', 0.2);
+    this.noiseBurst(3, 800, 200, 0.6, 0.25, 'bandpass', 0, 1);
   }
 
   // --- camera ---------------------------------------------------------------------------

@@ -287,6 +287,11 @@ export class Projectiles {
     // Arrows stay where they hit, tip buried a little.
     s.mesh.position.copy(p).addScaledVector(dir, surface === 'flesh' ? 0.12 : 0.18);
     this.orient(s.mesh, s.vel);
+    // Arrows that hit the player are spent (they would otherwise ride along).
+    if (target && result && !result.blocked && s.side === 'enemy') {
+      s.mesh.removeFromParent();
+      return true;
+    }
     if (target && result && !result.blocked) {
       target.root.attach(s.mesh);
       this.lying.push({ mesh: s.mesh, in: target });

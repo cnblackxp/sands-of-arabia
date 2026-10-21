@@ -64,6 +64,15 @@ export class NavGrid {
     }
   }
 
+  /** Block every cell whose centre satisfies `fn` (deep water, ...). */
+  blockWhere(fn: (x: number, z: number) => boolean): void {
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        if (fn(this.x0 + (c + 0.5) * this.cell, this.z0 + (r + 0.5) * this.cell)) this.blocked[r * this.cols + c] = 1;
+      }
+    }
+  }
+
   private idx(x: number, z: number): number {
     const c = Math.floor((x - this.x0) / this.cell);
     const r = Math.floor((z - this.z0) / this.cell);

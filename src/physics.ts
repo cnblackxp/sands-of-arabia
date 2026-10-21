@@ -89,8 +89,17 @@ export class Mover {
     const m = ctl.computedMovement();
     const t = this.body.translation();
     const b = phys.bounds;
-    const nx = THREE.MathUtils.clamp(t.x + m.x, b.x[0], b.x[1]);
-    const nz = THREE.MathUtils.clamp(t.z + m.z, b.z[0], b.z[1]);
+    let nx = THREE.MathUtils.clamp(t.x + m.x, b.x[0], b.x[1]);
+    let nz = THREE.MathUtils.clamp(t.z + m.z, b.z[0], b.z[1]);
+    // Deep water is a wall (slide along the shore).
+    if (airY === null && phys.deepWater(nx, nz)) {
+      if (!phys.deepWater(nx, t.z)) nz = t.z;
+      else if (!phys.deepWater(t.x, nz)) nx = t.x;
+      else {
+        nx = t.x;
+        nz = t.z;
+      }
+    }
     let y: number;
     let falling = false;
     if (airY !== null) {
@@ -125,6 +134,8 @@ export class Physics {
   controller!: RAPIER.KinematicCharacterController;
   R: Rapier = RAPIER;
   groundAt: (x: number, z: number) => number = () => 0;
+  /** True where water is too deep to wade (set by the world when a map has water). */
+  deepWater: (x: number, z: number) => boolean = () => false;
   bounds = { x: [-200, 200] as [number, number], z: [-250, 150] as [number, number] };
   /** Collider handle → world height of its top, for every level box. */
   readonly boxTops = new Map<number, number>();

@@ -17,7 +17,7 @@ import type { World } from './world';
  * recovery is the opening. Poise decides whether a hit makes them flinch.
  */
 
-export type EnemyKind = 'raider' | 'skirmisher' | 'brute' | 'chief' | 'slinger' | 'clubman';
+export type EnemyKind = 'raider' | 'skirmisher' | 'brute' | 'chief' | 'slinger' | 'clubman' | 'archer';
 
 interface KindDef {
   title: string;
@@ -50,7 +50,7 @@ interface KindDef {
   /** Skirmish-style: hop back out of reach after a combo. */
   backstep: number;
   /** Throws stones from range instead of closing in (slingers). */
-  ranged?: { min: number; max: number; cooldown: [number, number]; dmg: number };
+  ranged?: { min: number; max: number; cooldown: [number, number]; dmg: number; arrow?: boolean };
   /** Big wooden club: heavier swing sounds. */
   club?: boolean;
 }
@@ -182,6 +182,32 @@ const KINDS: Record<EnemyKind, KindDef> = {
     backstep: 0.5,
     ranged: { min: 6, max: 21, cooldown: [2.0, 3.4], dmg: 12 },
   },
+  archer: {
+    title: 'Archer',
+    hp: 60,
+    poise: 1,
+    walk: 1.8,
+    run: 4.4,
+    scale: 0.97,
+    dmg: 8,
+    knock: 0.9,
+    range: 1.6,
+    windup: 0.9,
+    comboWindup: 0.3,
+    strikeSpeed: 1.6,
+    recover: 0.8,
+    maxCombo: 1,
+    comboChance: 0,
+    sight: 28,
+    turn: 3.5,
+    lunge: 1.2,
+    acc: ['Keffiyeh', 'FaceWrap', 'Vest', 'BowHeld', 'Quiver'],
+    colours: { P_Robe: 0x5a4632, P_Sash: 0x2b2622, P_Wrap: 0x3b3530, P_Pants: 0x2f2a26, P_Skin: 0x9a6440, P_Vest: 0x3b2a1c },
+    swings: [6],
+    block: 0,
+    backstep: 0.4,
+    ranged: { min: 9, max: 28, cooldown: [2.4, 3.6], dmg: 14, arrow: true },
+  },
   clubman: {
     title: 'Clubman',
     hp: 200,
@@ -231,6 +257,8 @@ const SWINGS: Swing[] = [
   { clip: 'Throw', raise: 0.2, hit: 0.333, raiseSpeed: 0.5, strike: null, heavy: false },
   // Clubman's overhead slam: authored raise and hold like HeavyAttack.
   { clip: 'ClubSwing', raise: 0.708, hit: 0.875, raiseSpeed: 1, strike: 1.1, heavy: true },
+  // Archer: draw to full and hold (the tell), then loose.
+  { clip: 'BowDraw', raise: 0.5, hit: 0.54, raiseSpeed: 0.9, strike: 1, heavy: false },
 ];
 const BACKSTEP = { duration: 0.5, distance: 1.6 };
 
@@ -304,6 +332,7 @@ export class Enemy implements Foe {
     seed: number,
   ) {
     this.def = KINDS[kind] ?? KINDS.raider;
+    this.nightOnly = !!spawn.night_only;
     this.hp = this.def.hp;
     this.pos.set(...spawn.pos);
     this.pos.y = world.floor(this.pos.x, this.pos.z, spawn.pos[1]);
@@ -319,7 +348,17 @@ export class Enemy implements Foe {
   }
 
   get dead(): boolean {
-    return this.state === 'dead';
+    return this.dormant || this.state === 'dead';
+  }
+  /** Night-only foes are away by day (not drawn, not fighting, not counted). */
+  readonly nightOnly: boolean;
+  dormant = false;
+  setDormant(on: boolean): void {
+    if (on === this.dormant) return;
+    if (!on) this.reset();
+    this.dormant = on;
+    this.rig.root.visible = !on;
+    this.collider.setEnabled(!on && this.state !== 'dead');
   }
   get maxHp(): number {
     return this.def.hp;
@@ -629,6 +668,7 @@ export class Enemy implements Foe {
           this.told = true;
           this.flash.tell(0.16);
           if (d.ranged && this.swing === 4) this.sfx.slingWhirl();
+          else if (d.ranged?.arrow && this.swing === 6) this.sfx.bowDraw(0.4);
           else this.sfx.tell();
           this.onTell(this);
         }
@@ -931,7 +971,9 @@ export class EnemySystem {
     }
     const kind = (KINDS[kindName as EnemyKind] ? kindName : 'raider') as EnemyKind;
     const def = KINDS[kind];
-    const rig = this.factory.createPerson(def.acc, def.colours, def.scale);
+    // Himyarite raiders wear the king's indigo and gold.
+    const colours = s.variant === 'himyar' ? { ...def.colours, P_Robe: 0x1f2f5a, P_Sash: 0xd6a531, P_Wrap: 0x1f2f5a, P_Vest: 0x6b4a32 } : def.colours;
+    const rig = this.factory.createPerson(def.acc, colours, def.scale);
     if (def.club && !this.factory.hasPart('Club')) rig.bones.get('hand_R')?.add(buildClub());
     const at = new THREE.Vector3(...s.pos);
     at.y = this.world.floor(at.x, at.z, s.pos[1]);
@@ -965,12 +1007,15 @@ export class EnemySystem {
   private tick = 0;
   private slept = new Map<Foe, number>();
 
-  update(dt: number, player: PlayerView): void {
+  update(dt: number, player: PlayerView, night = false): void {
     this.assignTokensAndSlots(player);
     this.tick++;
     let i = 0;
     for (const e of this.list) {
       i++;
+      // Night-only foes come out at dusk and are gone by dawn (back at their posts).
+      if (e.nightOnly) e.setDormant(!night);
+      if (e.dormant) continue;
       const d = Math.hypot(e.pos.x - player.pos.x, e.pos.z - player.pos.z);
       e.root.visible = d < 200 || e.engaged;
       const run = (t: number) => (e instanceof Enemy ? e.update(t, player, d) : (e as Beast).update(t, player, d));
