@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { HitResult } from './combat';
+import { beam } from './markers';
 import type { Physics } from './physics';
 
 /**
@@ -50,7 +51,14 @@ interface Lying {
   mesh: THREE.Object3D;
   /** The body it is stuck in (collectable once it has fallen), or null. */
   in: ProjTarget | null;
+  /** Pickup marker (a short light shaft and a glowing tip), once collectable. */
+  marker?: THREE.Group;
 }
+
+/** Pale gold, like the other pickups' beams but shorter: "an arrow to take back". */
+const MARK = { color: 0xffd98a, height: 2.4, radius: 0.16 };
+const glowMat = new THREE.MeshBasicMaterial({ color: 0xfff0c0, transparent: true, opacity: 0.9, depthWrite: false, fog: false, blending: THREE.AdditiveBlending });
+const glowGeo = new THREE.SphereGeometry(0.07, 8, 6);
 
 export interface ImpactEvent {
   kind: ShotKind;
@@ -299,20 +307,47 @@ export class Projectiles {
   /** Walk over arrows to take them back (not out of a living body). */
   private collect(player: THREE.Vector3): void {
     let n = 0;
+    this.markT += 1 / 60;
     for (let i = this.lying.length - 1; i >= 0; i--) {
       const l = this.lying[i];
       if (l.in && !l.in.dead) continue;
       const w = l.mesh.getWorldPosition(this.tmpV);
+      this.mark(l, w);
       const dx = w.x - player.x;
       const dz = w.z - player.z;
       const dy = w.y - (player.y + 0.6);
       if (dx * dx + dz * dz < 1.3 * 1.3 && Math.abs(dy) < 1.6) {
         l.mesh.removeFromParent();
+        l.marker?.removeFromParent();
         this.lying.splice(i, 1);
         n++;
       }
     }
     if (n) this.onPickup(n);
+  }
+
+  private markT = 0;
+
+  /** Show (and keep in place) the pickup marker of a collectable arrow. */
+  private mark(l: Lying, at: THREE.Vector3): void {
+    if (!l.marker) {
+      const g = new THREE.Group();
+      g.add(beam(MARK.color, MARK.height, MARK.radius));
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.renderOrder = 16;
+      g.add(glow);
+      l.marker = g;
+      this.scene.add(g);
+    }
+    const g = l.marker;
+    // The shaft stands on the ground under the arrow; the glow sits on the arrow.
+    const floor = Math.min(at.y, this.ground(at.x, at.z) + 0.02);
+    g.position.set(at.x, floor, at.z);
+    const glow = g.children[1];
+    glow.position.y = at.y - floor;
+    const pulse = 0.5 + 0.5 * Math.sin(this.markT * 4 + at.x);
+    ((g.children[0] as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.opacity.value = 0.32 + 0.18 * pulse;
+    glow.scale.setScalar(0.8 + 0.5 * pulse);
   }
 
   /** Arrows still lying around (for the map / HUD). */
@@ -325,6 +360,7 @@ export class Projectiles {
     this.lying = this.lying.filter((l) => {
       if (!l.in) return true;
       l.mesh.removeFromParent();
+      l.marker?.removeFromParent();
       return false;
     });
   }
@@ -387,7 +423,10 @@ export class Projectiles {
 
   dispose(): void {
     for (const s of this.shots) s.mesh.removeFromParent();
-    for (const l of this.lying) l.mesh.removeFromParent();
+    for (const l of this.lying) {
+      l.mesh.removeFromParent();
+      l.marker?.removeFromParent();
+    }
     this.shots = [];
     this.lying = [];
     this.dots.removeFromParent();

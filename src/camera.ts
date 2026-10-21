@@ -153,23 +153,28 @@ export class FollowCamera {
     this.ortho.position.copy(target).addScaledVector(off, this.distance);
     this.ortho.lookAt(target);
 
-    // Perspective: lower pitch, distance tracks zoom so the framing is similar.
-    const pp = THREE.MathUtils.degToRad(38);
-    const pd = this.zoom * 2.6;
-    const poff = new THREE.Vector3(Math.sin(this.yaw) * Math.cos(pp), Math.sin(pp), Math.cos(this.yaw) * Math.cos(pp));
-    this.persp.position.copy(target).addScaledVector(poff, pd);
-    this.persp.lookAt(target.x, target.y + 1.2, target.z);
-
     let yaw = this.yaw;
     if (this.thirdPerson) {
       this.updateThirdPerson(dt, follow);
       yaw = this.tpYaw;
+    } else {
+      // Perspective: lower pitch, distance tracks zoom so the framing is similar.
+      const pp = THREE.MathUtils.degToRad(38);
+      const pd = this.zoom * 2.6;
+      const poff = new THREE.Vector3(Math.sin(this.yaw) * Math.cos(pp), Math.sin(pp), Math.cos(this.yaw) * Math.cos(pp));
+      this.persp.position.copy(target).addScaledVector(poff, pd);
+      this.persp.lookAt(target.x, target.y + 1.2, target.z);
     }
 
     if (this.override) {
       this.persp.position.copy(this.override.pos);
       this.persp.lookAt(this.override.look);
     }
+    // lookAt() refreshes the matrices from the position *before* it turns the
+    // camera, so bring them up to date now: everything projected to the screen
+    // before the render (enemy bars, markers) must see this frame's camera.
+    this.ortho.updateMatrixWorld();
+    this.persp.updateMatrixWorld();
 
     this.forward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
     this.right.set(Math.cos(yaw), 0, -Math.sin(yaw));

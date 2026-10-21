@@ -167,6 +167,7 @@ Run `npm install` and then `npm run dev` (port 5173; `.claude/launch.json` entry
 | `dialogue.ts` | NPC lines and names. |
 | `i18n.ts`, `locales/en.ts`, `locales/ar.ts` | Localisation (English and Arabic): `t()`, `tOr()`, `L()`, the saved language and the change hook. |
 | `beasts.ts` | Hounds and vultures (`Beast`): dog.glb / bird.glb, or procedural box models when those are missing. |
+| `settings.ts` | Player settings (camera mode, time of day, look, sound, interface size, look sensitivity) saved to localStorage; defaults and reset. |
 | `projectiles.ts` | Arrows and slingers' stones: ballistic flight, hits, stuck arrows and pickup, the aim-arc preview. |
 
 Decisions worth knowing:
@@ -218,7 +219,7 @@ Decisions worth knowing:
   - Layout: `applyDocument()` sets `lang` on `<html>` and `dir="rtl"` on `#hud` and `#loading`. RTL rules live at the end of `style.css`; the bars, enemy bars, choice arrows and key glyphs (`.keys`) stay left to right. Amiri (Google Fonts) covers Arabic. Text that the HUD or menu built must re-render in `Game.onLangChange`.
 - **Z-fighting.** The Blender export runs `fix_coplanar()` on every static mesh, so faces of different materials never share a plane (Lime ranks highest). `tools/blender/check_zfight.py` counts any remaining pairs.
 - **Debug.** The backquote key toggles wireframes of the level.json colliders.
-- **True third-person camera** (Debug tab, a test option; the iso and perspective modes are unchanged). `FollowCamera.thirdPerson`:
+- **True third-person camera** (the default; Settings → Camera cycles third person → orthographic → perspective, and the Debug tab has the same toggle). `FollowCamera.thirdPerson`:
   - The camera sits behind the player's right shoulder. A ray against the level boxes pulls the boom in so it never clips a wall.
   - Mouse look uses pointer lock: the first click captures the mouse, and Esc frees it and opens the menu. The gamepad's right stick looks around. Zoom is the wheel or D-pad up/down.
   - Sensitivity and invert-Y live in the Debug tab. `Input.thirdPerson` switches the stick mapping.
@@ -237,4 +238,7 @@ Decisions worth knowing:
   - Slingers keep 6–21 m away and throw stones (`Throw` clip). The stones are projectiles aimed with lead: roll through them or block them with the shield.
   - Clubmen use `ClubSwing` and the `Club` accessory, with hyper-armour like brutes.
   - All of them are `Foe`s (`combat.ts`). `EnemySystem.list` holds every foe; `humans` are the raiders that share attack tokens and ring slots.
+- **Settings are remembered** (`settings.ts`, key `sands-of-arabia.settings.v1`). They are written when the menu closes and when the page hides or unloads. Settings → "Reset settings to defaults" restores them all, including English and the map's own time of day. Add any new option to `Settings`, `DEFAULT_SETTINGS`, `persistSettings()` and `resetSettings()`.
+- **Camera matrices.** `FollowCamera.update` ends by refreshing both cameras' matrices. `lookAt()` updates the matrix from the position *before* it turns the camera, and HUD items projected before the render (enemy bars) need this frame's view.
+- **Dropped arrows** that can be picked up show a short pale-gold light shaft with a glowing tip (`Projectiles.mark`).
 - **Interface size** (Settings) sets the `--ui` CSS variable, and the HUD panels and menu use CSS `zoom`. Screen-anchored items (enemy bars, float texts) divide their pixel positions by `Hud.uiScale`.

@@ -19,6 +19,7 @@ import { Physics } from './physics';
 import { Player, type BowAim } from './player';
 import { ARROW, Projectiles, solveBallistic, type ProjTarget } from './projectiles';
 import { Progress } from './progress';
+import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './settings';
 import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
 import { mulberry32 } from './util';
@@ -125,6 +126,10 @@ class Game {
   private frameNo = 0;
   private robe = 0;
   private flow = 0;
+  /** Remembered settings (settings.ts); written back when the menu closes or the page hides. */
+  settings: Settings = loadSettings();
+  /** The map's own time of day before any saved setting (restored by "reset settings"). */
+  private defaultHours: number | null = null;
   private projected = new THREE.Vector3();
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -158,24 +163,80 @@ class Game {
       if (!locked && this.hadPointerLock && this.cam.thirdPerson && this.menu && !this.menu.isOpen && this.world) this.openMainMenu('settings');
       this.hadPointerLock = locked;
     });
-    try {
-      const v = Number(localStorage.getItem('sands-of-arabia.ui-scale'));
-      if (v >= 0.6 && v <= 1.8) this.uiScale = v;
-    } catch {
-      // No storage: default size.
-    }
+    this.applySavedSettings();
+    // Remember settings when the tab is hidden or closed (the time of day keeps moving).
+    window.addEventListener('beforeunload', () => this.persistSettings());
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.persistSettings();
+    });
+  }
+
+  /** Apply remembered settings that don't need a loaded map (the rest happens in start/enterMap). */
+  private applySavedSettings(): void {
+    const s = this.settings;
+    this.uiScale = THREE.MathUtils.clamp(s.uiScale, 0.7, 1.6);
+    this.flow = THREE.MathUtils.clamp(Math.round(s.flow), 0, FLOW.length - 1);
+    this.robe = THREE.MathUtils.clamp(Math.round(s.robe), 0, ROBES.length - 1);
+    this.lookIndex = ((Math.round(s.look) % PLAYER_LOOKS.length) + PLAYER_LOOKS.length) % PLAYER_LOOKS.length;
+    this.sfx.setVolume(THREE.MathUtils.clamp(s.volume, 0, 1));
+    this.sfx.setMusicVolume(THREE.MathUtils.clamp(s.music, 0, 1));
+    this.input.mouseSens = THREE.MathUtils.clamp(s.mouseSens, 0.0008, 0.008);
+    this.input.stickSens = s.stickSens;
+    this.input.invertY = s.invertY;
+    this.cam.usePerspective = s.perspective;
     this.applyUiScale();
+  }
+
+  /** Copy the live settings into the saved record. */
+  private persistSettings(): void {
+    const s = this.settings;
+    s.thirdPerson = this.cam.thirdPerson;
+    s.perspective = this.cam.usePerspective;
+    if (this.day) s.hours = this.day.hours;
+    s.flow = this.flow;
+    s.look = this.lookIndex;
+    s.robe = this.robe;
+    if (this.minimap) s.minimap = this.minimap.mode;
+    s.volume = this.sfx.volume;
+    s.music = this.sfx.musicVolume;
+    s.uiScale = this.uiScale;
+    s.mouseSens = this.input.mouseSens;
+    s.stickSens = this.input.stickSens;
+    s.invertY = this.input.invertY;
+    saveSettings(s);
+  }
+
+  /** Settings tab: everything back to how a new player starts (language too). */
+  private resetSettings(): void {
+    const d = DEFAULT_SETTINGS;
+    this.settings = { ...d };
+    this.flow = d.flow;
+    this.day.flowing = FLOW[this.flow].on;
+    this.day.speed = FLOW[this.flow].speed;
+    if (this.defaultHours !== null) this.day.set(this.defaultHours);
+    this.robe = d.robe;
+    this.applyLook(d.look);
+    this.cam.usePerspective = d.perspective;
+    if (this.cam.thirdPerson !== d.thirdPerson) this.setThirdPerson(d.thirdPerson);
+    while (this.minimap.mode !== d.minimap) this.minimap.cycle();
+    this.minimap.setVisible(false);
+    this.sfx.setVolume(d.volume);
+    this.sfx.setMusicVolume(d.music);
+    this.uiScale = d.uiScale;
+    this.applyUiScale();
+    this.input.mouseSens = d.mouseSens;
+    this.input.stickSens = d.stickSens;
+    this.input.invertY = d.invertY;
+    if (lang() !== 'en') setLang('en');
+    this.persistSettings();
+    this.sfx.ui(true);
+    this.hud.showToast(t('settings.resetDone'), 2.5);
   }
 
   /** Interface size: every HUD panel and the menu scale together. */
   private applyUiScale(): void {
     document.getElementById('hud')?.style.setProperty('--ui', String(this.uiScale));
     this.hud.uiScale = this.uiScale;
-    try {
-      localStorage.setItem('sands-of-arabia.ui-scale', String(this.uiScale));
-    } catch {
-      // Ignore.
-    }
   }
 
   /** Switch the debug true third-person camera (mouse / right-stick look). */
@@ -203,6 +264,7 @@ class Game {
     const hudRoot = document.getElementById('hud')!;
     this.menu = new Menu(hudRoot, this.hud, (confirm) => this.sfx.ui(confirm));
     this.menu.onClose = () => {
+      this.persistSettings();
       this.input.cancelHolds();
       this.cam.focus = false;
       this.minimap?.setVisible(true);
@@ -215,6 +277,8 @@ class Game {
     const bf = this.progress.data.bonfire;
     if (bf && c.maps.maps.some((m) => m.name === bf.map)) await this.enterMap(bf.map, null, { pos: bf.pos, yaw: bf.yaw });
     else await this.enterMap(c.maps.start, null);
+    // The true third-person camera is the default; the overhead views stay a setting away.
+    this.setThirdPerson(this.settings.thirdPerson);
     this.resize();
     this.canvas.focus();
     this.renderer.setAnimationLoop(() => this.frame());
@@ -287,7 +351,9 @@ class Game {
     this.mapName = entry.name;
     const scene = this.world.scene;
     this.day = new DayCycle(this.world, this.renderer, this.common.bg, this.common.envHdr);
+    this.defaultHours ??= this.day.hours;
     if (hours !== undefined) this.day.set(hours);
+    else if (this.settings.hours !== null) this.day.set(this.settings.hours);
     this.day.flowing = FLOW[this.flow].on;
     this.day.speed = FLOW[this.flow].speed;
     this.particles = new Particles(scene);
@@ -351,7 +417,7 @@ class Game {
     this.spawnLostGold();
 
     const hudRoot = document.getElementById('hud')!;
-    const mode = this.minimap?.mode ?? 0;
+    const mode = this.minimap?.mode ?? THREE.MathUtils.clamp(Math.round(this.settings.minimap), 0, 2);
     this.minimap?.dispose();
     this.minimap = new Minimap(hudRoot, level, map.heights);
     while (this.minimap.mode !== mode) this.minimap.cycle();
@@ -1068,7 +1134,20 @@ class Game {
               this.applyLook(this.lookIndex);
             },
           },
-          { label: t('settings.camera'), kind: 'choice', value: () => t(this.cam.usePerspective ? 'settings.perspective' : 'settings.orthographic'), sub: () => (this.cam.thirdPerson ? t('settings.cameraThird') : ''), adjust: () => (this.cam.usePerspective = !this.cam.usePerspective) },
+          {
+            // Third person (default) → overhead orthographic → overhead perspective.
+            label: t('settings.camera'),
+            kind: 'choice',
+            value: () => t(this.cam.thirdPerson ? 'settings.thirdPerson' : this.cam.usePerspective ? 'settings.perspective' : 'settings.orthographic'),
+            sub: () => (this.cam.thirdPerson ? t(this.hud.device === 'gamepad' ? 'debug.thirdPersonPad' : 'debug.thirdPersonMouse') : ''),
+            adjust: (k) => {
+              const modes = ['third', 'ortho', 'persp'];
+              const cur = this.cam.thirdPerson ? 0 : this.cam.usePerspective ? 2 : 1;
+              const next = modes[(cur + k + modes.length) % modes.length];
+              this.cam.usePerspective = next === 'persp';
+              if ((next === 'third') !== this.cam.thirdPerson) this.setThirdPerson(next === 'third');
+            },
+          },
           {
             label: t('settings.uiScale'),
             kind: 'slider',
@@ -1113,6 +1192,7 @@ class Game {
             adjust: (k) => this.sfx.setMusicVolume(Math.min(1, Math.max(0, this.sfx.musicVolume + k * 0.1))),
             slider: { min: 0, max: 1, step: 0.01, get: () => this.sfx.musicVolume, set: (v) => this.sfx.setMusicVolume(v) },
           },
+          { label: t('settings.reset'), kind: 'button', sub: () => t('settings.resetSub'), activate: () => this.resetSettings() },
           { label: t('settings.controls'), kind: 'header' },
           ...this.controlRows(),
           ...(this.music.credits.length ? [{ label: t('settings.credits'), kind: 'header' as const }, ...this.music.credits.map((c) => ({ label: c, kind: 'info' as const }))] : []),
