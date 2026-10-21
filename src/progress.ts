@@ -41,7 +41,8 @@ export function freshProgress(): ProgressData {
     lostGold: null,
     bonfire: null,
     litBonfires: [],
-    weapons: ['bronze_sword'],
+    // The bow is part of the starting kit for now (switch to it in the inventory).
+    weapons: ['bronze_sword', 'composite_bow'],
     equipped: 'bronze_sword',
     upgrades: {},
     flasks: 2,
@@ -66,6 +67,8 @@ export class Progress {
       if (raw) {
         const d = JSON.parse(raw) as ProgressData;
         if (d && d.version === 1) this.data = { ...freshProgress(), ...d };
+        // Older saves predate the starting bow.
+        if (!this.data.weapons.includes('composite_bow')) this.data.weapons.push('composite_bow');
       }
     } catch {
       // No storage: play without saving.
