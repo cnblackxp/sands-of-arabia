@@ -58,7 +58,7 @@ Every push to `main` builds the game and deploys it to GitHub Pages (`.github/wo
 
 ## Credits
 - **Music:** Kevin MacLeod ([incompetech.com](https://incompetech.com)): "Tabuk", "Old Road", "Desert City", "Mystery Bazaar", "Nu Flute", "Ibn Al-Noor" and "Curse of the Scarab". Licensed under [Creative Commons: By Attribution 4.0](http://creativecommons.org/licenses/by/4.0/) and re-encoded at 96 kbps. See `assets/audio/music/CREDITS.txt`.
-- **LMMS soundtrack** (Settings → Soundtrack): "The Empty Quarter", "Iram of the Pillars", "The Fair of Ukaz", "The House of the Ancients", "Raid at Dusk" and "Drums of the Tribes", made in LMMS by cnblackxp and re-encoded at 160 kbps. The instruments are CC0 samples, GeneralUser GS and LMMS factory sounds, plus the ArabTurk and m3 SoundFonts, whose licence is unclear, so this soundtrack is for prototype and personal use for now.
+- **LMMS soundtrack** (Settings → Soundtrack): "The Empty Quarter", "Hegra, City of Tombs", "Iram of the Pillars", "The Fair of Ukaz", "The Spice Road of Gerrha", "The House of the Ancients", "The Garden of Iram", "Where the Jinn Walk", "Raid at Dusk" and "Drums of the Tribes", made in LMMS by cnblackxp and re-encoded at 160 kbps. The instruments are CC0 samples, GeneralUser GS and LMMS factory sounds, plus the ArabTurk and m3 SoundFonts, whose licence is unclear, so this soundtrack is for prototype and personal use for now.
 - **Sound effects and ambience:** synthesised in the browser with WebAudio. There are no sample files.
 
 ## Tech

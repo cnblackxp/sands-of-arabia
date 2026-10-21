@@ -2210,12 +2210,26 @@ class Game {
     const fighting = this.enemies.list.some((e) => e.engaged && !e.dead && Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z) < 30) || this.npcs.npcs.some((n) => n.hostile);
     const boss = fighting && this.enemies.humans.some((e) => e.boss && e.engaged && !e.dead && Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z) < 45);
     const sacred = !!this.reading || this.sacredSpots.some(([x, z]) => Math.hypot(x - pos.x, z - pos.z) < 26);
+    // Foes close by that haven't noticed you yet (a camp ahead, a sleeping boss).
+    const danger = !fighting && this.enemies.list.some((e) => !e.dead && Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z) < 40);
+    // A market: traders in sight, or a crowd around you.
+    let traders = 0;
+    let people = 0;
+    for (const n of this.npcs.npcs) {
+      if (n.dead) continue;
+      const d = Math.hypot(n.pos.x - pos.x, n.pos.z - pos.z);
+      if (d < 24) people++;
+      if (d < 30 && (n.refRole === 'merchant' || n.refRole === 'shopkeeper')) traders++;
+    }
+    const market = traders >= 2 || people >= 6 || crowd > 3;
     if (boss) mood = 'boss';
     else if (fighting) mood = 'combat';
+    else if (danger) mood = 'danger';
     else if (this.mapName === 'raider_fort') mood = 'stronghold';
     else if (sacred) mood = 'sacred';
+    else if (market && !['wadi', 'cliffs', 'ruined_temple'].includes(this.mapName)) mood = 'town';
     else if (this.day.grade > 0.6) mood = 'night';
-    else if (crowd > 3 && !['wadi', 'cliffs', 'ruined_temple'].includes(this.mapName)) mood = 'town';
+    this.music.map = this.mapName;
     this.music.want(mood);
   }
 

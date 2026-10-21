@@ -109,10 +109,10 @@ export class Ambience {
   }
 }
 
-export type Mood = 'explore' | 'town' | 'night' | 'combat' | 'stronghold' | 'sacred' | 'boss';
+export type Mood = 'explore' | 'town' | 'night' | 'danger' | 'combat' | 'stronghold' | 'sacred' | 'boss';
 
 /** A mood a soundtrack has no piece for borrows another's (the original set has no sacred or boss pieces). */
-const FALLBACK: Partial<Record<Mood, Mood>> = { sacred: 'explore', boss: 'combat', stronghold: 'combat', night: 'explore', town: 'explore' };
+const FALLBACK: Partial<Record<Mood, Mood>> = { sacred: 'explore', danger: 'explore', boss: 'combat', stronghold: 'combat', night: 'explore', town: 'explore' };
 
 export interface TrackDef {
   file: string;
@@ -120,6 +120,8 @@ export interface TrackDef {
   moods: Mood[];
   /** Level trim in dB (the drum-heavy combat pieces sit a little lower). */
   gain?: number;
+  /** Maps this piece suits best: it is picked three times as often there. */
+  maps?: string[];
 }
 
 /** One set of pieces (the original Kevin MacLeod set, the LMMS set), switched in Settings. */
@@ -147,6 +149,10 @@ export class Music {
   private mood: Mood | null = null;
   private wanted: Mood = 'explore';
   private holdT = 0;
+  /** The last piece each mood played, so the next fight (or market, or shrine) hears another. */
+  private last = new Map<Mood, TrackDef>();
+  /** The map the player is on (pieces can prefer maps). */
+  map = '';
 
   constructor(
     private sfx: Sfx,
@@ -243,9 +249,19 @@ export class Music {
       this.mood = mood;
       return;
     }
+    // Never the piece just playing, nor the one this mood played last time, when there is a choice.
+    const fresh = list.filter((t) => t !== this.current?.track && t !== this.last.get(mood));
     const others = list.filter((t) => t !== this.current?.track);
-    const from = others.length ? others : list;
-    const track = from[Math.floor(Math.random() * from.length)];
+    const from = fresh.length ? fresh : others.length ? others : list;
+    // Pieces written for this kind of place come up three times as often here.
+    const weights = from.map((t) => (t.maps?.includes(this.map) ? 3 : 1));
+    let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+    let track = from[from.length - 1];
+    for (let i = 0; i < from.length; i++) if ((r -= weights[i]) < 0) {
+      track = from[i];
+      break;
+    }
+    this.last.set(mood, track);
     if (this.current) {
       // Leaving a fight fades fast; everything else lingers.
       const fast = this.mood === 'combat' || this.mood === 'boss';

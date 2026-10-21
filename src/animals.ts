@@ -105,18 +105,7 @@ export class Horse {
     const fz = Math.cos(this.yaw);
     let moved: { x: number; z: number; falling: boolean };
     if (this.airborne) {
-      // A horse clears about 1.7 m; winged horses glide down slowly.
-      const g = this.winged && this.vy < 0 ? 9 : this.winged ? 26 : 32;
-      this.vy = Math.max(this.winged ? -6 : -28, this.vy - g * dt);
-      const prevY = this.mover.feet.y;
-      moved = this.mover.move(fx * this.speed * dt, fz * this.speed * dt, prevY + this.vy * dt);
-      const f = this.mover.feet;
-      const floor = this.physics.support(f.x, f.z, prevY + 0.05);
-      if (this.vy <= 0 && f.y <= floor + 0.02) {
-        this.airborne = false;
-        this.vy = 0;
-        this.mover.move(0, 0, floor);
-      }
+      moved = this.fall(dt, fx * this.speed * dt, fz * this.speed * dt);
     } else {
       moved = this.mover.move(fx * this.speed * dt, fz * this.speed * dt);
       if (moved.falling) {
@@ -132,9 +121,27 @@ export class Horse {
     this.animate();
   }
 
+  /** One airborne step: a horse clears about 1.7 m; winged horses glide down slowly. */
+  private fall(dt: number, dx: number, dz: number): { x: number; z: number; falling: boolean } {
+    const g = this.winged && this.vy < 0 ? 9 : this.winged ? 26 : 32;
+    this.vy = Math.max(this.winged ? -6 : -28, this.vy - g * dt);
+    const prevY = this.mover.feet.y;
+    const moved = this.mover.move(dx, dz, prevY + this.vy * dt);
+    const f = this.mover.feet;
+    const floor = this.physics.support(f.x, f.z, prevY + 0.05);
+    if (this.vy <= 0 && f.y <= floor + 0.02) {
+      this.airborne = false;
+      this.vy = 0;
+      this.mover.move(0, 0, floor);
+    }
+    return moved;
+  }
+
   idle(dt: number): void {
     // Stray horses settle; they are not simulated otherwise.
     this.speed = Math.max(0, this.speed - 10 * dt);
+    // Left in mid-air (the rider jumped off): drift on, then fall or glide to the ground.
+    if (this.airborne) this.fall(dt, Math.sin(this.yaw) * this.speed * dt, Math.cos(this.yaw) * this.speed * dt);
     this.animate();
   }
 

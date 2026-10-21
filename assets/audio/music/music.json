@@ -4,13 +4,57 @@
       "id": "original",
       "dir": "",
       "tracks": [
-        { "file": "Tabuk.mp3", "title": "Tabuk — Kevin MacLeod", "moods": ["explore"] },
-        { "file": "Old Road.mp3", "title": "Old Road — Kevin MacLeod", "moods": ["explore"] },
-        { "file": "Desert City.mp3", "title": "Desert City — Kevin MacLeod", "moods": ["town"] },
-        { "file": "Mystery Bazaar.mp3", "title": "Mystery Bazaar — Kevin MacLeod", "moods": ["town", "night"] },
-        { "file": "Nu Flute.mp3", "title": "Nu Flute — Kevin MacLeod", "moods": ["night"] },
-        { "file": "Ibn Al-Noor.mp3", "title": "Ibn Al-Noor — Kevin MacLeod", "moods": ["combat"] },
-        { "file": "Curse of the Scarab.mp3", "title": "Curse of the Scarab — Kevin MacLeod", "moods": ["stronghold", "combat"] }
+        {
+          "file": "Tabuk.mp3",
+          "title": "Tabuk — Kevin MacLeod",
+          "moods": [
+            "explore"
+          ]
+        },
+        {
+          "file": "Old Road.mp3",
+          "title": "Old Road — Kevin MacLeod",
+          "moods": [
+            "explore"
+          ]
+        },
+        {
+          "file": "Desert City.mp3",
+          "title": "Desert City — Kevin MacLeod",
+          "moods": [
+            "town"
+          ]
+        },
+        {
+          "file": "Mystery Bazaar.mp3",
+          "title": "Mystery Bazaar — Kevin MacLeod",
+          "moods": [
+            "town",
+            "night"
+          ]
+        },
+        {
+          "file": "Nu Flute.mp3",
+          "title": "Nu Flute — Kevin MacLeod",
+          "moods": [
+            "night"
+          ]
+        },
+        {
+          "file": "Ibn Al-Noor.mp3",
+          "title": "Ibn Al-Noor — Kevin MacLeod",
+          "moods": [
+            "combat"
+          ]
+        },
+        {
+          "file": "Curse of the Scarab.mp3",
+          "title": "Curse of the Scarab — Kevin MacLeod",
+          "moods": [
+            "stronghold",
+            "combat"
+          ]
+        }
       ],
       "credits": [
         "Music: Kevin MacLeod (incompetech.com) — Licensed under Creative Commons: By Attribution 4.0 (creativecommons.org/licenses/by/4.0/)",
@@ -21,15 +65,133 @@
       "id": "lmms",
       "dir": "lmms/",
       "tracks": [
-        { "file": "The_Empty_Quarter.mp3", "title": "The Empty Quarter", "moods": ["explore", "night"] },
-        { "file": "Iram_of_the_Pillars.mp3", "title": "Iram of the Pillars", "moods": ["explore"] },
-        { "file": "The_Fair_of_Ukaz.mp3", "title": "The Fair of Ukaz", "moods": ["town"] },
-        { "file": "The_House_of_the_Ancients.mp3", "title": "The House of the Ancients", "moods": ["sacred", "night"] },
-        { "file": "Raid_at_Dusk.mp3", "title": "Raid at Dusk", "moods": ["combat", "stronghold"], "gain": -1.5 },
-        { "file": "Drums_of_the_Tribes.mp3", "title": "Drums of the Tribes", "moods": ["boss", "stronghold"], "gain": -1.5 }
+        {
+          "file": "The_Empty_Quarter.mp3",
+          "title": "The Empty Quarter",
+          "moods": [
+            "explore",
+            "night"
+          ],
+          "maps": [
+            "qaryat_al_faw",
+            "oasis",
+            "caravanserai",
+            "dumat_al_jandal"
+          ]
+        },
+        {
+          "file": "Hegra.mp3",
+          "title": "Hegra, City of Tombs",
+          "moods": [
+            "explore",
+            "night"
+          ],
+          "maps": [
+            "hegra",
+            "jabal_ithlib",
+            "cliffs",
+            "ruined_temple",
+            "tayma",
+            "wadi"
+          ]
+        },
+        {
+          "file": "Iram_of_the_Pillars.mp3",
+          "title": "Iram of the Pillars",
+          "moods": [
+            "explore"
+          ],
+          "maps": [
+            "ruined_temple",
+            "marib",
+            "marib_breach",
+            "ukaz",
+            "rooftops"
+          ]
+        },
+        {
+          "file": "The_Fair_of_Ukaz.mp3",
+          "title": "The Fair of Ukaz",
+          "moods": [
+            "town"
+          ],
+          "maps": [
+            "ukaz",
+            "oasis",
+            "marib",
+            "marib_breach"
+          ]
+        },
+        {
+          "file": "The_Spice_Road_of_Gerrha.mp3",
+          "title": "The Spice Road of Gerrha",
+          "moods": [
+            "town"
+          ],
+          "maps": [
+            "caravanserai",
+            "qaryat_al_faw",
+            "dumat_al_jandal",
+            "tayma",
+            "rooftops"
+          ]
+        },
+        {
+          "file": "The_House_of_the_Ancients.mp3",
+          "title": "The House of the Ancients",
+          "moods": [
+            "sacred",
+            "night"
+          ],
+          "maps": [
+            "hegra",
+            "jabal_ithlib",
+            "ruined_temple"
+          ]
+        },
+        {
+          "file": "The_Garden_of_Iram.mp3",
+          "title": "The Garden of Iram",
+          "moods": [
+            "sacred"
+          ],
+          "maps": [
+            "dumat_al_jandal",
+            "marib",
+            "marib_breach",
+            "wadi",
+            "oasis"
+          ]
+        },
+        {
+          "file": "Where_the_Jinn_Walk.mp3",
+          "title": "Where the Jinn Walk",
+          "moods": [
+            "danger",
+            "stronghold"
+          ]
+        },
+        {
+          "file": "Raid_at_Dusk.mp3",
+          "title": "Raid at Dusk",
+          "moods": [
+            "combat",
+            "stronghold"
+          ],
+          "gain": -1.5
+        },
+        {
+          "file": "Drums_of_the_Tribes.mp3",
+          "title": "Drums of the Tribes",
+          "moods": [
+            "combat",
+            "boss"
+          ],
+          "gain": -1.5
+        }
       ],
       "credits": [
-        "Soundtrack made in LMMS by cnblackxp: The Empty Quarter, Iram of the Pillars, The Fair of Ukaz, The House of the Ancients, Raid at Dusk, Drums of the Tribes",
+        "Soundtrack made in LMMS by cnblackxp: The Empty Quarter, Hegra, Iram of the Pillars, The Fair of Ukaz, The Spice Road of Gerrha, The House of the Ancients, The Garden of Iram, Where the Jinn Walk, Raid at Dusk, Drums of the Tribes",
         "Instruments: CC0 samples, GeneralUser GS and LMMS factory sounds, plus the ArabTurk and m3 SoundFonts (licence unclear: prototype use only)"
       ]
     }
