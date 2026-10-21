@@ -46,6 +46,7 @@ class Ctx:
     def __init__(self):
         self.colliders, self.spawns, self.lights, self.exits = [], [], [], []
         self.paths, self.landmarks = {}, {}
+        self.names = {}                         # landmark key -> (english, arabic)
         self.keepout = []                       # (x, y, r): no dressing here
 
     def col(self, cx, cy, cz, sx, sy, sz, rot=0.0, tag="prop"):

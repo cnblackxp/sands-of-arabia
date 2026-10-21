@@ -2929,6 +2929,20 @@
   },
   {
    "pos": [
+    110,
+    0.3466,
+    -25
+   ],
+   "half": [
+    0.55,
+    0.8,
+    0.55
+   ],
+   "yaw": 0,
+   "tag": "prop"
+  },
+  {
+   "pos": [
     -30.0,
     1.2994,
     -44.0
@@ -3628,6 +3642,16 @@
    "yaw": 2.162,
    "kind": "hound",
    "camp": "tomb_robbers"
+  },
+  {
+   "role": "player",
+   "pos": [
+    106,
+    -0.4863,
+    -20
+   ],
+   "yaw": 1.5708,
+   "from": "jabal_ithlib"
   }
  ],
  "lights": [
@@ -3972,6 +3996,17 @@
    ],
    "radius": 6,
    "label": "North to the Sabaean temple ruins"
+  },
+  {
+   "to": "jabal_ithlib",
+   "pos": [
+    114,
+    -0.4179,
+    -20
+   ],
+   "radius": 6,
+   "label": "East to Jabal Ithlib",
+   "label_ar": "\u0634\u0631\u0642\u0627 \u0625\u0644\u0649 \u062c\u0628\u0644 \u0625\u062b\u0644\u0628"
   }
  ]
 }

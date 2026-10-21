@@ -1051,10 +1051,12 @@ MAP_NAMES = next((a[5:].split(",") for a in ARGS if a.startswith("maps=")), None
 if want("maps"):
     import maps as _maps
     import platform_maps  # noqa: F401  (registers the v4 platforming maps)
+    import big_maps  # noqa: F401  (registers the v6 research maps)
     _maps.run(sys.modules[__name__], MAP_NAMES)
 if want("maps") or want("level"):
     import maps as _maps
     import platform_maps  # noqa: F401  (registers the v4 platforming maps)
+    import big_maps  # noqa: F401  (registers the v6 research maps)
     _maps.write_index(sys.modules[__name__])
 if want("sky") and "nosky" not in ARGS:
     export_sky()

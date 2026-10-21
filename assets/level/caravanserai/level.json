@@ -3612,6 +3612,20 @@
    ],
    "yaw": 0,
    "tag": "ruin"
+  },
+  {
+   "pos": [
+    110,
+    7.5928,
+    35
+   ],
+   "half": [
+    0.55,
+    0.8,
+    0.55
+   ],
+   "yaw": 0,
+   "tag": "prop"
   }
  ],
  "spawns": [
@@ -4261,6 +4275,16 @@
    "yaw": -2.4435,
    "kind": "slinger",
    "camp": "ridge"
+  },
+  {
+   "role": "player",
+   "pos": [
+    106,
+    6.4311,
+    40
+   ],
+   "yaw": 1.5708,
+   "from": "marib"
   }
  ],
  "lights": [
@@ -4424,6 +4448,17 @@
    ],
    "radius": 6,
    "label": "North into raider country"
+  },
+  {
+   "to": "marib",
+   "pos": [
+    114,
+    7.7246,
+    40
+   ],
+   "radius": 6,
+   "label": "South-east to Marib, land of Saba",
+   "label_ar": "\u0625\u0644\u0649 \u0645\u0623\u0631\u0628 \u0641\u064a \u0623\u0631\u0636 \u0633\u0628\u0623"
   }
  ]
 }

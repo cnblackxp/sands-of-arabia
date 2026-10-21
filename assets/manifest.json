@@ -751,45 +751,89 @@
    ]
   },
   "terrain": {
-   "file": "level/ruined_temple/terrain.glb",
+   "file": "level/marib_breach/terrain.glb",
    "kind": "terrain",
    "size": [
-    180.0,
-    11.082,
-    184.0
+    1000.0,
+    116.756,
+    800.0
    ],
    "materials": [
     "SandVC"
    ]
   },
   "town": {
-   "file": "level/ruined_temple/town.glb",
+   "file": "level/marib_breach/town.glb",
    "kind": "level",
    "size": [
-    166.001,
-    15.308,
-    171.248
+    928.109,
+    63.924,
+    785.926
    ],
    "materials": [
+    "Ashlar0",
+    "Ashlar1",
+    "Ashlar2",
+    "Ashlar3",
+    "AshlarShade",
+    "Aw1a",
+    "Aw1b",
+    "Aw3a",
+    "Aw3b",
+    "Aw4a",
+    "Aw4b",
+    "Aw5a",
+    "Aw5b",
     "Banner0",
+    "Banner1",
     "Bark",
     "Bone",
+    "Brass",
     "Canopy0",
     "Canopy1",
+    "Clay",
+    "Clay2",
+    "Dates",
+    "DeadField0",
+    "DeadField1",
+    "DeadField2",
     "DryBrush",
+    "DryCanal",
+    "Fire",
+    "Frond",
+    "Furrow",
+    "GoatHair",
+    "LampFlame",
     "Leather",
     "Lime",
-    "RockBand0",
-    "RockBand1",
-    "RockBand2",
-    "RockBand3",
+    "MaribHill0",
+    "MaribHill1",
+    "MaribHill2",
+    "MaribHill3",
+    "Mud0",
+    "Mud1",
+    "Mud2",
+    "Opening",
+    "Putlog",
+    "Rug0",
+    "Rug1",
+    "Rug3",
+    "Rug4",
+    "Sack",
     "Shrub0",
     "Shrub1",
     "Shrub2",
+    "Spice0",
+    "Spice1",
+    "Spice3",
     "Stone",
     "StoneDark",
+    "Trunk",
+    "WaterDeep",
     "Wood"
-   ]
+   ],
+   "chunks": 22,
+   "chunk_size": 200.0
   },
   "backdrop": {
    "file": "level/backdrop.glb",
@@ -820,12 +864,12 @@
    "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
   },
   "backdrop_ground": {
-   "file": "level/ruined_temple/backdrop_ground.glb",
+   "file": "level/marib_breach/backdrop_ground.glb",
    "kind": "backdrop",
    "size": [
-    1620.0,
-    10.19,
-    1620.0
+    2440.0,
+    116.073,
+    2240.0
    ],
    "materials": [
     "SandVC"
@@ -1168,6 +1212,21 @@
     "Wood"
    ],
    "notes": "Straw butt on an A-frame; painted face toward +Z, centre 1.1 m up. In maps its collider tag is 'target'."
+  },
+  "level_jabal_ithlib": {
+   "file": "level/jabal_ithlib/level.json",
+   "kind": "level-data",
+   "title": "Jabal Ithlib: the sacred mountain"
+  },
+  "level_marib": {
+   "file": "level/marib/level.json",
+   "kind": "level-data",
+   "title": "Marib: the Great Dam of Saba"
+  },
+  "level_marib_breach": {
+   "file": "level/marib_breach/level.json",
+   "kind": "level-data",
+   "title": "Marib after the flood of al-'Arim"
   }
  },
  "conventions": {

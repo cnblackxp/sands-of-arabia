@@ -62,9 +62,25 @@ def rock_top(base, bands_hex, z0, z1):
     return fn
 
 
+# Arabic titles for the maps that predate the bilingual schema (classical Arabic, no harakat)
+AR_TITLES = {
+    "oasis": "بلدة الواحة",
+    "hegra": "الحجر: مدينة المقابر المنحوتة",
+    "caravanserai": "خان على طريق البخور",
+    "wadi": "وادي بساتين النخيل",
+    "raider_fort": "معقل الغزاة",
+    "rooftops": "سطوح قرية الفاو",
+    "cliffs": "جروف القناطر",
+    "ruined_temple": "أطلال المعبد السبئي",
+}
+
+
 class MapDef:
     name = "map"
     title = "Map"
+    title_ar = ""
+    chunk = None                              # metres: export the town mesh as culling tiles (big maps)
+    variant_of = None                         # another map's name if this is an alternate state of it
     bounds = (-120.0, 120.0, -120.0, 120.0)   # blender x0, x1, y0, y1
     step = 2.0
     sun = (8.0, -37.0)                        # elevation, sky azimuth (deg)
@@ -176,7 +192,36 @@ def export_far_ground(ex, m, rel_dir, extent=700.0, step=20.0, drop=0.5):
     bpy.data.objects.remove(ob, do_unlink=True)
 
 
-def join_export(ex, objs, rel, kind="level"):
+def split_chunks(ob, size):
+    """Split a joined mesh into square tiles (by face centre) so a big map can be frustum-culled per tile."""
+    import bmesh as _bm
+    from collections import defaultdict
+    me = ob.data
+    tiles = defaultdict(list)
+    for p in me.polygons:
+        c = ob.matrix_world @ p.center
+        tiles[(math.floor(c.x / size), math.floor(c.y / size))].append(p.index)
+    out = []
+    for (tx, ty), faces in sorted(tiles.items()):
+        keep = set(faces)
+        bm = _bm.new()
+        bm.from_mesh(me)
+        bm.faces.ensure_lookup_table()
+        _bm.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context="FACES")
+        nm = bpy.data.meshes.new(f"Chunk_{tx}_{ty}")
+        bm.to_mesh(nm)
+        bm.free()
+        for mt in me.materials:
+            nm.materials.append(mt)
+        o = bpy.data.objects.new(f"Chunk_{tx}_{ty}", nm)
+        o.matrix_world = ob.matrix_world
+        ob.users_collection[0].objects.link(o)
+        out.append(o)
+    bpy.data.objects.remove(ob, do_unlink=True)
+    return out
+
+
+def join_export(ex, objs, rel, kind="level", chunk=None):
     meshes = [o for o in objs if o.type == "MESH" and len(o.data.polygons)]
     vl = bpy.context.view_layer
     bpy.context.view_layer.update()
@@ -189,8 +234,15 @@ def join_export(ex, objs, rel, kind="level"):
     bpy.ops.object.join()
     ob = vl.objects.active
     ob.name = os.path.splitext(os.path.basename(rel))[0].title()
+    if chunk:
+        parts = split_chunks(ob, chunk)
+        ex.export(parts, rel, kind, extra={"chunks": len(parts), "chunk_size": chunk})
+        for o in parts:
+            bpy.data.objects.remove(o, do_unlink=True)
+        return len(parts)
     ex.export([ob], rel, kind)
     bpy.data.objects.remove(ob, do_unlink=True)
+    return 1
 
 
 def stall_lights(ctx, objs):
@@ -297,8 +349,11 @@ def level_dict(m, ctx, heights, rel_dir):
         d = {"role": s["role"], "pos": to3((s["x"], s["y"], z)), "yaw": round(s["rot"], 4)}
         d.update({k: v for k, v in s.items() if k not in ("role", "x", "y", "rot", "z") and v is not None})
         return d
+    names = {k: {"en": v[0], "ar": v[1]} for k, v in getattr(ctx, "names", {}).items()}
     return {
-        "name": m.name, "title": m.title,
+        "name": m.name, "title": m.title, **({"title_ar": m.title_ar} if m.title_ar else {}),
+        **({"variant_of": m.variant_of} if m.variant_of else {}),
+        **({"landmark_names": names} if names else {}),
         "terrain": f"{rel_dir}/terrain.glb", "town": f"{rel_dir}/town.glb",
         "backdrop_ground": f"{rel_dir}/backdrop_ground.glb",
         "sky": {"env_hdr": "sky/sunset_env.hdr", "background_jpg": "sky/sunset_bg.jpg"},
@@ -312,8 +367,10 @@ def level_dict(m, ctx, heights, rel_dir):
         "lights": [{"type": k, "pos": to3((x, y, z))} for k, x, y, z in ctx.lights],
         "paths": {k: [to3((p[0], p[1], L.height(p[0], p[1]))) for p in v] for k, v in ctx.paths.items()},
         "landmarks": {k: to3((p[0], p[1], L.height(p[0], p[1]))) for k, p in ctx.landmarks.items()},
+        **({"water": [{"level": w["level"], "x": list(w["x"]), "z": [-w["y"][1], -w["y"][0]]}
+                      for w in getattr(ctx, "water", [])]} if getattr(ctx, "water", None) else {}),
         "exits": [{"to": e["to"], "pos": to3((e["x"], e["y"], L.height(e["x"], e["y"]))), "radius": e.get("r", 6.0),
-                   "label": e["label"]} for e in ctx.exits],
+                   "label": e["label"], **({"label_ar": e["label_ar"]} if e.get("label_ar") else {})} for e in ctx.exits],
     }
 
 
@@ -332,13 +389,14 @@ def export_map(ex, m):
     objs = new_objects(before)
     stall_lights(ctx, objs)
     objs.append(mb.build("Static", L.C_LAND))
-    join_export(ex, objs, f"{rel_dir}/town.glb")
+    nchunks = join_export(ex, objs, f"{rel_dir}/town.glb", chunk=m.chunk)
     lvl = level_dict(m, ctx, heights, rel_dir)
     enforce_spacing(lvl, m.height, m.name)
     with open(os.path.join(ex.ASSETS, rel_dir, "level.json"), "w", encoding="utf8") as f:
         json.dump(lvl, f, indent=1)
     ex.MANIFEST["assets"][f"level_{m.name}"] = {"file": f"{rel_dir}/level.json", "kind": "level-data", "title": m.title}
-    print("MAP", m.name, len(ctx.colliders), "colliders", len(ctx.spawns), "spawns", len(ctx.lights), "lights")
+    print("MAP", m.name, len(ctx.colliders), "colliders", len(ctx.spawns), "spawns", len(ctx.lights), "lights",
+          nchunks, "chunks")
     L.HEIGHT_FN = L.oasis_height
     return lvl
 
@@ -517,6 +575,11 @@ class Hegra(MapDef):
         # v5 enemies: hounds with the tomb robbers
         for (x, y) in [(88, 98), (94, 110)]:
             ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind="hound", camp="tomb_robbers")
+        # v6: east to Jabal Ithlib
+        ctx.exits.append({"to": "jabal_ithlib", "x": 114, "y": 20, "r": 6, "label": "East to Jabal Ithlib",
+                          "label_ar": "شرقا إلى جبل إثلب"})
+        ctx.spawn("player", 106, 20, math.pi / 2, **{"from": "jabal_ithlib"})
+        K.cairn(mb, ctx, 110, 25)
 
 
 # ================================================================== Caravanserai
@@ -626,6 +689,11 @@ class Caravanserai(MapDef):
         for (x, y) in [(88, 80), (82, 86)]:
             ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind="hound", camp="ridge")
         ctx.spawn("enemy", 96, 90, R(-140), kind="slinger", camp="ridge")
+        # v6: east to Marib
+        ctx.exits.append({"to": "marib", "x": 114, "y": -40, "r": 6, "label": "South-east to Marib, land of Saba",
+                          "label_ar": "إلى مأرب في أرض سبأ"})
+        ctx.spawn("player", 106, -40, math.pi / 2, **{"from": "marib"})
+        K.cairn(mb, ctx, 110, -35)
 
 
 # ================================================================== Wadi gardens
@@ -923,8 +991,12 @@ def run(ex, names=None):
 
 
 def write_index(ex):
-    idx = {"start": "oasis", "maps": [{"name": "oasis", "title": "The oasis town", "level": "level/level.json"}]}
+    idx = {"start": "oasis", "maps": [{"name": "oasis", "title": "The oasis town", "title_ar": AR_TITLES["oasis"],
+                                       "level": "level/level.json"}]}
     for n, m in MAPS.items():
-        idx["maps"].append({"name": n, "title": m.title, "level": f"level/{n}/level.json"})
+        e = {"name": n, "title": m.title, "title_ar": m.title_ar or AR_TITLES.get(n, ""), "level": f"level/{n}/level.json"}
+        if m.variant_of:
+            e["variant_of"] = m.variant_of
+        idx["maps"].append(e)
     with open(os.path.join(ex.ASSETS, "level", "maps.json"), "w", encoding="utf8") as f:
         json.dump(idx, f, indent=1)

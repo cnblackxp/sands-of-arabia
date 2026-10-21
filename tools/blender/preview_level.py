@@ -86,7 +86,7 @@ elif AT == "center" or MAP:
     target = Vector(((bx[0] + bx[1]) / 2, -(bz[0] + bz[1]) / 2, 0))
 else:
     target = Vector((0, 10, 2))
-cam.location = target + Euler((0, 0, math.radians(-30))).to_matrix() @ Vector((0, -200, 170))
+cam.location = target + Euler((0, 0, math.radians(-30))).to_matrix() @ (Vector((0, -200, 170)) * max(1.0, SCALE / 250))
 cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
 scene.render.engine = "CYCLES"
 prefs = bpy.context.preferences.addons["cycles"].preferences
