@@ -34,9 +34,20 @@ const CUT_RADIUS = 2.6;
 const MOUNT_RANGE = 2.8;
 const USE_RANGE = 2.2;
 
+/** Dithered fade: drop a share of the pixels in a 4×4 Bayer pattern, the rest drawn solid (no see-through insides). */
+const FADE_GLSL = /* glsl */ `
+  if (uFade < 0.999) {
+    const float B[16] = float[16](0., 8., 2., 10., 12., 4., 14., 6., 3., 11., 1., 9., 15., 7., 13., 5.);
+    ivec2 q = ivec2(mod(gl_FragCoord.xy, 4.0));
+    if ((B[q.x + q.y * 4] + 0.5) / 16.0 > uFade) discard;
+  }
+`;
+
 /**
- * Fade a character to `k` opacity (1 = solid). Its meshes get their own copies of
- * the shared materials the first time; flash materials swapped in for a moment are left alone.
+ * Fade a character to `k` (1 = solid) with a dither, so it reads as one faded
+ * shape rather than overlapping see-through boxes. Its meshes get their own
+ * patched copies of the shared materials the first time; flash materials swapped
+ * in for a moment are left alone.
  */
 function seeThrough(root: THREE.Object3D, k: number): void {
   root.traverse((o) => {
@@ -46,17 +57,22 @@ function seeThrough(root: THREE.Object3D, k: number): void {
       if (k >= 1) return;
       const own = (Array.isArray(m.material) ? m.material : [m.material]).map((x) => {
         const c = x.clone();
-        c.userData.seeThrough = true;
+        const fade = { value: 1 };
+        c.userData.fade = fade;
+        c.onBeforeCompile = (sh) => {
+          sh.uniforms.uFade = fade;
+          sh.fragmentShader = 'uniform float uFade;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + FADE_GLSL);
+        };
+        c.customProgramCacheKey = () => 'char-fade';
+        c.needsUpdate = true;
         return c;
       });
       m.material = Array.isArray(m.material) ? own : own[0];
       m.userData.ownMats = true;
     }
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
-      if (!mat.userData.seeThrough) continue;
-      mat.transparent = k < 1;
-      mat.opacity = k;
-      mat.depthWrite = k >= 1;
+      const fade = mat.userData.fade as { value: number } | undefined;
+      if (fade) fade.value = k;
     }
   });
 }
@@ -215,7 +231,7 @@ class Game {
   private seeHorse: Horse | null = null;
   private updateSeeThrough(dt: number): void {
     const p = this.player;
-    const want = this.cam.thirdPerson && p.aiming && !this.menu.isOpen ? (p.horse ? 0.3 : 0.45) : 1;
+    const want = this.cam.thirdPerson && p.aiming && !this.menu.isOpen ? (p.horse ? 0.35 : 0.5) : 1;
     this.seeK += (want - this.seeK) * (1 - Math.exp(-dt * 10));
     const k = this.seeK > 0.98 ? 1 : this.seeK;
     // A horse left behind (dismounted mid-aim) gets its looks back.
