@@ -192,10 +192,8 @@ export class FollowCamera {
     // Pivot: the player's upper chest (the rider's, on a horse), followed tightly (no lag on turns).
     const pv = this.tpPivot.copy(follow).add(this.shake);
     pv.y += THREE.MathUtils.lerp(0.55, 1.75, m);
-    // Riding, look a little down from above so the horse's back and neck don't block the view.
-    const pitch = THREE.MathUtils.lerp(this.tpPitch, Math.max(this.tpPitch, 0.14), m);
-    const cp = Math.cos(pitch);
-    const back = new THREE.Vector3(Math.sin(this.tpYaw) * cp, Math.sin(pitch), Math.cos(this.tpYaw) * cp);
+    const cp = Math.cos(this.tpPitch);
+    const back = new THREE.Vector3(Math.sin(this.tpYaw) * cp, Math.sin(this.tpPitch), Math.cos(this.tpYaw) * cp);
     const right = new THREE.Vector3(Math.cos(this.tpYaw), 0, -Math.sin(this.tpYaw));
     // Over the right shoulder, so the character sits left of centre; wider while aiming and riding.
     const shoulder = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.75, 1.05, this.tpAimK), THREE.MathUtils.lerp(1.15, 1.45, this.tpAimK), m);
