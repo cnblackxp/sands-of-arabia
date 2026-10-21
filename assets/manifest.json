@@ -751,40 +751,34 @@
    ]
   },
   "terrain": {
-   "file": "level/ukaz/terrain.glb",
+   "file": "level/tayma/terrain.glb",
    "kind": "terrain",
    "size": [
-    800.0,
-    40.316,
-    800.0
+    640.0,
+    14.771,
+    640.0
    ],
    "materials": [
     "SandVC"
    ],
-   "tiles": 64,
-   "tile_size": 125.0
+   "tiles": 36,
+   "tile_size": 120.0
   },
   "town": {
-   "file": "level/ukaz/town.glb",
+   "file": "level/tayma/town.glb",
    "kind": "level",
    "size": [
-    617.938,
-    41.765,
-    768.852
+    577.186,
+    25.553,
+    599.496
    ],
    "materials": [
     "Aw0a",
     "Aw0b",
-    "Aw1a",
-    "Aw1b",
     "Aw2a",
     "Aw2b",
-    "Aw3a",
-    "Aw3b",
     "Aw4a",
     "Aw4b",
-    "Aw5a",
-    "Aw5b",
     "Banner0",
     "Bark",
     "Bone",
@@ -795,50 +789,43 @@
     "Clay2",
     "Dates",
     "DryBrush",
+    "DryStone0",
+    "DryStone1",
+    "DryStone2",
+    "DryStone3",
     "Fire",
     "Frond",
     "GoatHair",
-    "Granite0",
-    "Granite1",
-    "Granite2",
-    "Granite3",
     "LampFlame",
     "Leather",
+    "Lime",
+    "Mud0",
+    "Mud1",
+    "MudPlaster",
     "Opening",
-    "RaceFlag",
-    "RedLeather",
-    "RedLeatherDark",
+    "RockBand0",
+    "RockBand1",
+    "RockBand2",
+    "RockBand3",
     "Rug0",
     "Rug1",
     "Rug2",
-    "Rug3",
     "Rug4",
     "Sack",
     "Shrub0",
     "Shrub1",
     "Shrub2",
-    "Spice0",
-    "Spice1",
-    "Spice2",
-    "Spice3",
-    "Spice4",
-    "Spice5",
     "Stone",
     "StoneDark",
-    "TentCloth",
-    "Tribe_dhubyan",
-    "Tribe_hawazin",
-    "Tribe_kinana",
-    "Tribe_taghlib",
-    "Tribe_tamim",
-    "Tribe_thaqif",
+    "StoneRed",
+    "StoneWhite",
     "Trunk",
     "WaterDeep",
     "Wood"
    ],
-   "chunks": 21,
-   "chunk_size": 125.0,
-   "instance_groups": 60
+   "chunks": 16,
+   "chunk_size": 120.0,
+   "instance_groups": 36
   },
   "backdrop": {
    "file": "level/backdrop.glb",
@@ -869,12 +856,12 @@
    "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
   },
   "backdrop_ground": {
-   "file": "level/ukaz/backdrop_ground.glb",
+   "file": "level/tayma/backdrop_ground.glb",
    "kind": "backdrop",
    "size": [
-    2240.0,
-    39.08,
-    2240.0
+    2080.0,
+    14.628,
+    2080.0
    ],
    "materials": [
     "SandVC"
@@ -1307,6 +1294,16 @@
    "file": "level/ukaz/level.json",
    "kind": "level-data",
    "title": "The fair of Ukaz"
+  },
+  "level_tayma": {
+   "file": "level/tayma/level.json",
+   "kind": "level-data",
+   "title": "Tayma: the walled oasis"
+  },
+  "level_dumat_al_jandal": {
+   "file": "level/dumat_al_jandal/level.json",
+   "kind": "level-data",
+   "title": "Dumat al-Jandal: city of queens"
   }
  },
  "conventions": {

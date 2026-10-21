@@ -388,3 +388,136 @@ def stone_footed_tower_house(mb, ctx, x, y, rot, w, d, h, stone_h=3.0):
     ob.location.z += stone_h - 0.0
     ctx.col(x, y, g + stone_h + h / 2, w, d, h + 1.5, rot, "building")
     return ob
+
+
+# ------------------------------------------------------------------ v7: north Arabian stonework
+DRYSTONE = K.bands(["#a8916f", "#bfa680", "#9a8466", "#b39a74"], "DryStone")
+STONE_WHITE = L.mat("StoneWhite", "#e5d7bd", 0.9)
+STONE_RED = L.mat("StoneRed", "#a85a3e", 0.9)
+MUD_PLASTER = L.mat("MudPlaster", "#c49a6c", 0.95)
+
+
+def drystone_wall(mb, ctx, x0, y0, x1, y1, h, t=1.2, mud_top=0.0, crenel=False, tag="wall", collide=True):
+    """Dry-stone wall in 0.4 m courses of jittered colours; optional mud-plastered upper part and
+    crenellations (Marid style). Walkable top at ground + h."""
+    a, b = Vector((x0, y0)), Vector((x1, y1))
+    dv = b - a
+    ln = dv.length
+    m_ = (a + b) / 2
+    rot = math.atan2(dv.y, dv.x)
+    z0 = min(L.height(a.x, a.y), L.height(b.x, b.y), L.height(m_.x, m_.y)) - 0.5
+    lc = Local(mb, m_.x, m_.y, z0, rot)
+    stone_h = h + 0.5 - mud_top
+    k = 0
+    zz = 0.0
+    while zz < stone_h - 0.05:
+        ch = min(0.4, stone_h - zz)
+        lc.box((random.uniform(-0.05, 0.05), random.uniform(-0.03, 0.03), zz + ch / 2), (ln, t - 0.02 * (k % 2), ch - 0.01),
+               DRYSTONE[random.randrange(4)])
+        zz += ch
+        k += 1
+    if mud_top > 0:
+        lc.box((0, 0, stone_h + mud_top / 2), (ln, t * 0.92, mud_top), MUD_PLASTER)
+    if crenel:
+        for i in range(int(ln / 1.1)):
+            lc.box((-ln / 2 + 0.55 + i * 1.1, 0, h + 0.5 + 0.35), (0.5, t * 0.5, 0.7), MUD_PLASTER if mud_top else DRYSTONE[1])
+    if collide:
+        ctx.col(m_.x, m_.y, z0 + (h + 0.5) / 2, ln, t, h + 0.5, rot, tag)
+    return z0 + h + 0.5
+
+
+def drystone_house(mb, ctx, x, y, rot, w, d, h):
+    """Flat-roofed dry-stone house (walkable roof at ground + h), low parapet, dark door and window slits."""
+    g = L.height(x, y)
+    lc = Local(mb, x, y, g - 0.5, rot)
+    zz, k = 0.0, 0
+    while zz < h + 0.5 - 0.05:
+        ch = min(0.4, h + 0.5 - zz)
+        lc.box((0, 0, zz + ch / 2), (w - 0.03 * (k % 2), d - 0.03 * (k % 2), ch - 0.01), DRYSTONE[random.randrange(4)])
+        zz += ch
+        k += 1
+    ctx.col(x, y, g + h / 2 - 0.25, w, d, h + 0.5, rot, "roof")
+    for sx in (-1, 1):
+        lc.box((0, sx * (d / 2 - 0.1), h + 0.5 + 0.14), (w * 0.8, 0.2, 0.28), DRYSTONE[1])
+    lc.box((0, -d / 2 - 0.02, 0.5 + 0.95), (0.9, 0.06, 1.9), L.SHADOW)
+    for sx in (-w / 3, w / 3):
+        lc.box((sx, -d / 2 - 0.02, h - 0.4), (0.25, 0.06, 0.5), L.SHADOW)
+    for k2 in range(int(w / 1.0)):
+        lc.box((-w / 2 + 0.5 + k2 * 1.0, -d / 2 - 0.18, h + 0.25), (0.11, 0.36, 0.11), L.WOOD)
+
+
+def banded_keep(mb, ctx, x, y, rot, w=12.0, storeys=3, storey_h=4.0, setback=1.2):
+    """Al-Ablaq style keep: storeys of alternating white and red stone courses, each set back so its roof is a
+    walkable terrace; climbing ledges (1.2 m steps) on the faces lead storey to storey. Returns roof heights."""
+    g = L.height(x, y)
+    roofs = []
+    for s_ in range(storeys):
+        ws = w - s_ * 2 * setback
+        z0 = g + s_ * storey_h
+        lc = Local(mb, x, y, z0 - (0.6 if s_ == 0 else 0.0), rot)
+        hh = storey_h + (0.6 if s_ == 0 else 0.0)
+        k = 0
+        zz = 0.0
+        while zz < hh - 0.05:
+            ch = min(0.8, hh - zz)
+            lc.box((0, 0, zz + ch / 2), (ws, ws, ch - 0.01), STONE_WHITE if k % 2 == 0 else STONE_RED)
+            zz += ch
+            k += 1
+        ctx.col(x, y, z0 + storey_h / 2 - (0.3 if s_ == 0 else 0), ws, ws, hh, rot, "tower")
+        lc.box((0, -ws / 2 - 0.02, hh - 1.8), (0.5, 0.06, 0.9), L.SHADOW)
+        roofs.append(z0 + storey_h)
+        # three ledges up this storey's front-right face to its roof
+        for i in range(3):
+            lz = z0 + 1.2 * (i + 1)
+            p = Local(mb, x, y, 0, rot).world((ws / 2 + 0.75, -ws / 2 + 1.5 + i * 2.6, 0))
+            pbox(mb, ctx, p.x, p.y, lz, 1.5, 1.5, STONE_RED if i % 2 else STONE_WHITE, rot, bottom=lz - 0.5, tag="ledge")
+    top = roofs[-1]
+    lc = Local(mb, x, y, top, rot)
+    wt = w - (storeys - 1) * 2 * setback
+    for i in range(int(wt / 1.2)):
+        for sy in (-1, 1):
+            lc.box((-wt / 2 + 0.6 + i * 1.2, sy * (wt / 2 - 0.2), 0.35), (0.6, 0.4, 0.7), STONE_WHITE)
+    return roofs
+
+
+def tapered_tower(mb, ctx, x, y, r=4.0, h=14.0, taper=0.78, m=None, stone_base=3.0):
+    """Marid-style round tower: dry-stone base, tapering mud drum, saw-tooth crenels. Walkable top (tag tower)."""
+    m = m or MUD_PLASTER
+    g = L.height(x, y)
+    mb.cyl((x, y, g - 0.5 + (stone_base + 0.5) / 2), r * 1.05, r, stone_base + 0.5, DRYSTONE[0], segs=12)
+    mb.cyl((x, y, g + stone_base + (h - stone_base) / 2), r, r * taper, h - stone_base, m, segs=12)
+    rt = r * taper
+    for k in range(14):
+        a = k / 14 * math.tau
+        mb.cyl((x + math.cos(a) * (rt - 0.25), y + math.sin(a) * (rt - 0.25), g + h + 0.3), 0.28, 0.05, 0.6, m, segs=4)
+    for a in (0.6, 2.4, 4.2):
+        mb.box((x + math.cos(a) * rt * 1.02, y + math.sin(a) * rt * 1.02, g + h - 2.0), (0.4, 0.4, 0.7), L.SHADOW,
+               rot=(0, 0, a))
+    ctx.col(x, y, g + h / 2 - 0.25, rt * 1.3, rt * 1.3, h + 0.5, 0.0, "tower")
+    return g + h
+
+
+def great_well(mb, ctx, x, y, r=9.0, frames=12):
+    """Bir Haddaj: a stone ring wall round a deep shaft, A-frame pulley posts with wheels, mud pillars.
+    The shaft itself is carved by the map's height function (the floor sits ~8 m down)."""
+    g = L.height(x + r + 3, y)
+    n = 20
+    for k in range(n):
+        a0, a1 = k / n * math.tau, (k + 1) / n * math.tau
+        p0 = (x + math.cos(a0) * (r + 0.6), y + math.sin(a0) * (r + 0.6))
+        p1 = (x + math.cos(a1) * (r + 0.6), y + math.sin(a1) * (r + 0.6))
+        m_ = ((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2)
+        pbox(mb, ctx, m_[0], m_[1], g + 0.9, math.hypot(p1[0] - p0[0], p1[1] - p0[1]) + 0.3, 1.2, DRYSTONE[k % 4],
+             math.atan2(p1[1] - p0[1], p1[0] - p0[0]), bottom=g - 3.0, tag="wall")
+    for k in range(frames):
+        a = k / frames * math.tau
+        cx, cy = x + math.cos(a) * (r + 1.2), y + math.sin(a) * (r + 1.2)
+        lc = Local(mb, cx, cy, g, a + math.pi / 2)
+        for sx in (-0.9, 0.9):
+            lc.box((sx, 0, 1.6), (0.18, 0.18, 3.2), L.WOOD, rot=(0, R(-12 if sx < 0 else 12), 0))
+        lc.box((0, 0, 3.1), (2.2, 0.16, 0.16), L.WOOD)
+        lc.cyl((0, 0, 2.7), 0.45, 0.45, 0.12, L.WOOD, segs=8, rot=(0, R(90), 0))
+        if k % 3 == 0:                                                        # mud pillar between frames
+            p = (x + math.cos(a + 0.26) * (r + 2.6), y + math.sin(a + 0.26) * (r + 2.6))
+            pbox(mb, ctx, p[0], p[1], g + 3.4, 1.6, 1.0, MUD_PLASTER, a, tag="pillar")
+    return g

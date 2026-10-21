@@ -277,6 +277,12 @@ class JabalIthlib(MapDef):
         ctx.spawn("player", 268, -268, face(268, -268, 0, 0), **{"from": "ukaz"})
         K.cairn(mb, ctx, 279, -276)
         ctx.keepout += [(270, -270, 16)]
+        # north: the road to Tayma
+        ctx.exits.append({"to": "tayma", "x": -200, "y": 292, "r": 7, "label": "North-east to Tayma",
+                          "label_ar": "إلى تيماء في الشمال الشرقي"})
+        ctx.spawn("player", -200, 274, face(-200, 274, 0, 0), **{"from": "tayma"})
+        K.cairn(mb, ctx, -194, 286)
+        ctx.keepout += [(-200, 276, 16)]
         K.cairn(mb, ctx, -279, -276)
         ctx.spawn("bonfire", -256, -262, 0.0, id="ithlib_arrival")
         ctx.spawn("bonfire", bx - 6, by - 18, 0.0, id="ithlib_bowl")
@@ -856,5 +862,378 @@ class Ukaz(MapDef):
         print("UKAZ stalls", len(stalls), "race cairns", n * 2)
 
 
-for _m in (JabalIthlib(), Marib(), MaribBreach(), Ukaz()):
+# ================================================================== Tayma
+class Tayma(MapDef):
+    """The walled oasis of Tayma: Bir Haddaj in the centre, walled palm gardens, the ruined palace of al-Radm,
+    al-Samaw'al's two-tone keep al-Ablaq, a raiders' siege camp outside the long wall."""
+    name = "tayma"
+    title = "Tayma: the walled oasis"
+    title_ar = "تيماء: الواحة المسورة"
+    bounds = (-320.0, 320.0, -320.0, 320.0)
+    step = 2.0
+    tile = 120.0
+    instanced = True
+    culture = "hijazi"
+    batch = 2
+    sun = (62.0, -150.0)                                  # hot noon
+    fog = {"color": "#ead8b4", "near": 120, "far": 620}
+    WELL = (0.0, 0.0)
+    RADM = (-62.0, 72.0)
+    ABLAQ = (118.0, -78.0)
+    WALL_RX, WALL_RY = 178.0, 162.0
+    color = staticmethod(ground_color("#c8a678", "#d6b688", "#e2c69a", "#b89468"))
+
+    def height(self, x, y):
+        base = 0.6 * noise.noise(Vector((x * 0.01, y * 0.01, 6.6))) + 0.2 * noise.noise(Vector((x * 0.06, y * 0.06, 1.1)))
+        d_r = math.hypot(x - self.RADM[0], y - self.RADM[1])
+        d_a = math.hypot(x - self.ABLAQ[0], y - self.ABLAQ[1])
+        mounds = 4.0 * (1 - L.smooth(22, 44, d_r)) + 6.0 * (1 - L.smooth(20, 40, d_a))
+        dw = math.hypot(x - self.WELL[0], y - self.WELL[1])
+        shaft = -8.5 * (1 - L.smooth(7.6, 9.0, dw))
+        ramps = 0.0
+        for a in (0.0, math.pi / 2, math.pi, 3 * math.pi / 2):                       # camel draw-ramps
+            ux, uy = math.cos(a), math.sin(a)
+            along = (x - self.WELL[0]) * ux + (y - self.WELL[1]) * uy
+            across = abs(-(x - self.WELL[0]) * uy + (y - self.WELL[1]) * ux)
+            if 11 < along < 34 and across < 3.2:
+                ramps = min(ramps, -2.6 * L.smooth(11, 30, along) * (1 - L.smooth(2.2, 3.2, across)))
+        out = math.hypot(x / (self.WALL_RX + 30), y / (self.WALL_RY + 30))
+        dunes = 5.0 * L.smooth(1.05, 1.5, out) * (noise.noise(Vector((x * 0.012, y * 0.02, 2.0))) * 0.5 + 0.6)
+        return base + mounds + shaft + ramps + dunes
+
+    def build(self, mb, ctx):
+        N = ctx.names
+        wx, wy = self.WELL
+        # ---- Bir Haddaj: ring wall, pulley frames, a ledge inside the shaft, water, steps back out
+        gw = S.great_well(mb, ctx, wx, wy, r=9.0, frames=12)
+        mb.cyl((wx, wy, gw - 6.6), 7.6, 7.6, 0.1, K.WATER, segs=14)
+        S.pbox(mb, ctx, wx + 6.6, wy, gw - 3.5, 1.8, 6.0, S.DRYSTONE[1], 0.0, bottom=gw - 6.0, tag="ledge")
+        for i, (ox, oy) in enumerate([(5.6, 4.4), (3.2, 6.4), (0.2, 7.2)]):                  # ledges on the shaft wall
+            S.pbox(mb, ctx, wx + ox, wy + oy, gw - 3.5 + 1.2 * (i + 1), 1.6, 1.4, S.DRYSTONE[i % 4], math.atan2(oy, ox),
+                   bottom=gw - 3.5 + 1.2 * (i + 1) - 0.6, tag="ledge")
+        ctx.landmarks["bir_haddaj"] = (wx, wy)
+        N["bir_haddaj"] = ("Bir Haddaj, the great well", "بئر هداج")
+        ctx.landmarks["hidden_channel"] = (wx + 6.6, wy)
+        N["hidden_channel"] = ("The hidden channel", "القناة الخفية")
+        ctx.keepout.append((wx, wy, 36))
+        for k, a in enumerate((0.0, math.pi / 2, math.pi, 3 * math.pi / 2)):
+            for j in range(2):
+                cx_, cy_ = wx + math.cos(a) * (18 + j * 8), wy + math.sin(a) * (18 + j * 8)
+                ctx.spawn("camel", cx_, cy_, a - math.pi / 2, role_detail="well camel")
+            ctx.spawn("wanderer", wx + math.cos(a + 0.2) * 22, wy + math.sin(a + 0.2) * 22, a + math.pi / 2,
+                      title="camel driver")
+        ctx.spawn("caravaneer", wx + 12, wy - 12, R(135), id="tayma_well_master", title="master of the well camels")
+        # market by the well
+        for k, (ox, oy, r) in enumerate([(-24, -18, 0.0), (-14, -22, 0.0), (22, 20, math.pi), (14, 24, math.pi)]):
+            L.stall(wx + ox, wy + oy, r)
+        ctx.spawn("shopkeeper", wx - 19, wy - 15, math.pi, id="tayma_trader")
+        # ---- the long outer wall: ruined dry-stone and mud, wall-walk tops 2-4 m, towers every ~40 m
+        n = 48
+        pts = [(math.cos(k / n * math.tau) * self.WALL_RX * (1 + 0.04 * math.sin(k * 1.7)),
+                math.sin(k / n * math.tau) * self.WALL_RY * (1 + 0.04 * math.cos(k * 1.3))) for k in range(n + 1)]
+        h = 3.0
+        since = 0.0
+        lore = 0
+        for k, (a, b) in enumerate(zip(pts, pts[1:])):
+            h = max(0.0, min(4.0, h + random.choice([-0.8, -0.4, 0.0, 0.4, 0.8])))
+            gap = random.random() < 0.12 or k in (11, 12, 35, 36)                      # breaches (two are roads)
+            seglen = math.hypot(b[0] - a[0], b[1] - a[1])
+            if gap or h < 1.2:
+                K.ruin_wall(mb, ctx, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, math.atan2(b[1] - a[1], b[0] - a[0]), seglen,
+                            0.9, S.DRYSTONE[2], collide=False)
+            else:
+                S.drystone_wall(mb, ctx, a[0], a[1], b[0], b[1], h, t=2.2, mud_top=min(1.2, h * 0.4))
+                if lore < 3 and k % 13 == 5:
+                    lore += 1
+                    mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+                    ctx.spawn("lore", mx * 0.985, my * 0.985, face(mx, my, 0, 0), id=f"taymanitic_{lore}",
+                              z=round(L.height(mx, my) + 1.4, 3))
+            since += seglen
+            if since > 40 and not gap:
+                since = 0.0
+                S.pbox(mb, ctx, b[0], b[1], L.height(b[0], b[1]) + 6.0, 6.0, 6.0, S.DRYSTONE[0],
+                       math.atan2(b[1] - a[1], b[0] - a[0]), tag="tower")
+        ctx.paths["outer_wall"] = pts
+        ctx.landmarks["outer_wall"] = pts[6]
+        N["outer_wall"] = ("The great wall of Tayma", "سور تيماء الكبير")
+        # ---- al-Radm: the ruined palace on its mound (Nabonidus's quarter)
+        rx, ry = self.RADM
+        rz = L.height(rx, ry)
+        for (ox, oy, rr, ln) in [(0, -16, 0, 44), (0, 16, 0, 44), (-22, 0, math.pi / 2, 32), (22, 0, math.pi / 2, 32),
+                                 (0, 0, 0, 20)]:
+            K.ruin_wall(mb, ctx, rx + ox, ry + oy, rr, ln * random.uniform(0.7, 0.95), random.uniform(1.5, 3.2),
+                        S.DRYSTONE[1])
+        for i in range(5):
+            for sy in (-7, 7):
+                K.column(mb, ctx, rx - 12 + i * 6, ry + sy, random.uniform(1.0, 4.0), S.DRYSTONE[3])
+        ctx.spawn("chest", rx + 4, ry - 2, 0.0, id="radm_cellar", secret=True)
+        ctx.spawn("quest_giver", rx - 3, ry - 20, 0.0, id="tayma_astrologer", title="teller of Babylonian tales")
+        ctx.spawn("official", rx + 6, ry - 20, 0.0, id="tayma_scribe", title="Aramaic scribe")
+        ctx.landmarks["qasr_al_radm"] = (rx, ry)
+        N["qasr_al_radm"] = ("Qasr al-Radm, the old palace", "قصر الردم")
+        ctx.keepout.append((rx, ry, 34))
+        # ---- al-Ablaq: the piebald keep in its walled yard
+        ax, ay = self.ABLAQ
+        rot = face(ax, ay, 0, 0)
+        roofs = S.banded_keep(mb, ctx, ax, ay, rot, w=12.0, storeys=3, storey_h=4.0)
+        yard = [(-16, -16), (16, -16), (16, 16), (-16, 16), (-16, -16)]
+        lc = K.Local(mb, ax, ay, 0, rot)
+        for i, (a, b) in enumerate(zip(yard, yard[1:])):
+            pa, pb_ = lc.world((*a, 0)), lc.world((*b, 0))
+            if i == 0:                                                                 # gate in the front wall
+                mid = lc.world((0, -16, 0))
+                for (q0, q1) in [(pa, lc.world((-3, -16, 0))), (lc.world((3, -16, 0)), pb_)]:
+                    S.drystone_wall(mb, ctx, q0.x, q0.y, q1.x, q1.y, 4.0, t=1.4, mud_top=1.2, crenel=True)
+            else:
+                S.drystone_wall(mb, ctx, pa.x, pa.y, pb_.x, pb_.y, 4.0, t=1.4, mud_top=1.2, crenel=True)
+        gate = lc.world((0, -19, 0))
+        ctx.spawn("poet", gate.x, gate.y, rot, id="samawal", name="al-Samaw'al ibn 'Adiya", name_ar="السموأل بن عادياء",
+                  title="lord of al-Ablaq")
+        son = lc.world((3, -12, 0))
+        ctx.spawn("quest_giver", son.x, son.y, rot, id="samawal_son", title="son of al-Samaw'al")
+        ctx.spawn("pickup", ax, ay, 0.0, id="prince_armour", z=round(roofs[-1], 3))
+        ctx.landmarks["qasr_al_ablaq"] = (ax, ay)
+        N["qasr_al_ablaq"] = ("Qasr al-Ablaq, the piebald castle", "قصر الأبلق")
+        ctx.keepout.append((ax, ay, 30))
+        # ---- walled palm gardens and lanes, houses at the corners
+        gardens = 0
+        for gx in range(-168, 169, 33):
+            for gy in range(-152, 153, 27):
+                if math.hypot(gx / (self.WALL_RX - 18), gy / (self.WALL_RY - 18)) > 1.0:
+                    continue
+                if not ctx.free(gx, gy, 12):
+                    continue
+                w, d = 28.0, 22.0
+                for (ox, oy, ll, rr) in [(0, -d / 2, w, 0), (0, d / 2, w, 0), (-w / 2, 0, d, math.pi / 2), (w / 2, 0, d, math.pi / 2)]:
+                    if oy < 0 and random.random() < 0.7:                                # garden gate gap
+                        for sgn in (-1, 1):
+                            cx_ = gx + sgn * (w / 4 + 1.0)
+                            S.pbox(mb, ctx, cx_, gy + oy, L.height(cx_, gy + oy) + 1.6, w / 2 - 2.0, 0.6,
+                                   S.MUD_PLASTER, 0.0, tag="wall")
+                        continue
+                    cx_, cy_ = gx + ox, gy + oy
+                    S.pbox(mb, ctx, cx_, cy_, L.height(cx_, cy_) + 1.6, ll, 0.6, S.MUD_PLASTER, rr, tag="wall")
+                for j in range(random.randint(8, 12)):
+                    I.palm(ctx, gx + random.uniform(-11.5, 11.5), gy + random.uniform(-8.5, 8.5), random.uniform(0.85, 1.2))
+                for j in range(4):
+                    I.shrub(ctx, gx + random.uniform(-11, 11), gy + random.uniform(-8, 8), random.uniform(0.6, 1.0))
+                if random.random() < 0.35:
+                    hx_, hy_ = gx + w / 2 + 2.5, gy - d / 2 - 2.5
+                    if ctx.free(hx_, hy_, 3):
+                        L.house(hx_, hy_, 0.0, 5, 4.5, 3.8)
+                        ctx.col(hx_, hy_, L.height(hx_, hy_) + 2.4, 5, 4.5, 5.8, 0, "building")
+                ctx.keepout.append((gx, gy, 15))
+                gardens += 1
+        ctx.landmarks["gardens"] = (-110, -40)
+        N["gardens"] = ("The palm gardens of Tayma", "بساتين تيماء")
+        people(ctx, "farmer", wander_pts(12, 0, 0, 150, 130))
+        people(ctx, "wanderer", wander_pts(24, 0, 0, 60, 60))
+        # ---- the raiders' siege camp outside the east wall (the night siege of al-Ablaq)
+        sc = Vector((236.0, -40.0))
+        for k in range(6):
+            a = k / 6 * math.tau
+            I.tent(ctx, sc.x + math.cos(a) * 16, sc.y + math.sin(a) * 14, face(sc.x + math.cos(a) * 16, sc.y, sc.x, sc.y))
+        K.campfire(mb, ctx, sc.x, sc.y)
+        for k in range(4):                                                             # siege ladders against the wall
+            a = R(-30 + k * 8)
+            px_, py_ = math.cos(a) * (self.WALL_RX + 1.8), math.sin(a) * (self.WALL_RY + 1.8)
+            mb.box((px_, py_, L.height(px_, py_) + 2.2), (0.6, 0.12, 4.8), L.WOOD, rot=(0, R(18), a))
+        for (kind, ox, oy) in [("raider", 4, 6), ("raider", -5, 7), ("raider", 6, -6), ("raider", -4, -8), ("slinger", 10, 0),
+                               ("slinger", -10, 2), ("brute", 0, 10), ("brute", 2, -11)]:
+            ctx.spawn("enemy", sc.x + ox, sc.y + oy, R(180), kind=kind, camp="siege", night_only=True)
+        for (ox, oy) in [(18, 14), (20, 18), (16, 20)]:
+            ctx.spawn("enemy", sc.x + ox, sc.y + oy, R(180), kind="hound", camp="siege", night_only=True)
+        ctx.landmarks["siege_camp"] = tuple(sc)
+        N["siege_camp"] = ("The siege camp", "معسكر الحصار")
+        ctx.keepout.append((sc.x, sc.y, 28))
+        # ---- exits, arrivals, bonfires
+        ctx.exits.append({"to": "jabal_ithlib", "x": -296, "y": -296, "r": 7, "label": "South-west to Jabal Ithlib",
+                          "label_ar": "إلى جبل إثلب في الجنوب الغربي"})
+        ctx.exits.append({"to": "dumat_al_jandal", "x": 296, "y": 296, "r": 7, "label": "North-east to Dumat al-Jandal",
+                          "label_ar": "إلى دومة الجندل في الشمال الشرقي"})
+        ctx.spawn("player", -276, -276, face(-276, -276, 0, 0), **{"from": "jabal_ithlib"})
+        ctx.spawn("player", -276, -276, face(-276, -276, 0, 0))
+        ctx.spawn("player", 276, 276, face(276, 276, 0, 0), **{"from": "dumat_al_jandal"})
+        K.cairn(mb, ctx, -288, -284)
+        K.cairn(mb, ctx, 288, 284)
+        for (x, y, bid) in [(-262, -268, "tayma_arrival"), (wx - 30, wy + 6, "tayma_well"), (ax - 26, ay + 6, "tayma_ablaq")]:
+            ctx.spawn("bonfire", x, y, 0.0, id=bid)
+        ctx.keepout += [(-276, -276, 18), (276, 276, 18)]
+        I.dress(mb, ctx, self, lambda x, y: math.hypot(x / self.WALL_RX, y / self.WALL_RY) > 1.08, rocks=30, singles=70,
+                shrubs=120, dry=80, acacias=24, dead=6, ruins=2, nbones=3)
+        print("TAYMA gardens", gardens, "keep roofs", [round(r, 1) for r in roofs])
+
+
+# ================================================================== Dumat al-Jandal
+class DumatAlJandal(MapDef):
+    """Adummatu, city of the Arab queens: an oasis basin below a rim, the dry-stone old town, Marid castle on
+    its hill, the spring shrine of Ruda, a white salt lake, the convoy road down from the dunes."""
+    name = "dumat_al_jandal"
+    title = "Dumat al-Jandal: city of queens"
+    title_ar = "دومة الجندل: مدينة الملكات"
+    bounds = (-350.0, 350.0, -350.0, 350.0)
+    step = 2.0
+    tile = 120.0
+    instanced = True
+    culture = "bedouin"
+    batch = 2
+    sun = (12.0, -100.0)                                  # late afternoon, gold haze off the salt
+    fog = {"color": "#efd9ae", "near": 110, "far": 640}
+    TOWN = (-60.0, 20.0)
+    MARID = (-70.0, 128.0)
+    SPRING = (40.0, -112.0)
+    SALT = (170.0, 10.0)
+    RAMPS = [((-350.0, -350.0), (-205.0, -205.0)), ((-330.0, 330.0), (-190.0, 190.0))]
+    color_base = staticmethod(ground_color("#b8a07c", "#c8b08a", "#d6bf9a", "#a8916f"))
+
+    def rim(self, x, y):
+        r = math.hypot(x / 1.05, y)
+        h = 20.0 * L.smooth(205, 265, r)
+        for a, b in self.RAMPS:
+            d = seg_dist(x, y, a, b)
+            h *= L.smooth(9, 16, d)
+        return h
+
+    def height(self, x, y):
+        base = 0.6 * noise.noise(Vector((x * 0.01, y * 0.01, 3.9))) + 0.2 * noise.noise(Vector((x * 0.05, y * 0.05, 5.0)))
+        dunes = (1 - abs(noise.noise(Vector((x * 0.012, y * 0.02, 1.4))))) ** 3 * 6 * L.smooth(250, 300, math.hypot(x, y))
+        hill = 18.0 * (1 - L.smooth(26, 50, math.hypot(x - self.MARID[0], y - self.MARID[1])))
+        path = 0.0
+        sd = math.hypot(x - self.SALT[0], (y - self.SALT[1]) * 1.4)
+        salt = -0.8 * (1 - L.smooth(70, 90, sd))
+        return base + self.rim(x, y) + dunes + hill + salt
+
+    def color(self, c, nz):
+        sd = math.hypot(c.x - self.SALT[0], (c.y - self.SALT[1]) * 1.4)
+        if sd < 74 and c.z < 0.4:
+            k = 1 + noise.noise(c * 0.3) * 0.03
+            return tuple(min(1, v * k) for v in L.lin("#ece6da"))
+        if c.z > 8 or nz < 0.8:
+            u = 0.5 + 0.5 * math.sin(c.z * 0.6 + noise.noise(c * 0.05) * 3)
+            return L.lin(["#a8916f", "#bfa680", "#9a8466", "#b39a74"][min(3, int(u * 4))])
+        return self.color_base(c, nz)
+
+    def build(self, mb, ctx):
+        N = ctx.names
+        tx, ty = self.TOWN
+        # ---- the old town: dry-stone houses on narrow lanes, a plaza with a well, the queen's hall
+        spots = []
+        for _ in range(48):
+            for _ in range(80):
+                a, r = random.uniform(0, math.tau), math.sqrt(random.uniform(0.04, 1)) * 66
+                x, y = tx + math.cos(a) * r * 1.15, ty + math.sin(a) * r
+                if math.hypot(x - tx, y - ty) < 13 or math.hypot(x - (tx + 26), y - (ty - 4)) < 12:
+                    continue
+                if all((Vector((x, y)) - s_).length > 8.2 for s_ in spots):
+                    spots.append(Vector((x, y)))
+                    break
+        for s_ in spots:
+            rot = round(random.uniform(-0.2, 0.2), 2)
+            S.drystone_house(mb, ctx, s_.x, s_.y, rot, random.uniform(5.0, 6.6), random.uniform(4.6, 6.0),
+                             random.choice([3.2, 3.6, 4.4, 4.8, 5.6]))
+        K.well(mb, ctx, tx, ty)
+        hx, hy = tx + 26, ty - 4                                                       # the queen's hall
+        S.stepped_platform(mb, ctx, hx, hy, R(90), 18, 14, tiers=1, tier_h=1.0, palette=S.DRYSTONE)
+        S.drystone_house(mb, ctx, hx + 1.5, hy, R(90), 12, 9, 6.0)
+        ctx.spawn("official", hx - 8, hy, R(90), id="queen_adummatu", title="queen of Adummatu", z=round(L.height(hx, hy) + 1.0, 3))
+        for k in range(2):
+            ctx.spawn("official", hx - 10, hy - 3 + k * 6, R(90), id=f"assyrian_envoy_{k + 1}", title="Assyrian envoy")
+        for k, (ox, oy, r) in enumerate([(-10, -10, 0.0), (0, -12, 0.0), (10, -10, 0.0), (-6, 10, math.pi), (6, 10, math.pi)]):
+            L.stall(tx + ox, ty + oy, r)
+        ctx.spawn("shopkeeper", tx, ty - 7, math.pi, id="dumat_trader")
+        ctx.landmarks.update({"old_town": (tx, ty), "queens_hall": (hx, hy)})
+        N["old_town"] = ("The old town of Duma", "بلدة دومة القديمة")
+        N["queens_hall"] = ("Hall of the queen", "دار الملكة")
+        people(ctx, "wanderer", wander_pts(30, tx, ty, 60, 55, lambda x, y: all((Vector((x, y)) - s_).length > 4 for s_ in spots)))
+        ctx.keepout.append((tx, ty, 80))
+        # ---- Marid castle on its hill: dry-stone and mud curtain walls with crenels, inner wall, gateway, round tower
+        mx, my = self.MARID
+        mz = L.height(mx, my)
+        S.strata_wall(mb, ctx, [(mx + math.cos(k / 18 * math.tau) * 30, my + math.sin(k / 18 * math.tau) * 26)
+                                for k in range(19)], lambda x, y: L.height(x, y) - 0.2, depth=4.0, colw=8.0,
+                      palette=K.ROCK, tag="cliff")
+        curtain = [(-24, -18), (24, -18), (24, 18), (-24, 18), (-24, -18)]
+        lc = K.Local(mb, mx, my, 0, 0.0)
+        for i, (a, b) in enumerate(zip(curtain, curtain[1:])):
+            pa, pb_ = lc.world((*a, 0)), lc.world((*b, 0))
+            if i == 0:
+                for (q0, q1) in [(pa, lc.world((-3, -18, 0))), (lc.world((3, -18, 0)), pb_)]:
+                    S.drystone_wall(mb, ctx, q0.x, q0.y, q1.x, q1.y, 6.0, t=2.0, mud_top=2.8, crenel=True)
+            else:
+                S.drystone_wall(mb, ctx, pa.x, pa.y, pb_.x, pb_.y, 6.0, t=2.0, mud_top=2.8, crenel=True)
+        S.drystone_wall(mb, ctx, mx - 10, my - 2, mx + 10, my - 2, 4.0, t=1.4, mud_top=1.6, crenel=True)
+        for sgn in (-1, 1):
+            S.pbox(mb, ctx, mx + sgn * 4.5, my - 18, mz + 8.0, 4.0, 4.0, S.MUD_PLASTER, 0.0, tag="tower")
+        ttop = S.tapered_tower(mb, ctx, mx + 24, my + 18, r=4.4, h=15.0)
+        S.tapered_tower(mb, ctx, mx - 24, my + 18, r=3.6, h=11.0)
+        # ramp path up the hill to the gate
+        for i in range(10):
+            px_, py_ = mx + 30 - i * 3.0, my - 46 + i * 2.6
+            S.pbox(mb, ctx, px_, py_, L.height(px_, py_) + 0.3, 3.6, 3.0, S.DRYSTONE[i % 4], R(40), tag="stair")
+        ctx.spawn("chest", mx + 24, my + 18, 0.0, id="marid_tower_chest", z=round(ttop, 3))
+        for i in range(3):
+            a = R(200 + i * 50)
+            ctx.spawn("wave_spawn", mx + math.cos(a) * 62, my + math.sin(a) * 58, face(mx + math.cos(a) * 62, my, mx, my),
+                      id=f"marid_wave_{i + 1}")
+        ctx.landmarks["marid_castle"] = (mx, my)
+        N["marid_castle"] = ("Marid castle", "قلعة مارد")
+        ctx.keepout.append((mx, my, 52))
+        # ---- the sacred spring and the shrine of Ruda
+        sx_, sy_ = self.SPRING
+        mb.cyl((sx_, sy_, L.height(sx_, sy_) + 0.1), 9.0, 9.0, 0.1, K.WATER, segs=14)
+        for k in range(12):
+            a = k / 12 * math.tau + random.uniform(-0.15, 0.15)
+            I.palm(ctx, sx_ + math.cos(a) * random.uniform(11, 16), sy_ + math.sin(a) * random.uniform(11, 16),
+                   random.uniform(0.9, 1.15))
+        shx, shy = sx_, sy_ + 22
+        S.stepped_platform(mb, ctx, shx, shy, math.pi, 12, 10, tiers=2, tier_h=0.8, palette=S.DRYSTONE)
+        S.drystone_wall(mb, ctx, shx - 4, shy + 3, shx + 4, shy + 3, 3.0, t=0.8)
+        S.niche(mb, ctx, shx, shy + 2.6, L.height(shx, shy) + 1.6, math.pi, w=1.4, h=2.0, betyl=True, lamp=True)
+        ctx.spawn("quest_giver", shx, shy - 6, math.pi, id="ruda_priestess", title="priestess of Ruda")
+        ctx.spawn("pickup", sx_ + 10, sy_ - 2, 0.0, id="spring_water")
+        ctx.landmarks.update({"sacred_spring": (sx_, sy_), "shrine_of_ruda": (shx, shy)})
+        N["sacred_spring"] = ("The sacred spring", "العين المقدسة")
+        N["shrine_of_ruda"] = ("Shrine of Ruda", "معبد رضا")
+        ctx.keepout.append((sx_, sy_ + 8, 30))
+        # ---- palm groves in the basin, and the salt lake
+        for k in range(160):
+            x, y = random.uniform(-200, 120), random.uniform(-200, 200)
+            if math.hypot(x / 1.05, y) < 195 and ctx.free(x, y, 3) and math.hypot(x - self.SALT[0], y - self.SALT[1]) > 95:
+                I.palm(ctx, x, y, random.uniform(0.85, 1.15), lite=k % 2 == 0)
+        people(ctx, "farmer", wander_pts(10, -40, -80, 120, 80))
+        ctx.landmarks["salt_lake"] = self.SALT
+        N["salt_lake"] = ("The white salt lake", "السبخة البيضاء")
+        # ---- the convoy road: from the north-west dunes, down the ramp, through town, to the shrine
+        convoy = [(-320, 320), (-260, 260), (-200, 196), (-150, 140), (-110, 90), (tx, ty + 40), (tx, ty),
+                  (tx + 40, ty - 50), (shx, shy - 8)]
+        ctx.paths["convoy"] = convoy
+        ctx.spawn("caravaneer", -300, 300, face(-300, 300, 0, 0), id="dumat_convoy_master", title="keeper of the gods' cart")
+        for k in range(4):
+            ctx.spawn("camel", -306 + k * 3.6, 306 - k * 3.6, face(-300, 300, 0, 0), convoy=True)
+        for camp, (cx_, cy_) in {"ambush_dunes": (-288, 200), "ambush_ramp": (-230, 262)}.items():
+            for (kind, ox, oy) in [("raider", 0, 0), ("raider", 5, 3), ("archer", -4, 5), ("raider", 3, -5)]:
+                ctx.spawn("enemy", cx_ + ox, cy_ + oy, random.uniform(-3, 3), kind=kind, camp=camp, variant="camel")
+            ctx.keepout.append((cx_, cy_, 12))
+        for (x, y) in [(260, -200), (266, -194), (254, -206)]:
+            ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind="hound", variant="jackal", camp="jackals")
+        for k in range(3):
+            ctx.spawn("horse", tx - 30 + k * 4, ty - 40, R(30))
+        for k in range(4):
+            ctx.spawn("camel", tx + 50 + k * 4, ty + 30, R(90), sitting=k % 2 == 0)
+        # ---- exits, arrivals, bonfires
+        ctx.exits.append({"to": "tayma", "x": -326, "y": -326, "r": 7, "label": "South-west to Tayma",
+                          "label_ar": "إلى تيماء في الجنوب الغربي"})
+        ctx.spawn("player", -300, -300, face(-300, -300, 0, 0), **{"from": "tayma"})
+        ctx.spawn("player", -300, -300, face(-300, -300, 0, 0))
+        K.cairn(mb, ctx, -316, -310)
+        for (x, y, bid) in [(-288, -296, "dumat_arrival"), (tx - 18, ty + 4, "dumat_town"), (mx + 34, my - 52, "dumat_marid"),
+                            (-290, 290, "dumat_convoy")]:
+            ctx.spawn("bonfire", x, y, 0.0, id=bid)
+        ctx.keepout += [(-300, -300, 18), (-300, 300, 16)]
+        I.dress(mb, ctx, self, lambda x, y: math.hypot(x / 1.05, y) > 215 or math.hypot(x - self.SALT[0], y - self.SALT[1]) > 100,
+                rocks=50, singles=110, shrubs=140, dry=110, acacias=20, dead=8, ruins=3, nbones=4)
+        print("DUMAT houses", len(spots))
+
+
+for _m in (JabalIthlib(), Marib(), MaribBreach(), Ukaz(), Tayma(), DumatAlJandal()):
     M.MAPS[_m.name] = _m
