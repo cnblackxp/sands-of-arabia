@@ -744,7 +744,7 @@ class Game {
       },
       noArrows: () => {
         this.sfx.noArrows();
-        this.hud.showToast('The quiver is empty. Pick your arrows back up, or rest at a bonfire.', 2.5);
+        this.hud.showToast(t('toast.quiverEmpty'), 2.5);
       },
       noFlask: () => {
         this.sfx.denied();
@@ -1371,7 +1371,7 @@ class Game {
       const e = this.enemies.spawn({ role: 'enemy', kind, camp: 'debug', pos: [x, this.world.floor(x, z, p.y + 1), z], yaw: a + Math.PI } as Spawn);
       e.onKilled = (f) => this.onEnemyKilled(f);
     }
-    this.hud.showToast(t(n > 1 ? 'debug.foesAppear' : 'debug.foeAppears', { n, kind: tOr(`enemies.${kind}`, kind) }), 2);
+    this.hud.showToast(tOr(`debug.spawned.${kind}`, t('debug.foesAppear', { n, kind: tOr(`enemies.${kind}`, kind) }), { n }), 2);
   }
 
   private debugKillNearby(): void {
