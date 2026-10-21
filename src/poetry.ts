@@ -245,6 +245,8 @@ export const POET_POEMS: Record<string, string> = {
   ukaz_poet_5: 'imru_qifa',
   ukaz_poet_6: 'harith_asma',
   samawal: 'samawal_ird',
+  // The Kindite prince who would rather be a poet: his kinsman's ode.
+  faw_prince: 'imru_qifa',
 };
 
 /** Poems a reciter of this culture would know (everyone knows a few from Ukaz). */

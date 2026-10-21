@@ -98,6 +98,14 @@ export const en = {
     ruda_priestess: 'Priestess of Ruda',
     dumat_convoy_master: 'Keeper of the gods\' cart',
     dumat_trader: 'Merchant of Dumat',
+    kahl_priest: 'Priest of Kahl',
+    faw_noble_1: 'Kindite noble',
+    faw_noble_2: 'Kindite noble',
+    faw_prince: 'Kindite prince',
+    faw_painter: 'Fresco painter',
+    faw_sabaean_caravan: 'Sabaean caravan master',
+    faw_gerrhan_trader: 'Gerrhan trader',
+    faw_trader: 'Merchant of Qaryat',
     ukaz_kahin: 'Soothsayer of Ukaz',
     ukaz_elder_thaqif: 'Elder of Thaqif',
     ukaz_elder_hawazin: 'Elder of Hawazin',
@@ -160,13 +168,13 @@ export const en = {
   },
   dig: { prompt: 'Dig in the disturbed sand', found: 'Something is buried here.' },
   siege: {
-    start: 'They are coming! Hold the walls.',
+    start: 'They are coming! Hold your ground.',
     wave: 'Wave {n} of {of}',
     tracker: 'Siege: wave {n} of {of}',
-    held: '“Marid rebelled and al-Ablaq held out.” The castle holds.',
+    held: 'They break and fall back. You held.',
   },
   convoy: {
-    tracker: 'The gods\' cart: {n}% of the road (stay close or it waits)',
+    tracker: 'Convoy: {n}% of the road (stay close or it waits)',
   },
   truce: {
     toast: 'Weapons stay sheathed at Ukaz: the truce of the sacred months holds here.',
@@ -386,6 +394,88 @@ export const en = {
   // --- quests ------------------------------------------------------------------------
   /** Quest text by quest id; `objectives` follow the order in quests.ts. */
   quests: {
+    faw_ochre: {
+      title: 'Paint for the God',
+      offer: [
+        'Kahl watches over Qaryat, and every spring we paint his altar red, as our fathers did.',
+        'The best ochre is in the face of Tuwaiq, halfway up the old path to the tombs. Climb, and mind the ledges: the god likes paint, not broken necks.',
+      ],
+      waiting: 'The red ochre is on a ledge halfway up the escarpment path.',
+      turnIn: ['Red as a sunset over the sands. Kahl will be pleased, and so will the painters, who never stop asking for more.'],
+      objectives: [{ text: 'Climb the Tuwaiq path and bring the red ochre down from its ledge' }],
+    },
+    faw_painted_room: {
+      title: 'The Painted Room',
+      offer: [
+        'The brotherhood meets in a room with no door. You come in through the roof, and you do not talk about it outside.',
+        'I have the red and the ochre for their walls. The blue comes only from the Gerrhan trader, and he will not give it away. Buy it, then take it down into the room and leave it by the wall.',
+      ],
+      waiting: 'Buy the blue from the Gerrhan trader, then climb down through the roof hatch into the painted room.',
+      turnIn: ['You found the hatch and did not come through the roof the hard way. Good. The brotherhood will drink to the blue, and then to you, in that order.'],
+      objectives: [
+        {
+          text: 'Buy the Gerrhan blue from the trader (120 gold)',
+          lines: ['Blue from the far side of the sea, ground and sealed in a jar. A hundred and twenty, and cheap at that.', 'Tell the painter it is the last until the boats come in.'],
+        },
+        { text: 'Climb in through the roof hatch and leave the blue in the painted room' },
+      ],
+    },
+    faw_ode: {
+      title: 'The Prince\'s Ode',
+      offer: [
+        'My father wants me at the head of his riders. I would rather finish my ode, and I have lost it: five lines on five scraps, each left where the line came to me.',
+        'One on the roof of the market, one at a tomb in the cliff, one at the temple of Shams, one in the well field, and one, by Kahl, out in the dunes. Bring them back before my father finds them.',
+      ],
+      waiting: 'Gather the five lines of the prince\'s ode.',
+      turnIn: ['All five! Now it scans, and it rhymes, and it is no poem for a prince: a ruined camp, and a girl who left. Do not tell my father.'],
+      objectives: [
+        { text: 'Find the first line on the roof of the walled market' },
+        { text: 'Find the second line at a tomb in the cliff' },
+        { text: 'Find the third line at the temple of Shams' },
+        { text: 'Find the fourth line in the well field' },
+        { text: 'Find the fifth line out in the dunes' },
+      ],
+    },
+    faw_water: {
+      title: 'Water Rights',
+      offer: [
+        'Our grandfathers dug these wells, and the clan from the east says water belongs to whoever is strongest.',
+        'They come today to prove it. Stand with us at the well field.',
+      ],
+      waiting: 'Hold the well field against the clan from the east.',
+      turnIn: ['They have gone home thirsty, and they will tell their sons. Drink from any well here, as long as you like.'],
+      objectives: [{ text: 'Hold the well field against the rival clan' }],
+    },
+    faw_caravan: {
+      title: 'Incense for the North',
+      offer: [
+        'Eight camels of incense from Marib, and every one of them tired. The market gate is just there, and between us and it are thieves who know these sands.',
+        'Walk with us to the east gate of the market. If you wander off we stop; I will not lead them on alone.',
+      ],
+      waiting: 'Walk with the Sabaean caravan to the east gate of the market. Stay close, or it stops.',
+      turnIn: ['Safe at the gate, and the toll paid. Kinda takes its tenth and we take our profit. Here is yours.'],
+      objectives: [{ text: 'Escort the Sabaean caravan to the east gate of the market' }],
+    },
+    faw_raiders: {
+      title: 'Raiders of the Sands',
+      offer: [
+        'Kinda keeps this road, and the road pays Kinda. Raiders camp on the edge of the Empty Quarter and take what passes, which is to say, what is ours.',
+        'Ride east and break their camp. The prince is busy with his verses.',
+      ],
+      waiting: 'Break the raiders\' camp on the edge of the Empty Quarter, to the east.',
+      turnIn: ['The road is ours again. Kinda remembers those who serve it.'],
+      objectives: [{ text: 'Break the raiders\' camp on the edge of the Empty Quarter' }],
+    },
+    faw_ghul: {
+      title: 'The Ghul of the Sandstorm',
+      offer: [
+        'On the road here we lost a man. He heard someone call his name in the night, out where the sand was blowing, and he walked off to answer.',
+        'It was a ghul. They walk at night, they change their shape, and they stand behind you when you thought they were ahead. Find it in the deep sands to the north-east, after dark. They say strike it once and never twice, for the second blow brings it back. I do not believe that part. Strike it as often as you need.',
+      ],
+      waiting: 'Hunt the ghul in the deep sands to the north-east. It walks only at night.',
+      turnIn: ['Dead? Truly? Then tonight we sleep, and tomorrow we tell the whole market, and the story will grow with every telling.'],
+      objectives: [{ text: 'Slay the ghul of the sandstorm in the deep sands (at night)' }],
+    },
     tayma_siege: {
       title: 'Truer than al-Samaw\'al',
       offer: [
@@ -859,6 +949,12 @@ export const en = {
     frankincense: 'bundle of frankincense',
     lost_ode: 'the lost ode (a leather scroll)',
     prince_armour: 'the armour of Imru\' al-Qais',
+    red_ochre: 'red ochre from the cliff',
+    ode_line_1: 'a scrap of the prince\'s ode (the first line)',
+    ode_line_2: 'a scrap of the prince\'s ode (the second line)',
+    ode_line_3: 'a scrap of the prince\'s ode (the third line)',
+    ode_line_4: 'a scrap of the prince\'s ode (the fourth line)',
+    ode_line_5: 'a scrap of the prince\'s ode (the fifth line)',
     spring_water: 'skin of water from the sacred spring',
     caravan_letter: 'Sealed letter',
     tomb_tablet: 'tomb tablet',

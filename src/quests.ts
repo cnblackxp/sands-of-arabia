@@ -25,16 +25,19 @@ export type Objective =
   | { kind: 'fetch'; map: string; pickup: string; item: string }
   /** Work something in the world (`target`: a `sluice` spawn id), in this order. */
   | { kind: 'use'; map: string; target: string }
-  /** Go and see a place (`landmark` key in level.json). */
-  | { kind: 'visit'; map: string; landmark: string }
+  /**
+   * Go and see a place (`landmark` key in level.json): within `radius` m (7), and
+   * when `below` is set, under that height above it (inside a room, not on its roof).
+   */
+  | { kind: 'visit'; map: string; landmark: string; radius?: number; below?: number }
   /** Hand `gold` to someone (a ransom); talking to them pays if you have it. */
   | { kind: 'pay'; npc: NpcRef; gold: number }
   /** Win the horse race in this map. */
   | { kind: 'race'; map: string }
   /** Hold a place against waves of foes (`wave_spawn` marker ids, foes as `kind[:variant]`). */
   | { kind: 'siege'; map: string; landmark: string; waves: { marker: string; foes: string[] }[] }
-  /** Bring the convoy to the end of its road. */
-  | { kind: 'escort'; map: string };
+  /** Walk the convoy led by `keeper` (spawn id) to the end of its road (`path` in level.json). */
+  | { kind: 'escort'; map: string; keeper: string; path: string };
 
 /**
  * Maps that are other states of one place (Marib and Marib after the flood):
@@ -66,10 +69,69 @@ const ITHLIB = 'jabal_ithlib';
 const UKAZ = 'ukaz';
 const TAYMA = 'tayma';
 const DUMAT = 'dumat_al_jandal';
+const FAW = 'qaryat_al_faw';
 const MARIB = 'marib';
 const BREACH = 'marib_breach';
 
 export const QUESTS: QuestDef[] = [
+  // --- Qaryat al-Faw: the Kindite town at the gate of the Empty Quarter --------------------------
+  {
+    id: 'faw_ochre',
+    giver: { map: FAW, id: 'kahl_priest' },
+    objectives: [{ kind: 'fetch', map: FAW, pickup: 'red_ochre', item: 'red_ochre' }],
+    reward: { gold: 240 },
+  },
+  {
+    id: 'faw_painted_room',
+    giver: { map: FAW, id: 'faw_painter' },
+    objectives: [
+      { kind: 'pay', npc: { map: FAW, id: 'faw_gerrhan_trader' }, gold: 120 },
+      { kind: 'visit', map: FAW, landmark: 'mrzh_room', radius: 2.6, below: 2.4 },
+    ],
+    reward: { gold: 320, upgrade: 'flask' },
+  },
+  {
+    id: 'faw_ode',
+    giver: { map: FAW, id: 'faw_prince' },
+    objectives: [1, 2, 3, 4, 5].map((n) => ({ kind: 'fetch' as const, map: FAW, pickup: `ode_line_${n}`, item: `ode_line_${n}` })),
+    reward: { gold: 520, upgrade: 'endurance' },
+  },
+  {
+    id: 'faw_water',
+    giver: { map: FAW, role: 'farmer', index: 0 },
+    objectives: [
+      {
+        kind: 'siege',
+        map: FAW,
+        landmark: 'well_field',
+        waves: [
+          { marker: 'faw_rival_1', foes: ['raider:camel', 'skirmisher:camel', 'slinger'] },
+          { marker: 'faw_rival_2', foes: ['raider:camel', 'clubman', 'skirmisher:camel', 'slinger'] },
+          { marker: 'faw_rival_1', foes: ['brute:camel', 'raider:camel', 'archer', 'raider:camel'] },
+        ],
+      },
+    ],
+    reward: { gold: 450, upgrade: 'vitality' },
+  },
+  {
+    id: 'faw_caravan',
+    giver: { map: FAW, id: 'faw_sabaean_caravan' },
+    objectives: [{ kind: 'escort', map: FAW, keeper: 'faw_sabaean_caravan', path: 'caravan_south' }],
+    reward: { gold: 400 },
+  },
+  {
+    id: 'faw_raiders',
+    giver: { map: FAW, id: 'faw_noble_1' },
+    objectives: [{ kind: 'kill_camp', map: FAW, camp: 'sand_raiders' }],
+    reward: { gold: 500, upgrade: 'vitality' },
+  },
+  {
+    id: 'faw_ghul',
+    giver: { map: FAW, id: 'faw_sabaean_caravan' },
+    requires: 'faw_caravan',
+    objectives: [{ kind: 'kill_camp', map: FAW, camp: 'sandstorm' }],
+    reward: { gold: 900, upgrade: 'vitality' },
+  },
   // --- Tayma: the walled oasis, al-Samaw'al's al-Ablaq --------------------------------------------
   {
     id: 'tayma_siege',
@@ -117,7 +179,7 @@ export const QUESTS: QuestDef[] = [
   {
     id: 'dumat_gods',
     giver: { map: DUMAT, id: 'dumat_convoy_master' },
-    objectives: [{ kind: 'escort', map: DUMAT }],
+    objectives: [{ kind: 'escort', map: DUMAT, keeper: 'dumat_convoy_master', path: 'convoy' }],
     reward: { gold: 480, upgrade: 'endurance' },
   },
   {
@@ -601,11 +663,11 @@ export class QuestSystem {
   }
 
   /** Visit objectives in this map whose place the player has reached. */
-  visit(map: string, near: (landmark: string) => boolean): void {
+  visit(map: string, near: (o: Extract<Objective, { kind: 'visit' }>) => boolean): void {
     for (const q of QUESTS) {
       const st = this.state(q.id);
       const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
-      if (obj?.kind === 'visit' && sameMap(obj.map, map) && near(obj.landmark)) this.advance(q);
+      if (obj?.kind === 'visit' && sameMap(obj.map, map) && near(obj)) this.advance(q);
     }
   }
 
@@ -679,6 +741,12 @@ export class QuestSystem {
     const line = obj ? (text.objectives[st.step]?.text ?? '') + where(objMap(obj)) : t('quest.returnTo', { giver: roleName(q.giver) }) + where(q.giver.map);
     return t('quest.line', { title: text.title, line });
   }
+}
+
+/** The escort in this map, if a quest has one (its keeper and road). */
+export function escortIn(map: string): Extract<Objective, { kind: 'escort' }> | null {
+  for (const q of QUESTS) for (const o of q.objectives) if (o.kind === 'escort' && sameMap(o.map, map)) return o;
+  return null;
 }
 
 export function objMap(o: Objective): string {

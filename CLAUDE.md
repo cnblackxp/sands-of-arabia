@@ -279,9 +279,25 @@ Decisions worth knowing:
   - **Draw-call savings:** small instanced props and NPCs beyond 45 m skip the shadow pass.
 - **Tayma and Dumat al-Jandal.**
   - **Siege** objective (`siege`: `landmark` plus `waves` of `{marker, foes}`): it starts within 70 m of the landmark (`Game.updateSiege`). Each wave's foes spawn around their `wave_spawn` marker, with a 4 s pause between waves. Foes are written as `kind` or `kind:variant`. Clearing the last wave finishes it (`QuestSystem.finished`).
-  - **Escort** objective (`escort`): `convoy.ts` walks the keeper and the `convoy: true` camels along `paths.convoy`, but only while the player stays within 26 m of the head. Reaching the end completes it. Leaving the map resets it.
+  - **Escort** objective (`escort`, with `keeper` spawn id and `path` name): `convoy.ts` walks the keeper and the `convoy: true` camels along that path, but only while the player stays within 26 m of the head. The walk starts at the road point nearest the keeper, and everyone eases onto the road over the first 14 m. Reaching the end completes it. Leaving the map resets it.
   - **Quests.** Tayma: the siege of al-Ablaq, the prince's armour, the hidden channel, and Nabonidus's scribe. Dumat: the Palmyrene siege of Marid, the gods' convoy, the spring of Ruda, and the tribute envoy.
   - Named NPCs are women when their title says so (queen, priestess, daughter, mother, wife, kahina).
+- **Qaryat al-Faw** (Kindite).
+  - **Quests:**
+    - the ochre on the Tuwaiq ledges;
+    - the painted room: pay the Gerrhan trader, then get inside through the roof hatch;
+    - the prince's ode: five lines, one at a time;
+    - water rights: a siege of the well field;
+    - the Sabaean caravan escort;
+    - the sand raiders;
+    - the ghul of the sandstorm, after the caravan.
+  - `visit` objectives can take `radius` and `below`, so they count only inside a room and not on its roof.
+  - **Foes:**
+    - `scorpion` and `viper` are `Beast`s. A def's own `lunge`, `leash`, `circle`, `ambush` (never wanders) and `low` override the hound's. They use procedural box models until `characters/scorpion.glb` / `viper.glb` exist.
+    - The scorpion clicks and stings; the viper hisses and strikes, but only within a few metres of its spot.
+    - The `ghul` is a night-only boss Enemy with a def `blink`: every 5–8 s it vanishes in a whirl of sand and stands 2.8 m behind the player (`onBlink` → particles + `Sfx.ghulBlink`), howls on alert, and has ember eyes.
+  - **Landmark names:** level.json `landmark_names` (en/ar) label the minimap and full map.
+  - The faw_prince recites Imru' al-Qays.
 - **People and speech.**
   - NPC names come from their culture's pool (`lore.ts`).
   - Conversations may open and close with that people's own greeting and farewell (`speech.<culture>` in the locales, naming the gods each people worshipped).

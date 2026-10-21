@@ -1,4 +1,4 @@
-import { t, tOr } from './i18n';
+import { lang, t, tOr } from './i18n';
 import type { HeightField, LevelData } from './level';
 
 export type DotKind = 'npc' | 'enemy' | 'hostile' | 'guard' | 'horse' | 'camel' | 'dead';
@@ -12,8 +12,13 @@ export interface MapMarker {
   label?: string;
 }
 
-/** "tomb_3" → "tomb 3"; localised where locales/ has the landmark. */
+/** The current map's own landmark names (level.json `landmark_names`). */
+let LM_NAMES: Record<string, { en: string; ar: string }> = {};
+
+/** "tomb_3" → "tomb 3"; the level's own name first, then locales/. */
 function landmarkName(id: string): string {
+  const own = LM_NAMES[id];
+  if (own) return lang() === 'ar' ? own.ar : own.en;
   const m = /^(.*)_(\d+)$/.exec(id);
   return m ? `${tOr(`landmarks.${m[1]}`, m[1].replace(/_/g, ' '))} ${m[2]}` : tOr(`landmarks.${id}`, id.replace(/_/g, ' '));
 }
@@ -101,6 +106,7 @@ export class Minimap {
   private landmarks: [string, number, number][];
 
   constructor(root: HTMLElement, level: LevelData, heights: HeightField) {
+    LM_NAMES = level.landmark_names ?? {};
     this.x0 = level.bounds.x[0];
     this.z0 = level.bounds.z[0];
     const w = (level.bounds.x[1] - level.bounds.x[0]) * PX_PER_M;

@@ -19,12 +19,19 @@ import type { World } from './world';
  *   dives at you, then skims low for a moment, which is when a sword reaches it.
  *   Arrows reach it anywhere.
  *
- * Models come from characters/dog.glb and bird.glb when they exist; until then
- * each beast is a small procedural box model in the same voxel style.
+ * - **Desert scorpion**: scuttles in close, raises its tail and claws (the
+ *   tell), then stings at arm's length.
+ * - **Horned viper**: lies coiled in the sand and never wanders. Come within a
+ *   few metres and it rears and hisses (the tell), then strikes fast. It will
+ *   not follow you far.
+ *
+ * Models come from characters/dog.glb, bird.glb, rat.glb, scorpion.glb and
+ * viper.glb when they exist; until then each beast is a small procedural box
+ * model in the same voxel style.
  */
 
-export type BeastKind = 'hound' | 'vulture' | 'rat';
-export const BEAST_KINDS: ReadonlySet<string> = new Set(['hound', 'vulture', 'rat']);
+export type BeastKind = 'hound' | 'vulture' | 'rat' | 'scorpion' | 'viper';
+export const BEAST_KINDS: ReadonlySet<string> = new Set(['hound', 'vulture', 'rat', 'scorpion', 'viper']);
 
 type Pose = 'idle' | 'walk' | 'run' | 'growl' | 'crouch' | 'lunge' | 'hit' | 'dead' | 'fly' | 'glide' | 'dive';
 
@@ -183,6 +190,124 @@ class ProcHound implements BeastModel {
   }
 }
 
+/** Desert scorpion in boxes: a flat shell, pincers forward, the tail curled over its back. */
+class ProcScorpion implements BeastModel {
+  root = new THREE.Group();
+  readonly proc = true;
+  private body: THREE.Group;
+  private claws: THREE.Group[] = [];
+  private legs: THREE.Group[] = [];
+  private tail: THREE.Group[] = [];
+  private p: Pose = 'idle';
+  private t = Math.random() * 10;
+  private fl: MeshFlash;
+  constructor() {
+    const shell = 0x5a4026;
+    const dark = 0x2e2014;
+    const pale = 0x8a6a40;
+    this.body = pivot(this.root, 0, 0.2, 0);
+    part(this.body, 0.36, 0.12, 0.5, shell, 0, 0, 0);
+    part(this.body, 0.26, 0.08, 0.16, dark, 0, 0.02, 0.3); // head
+    for (const s of [-1, 1]) {
+      const arm = pivot(this.body, 0.16 * s, 0, 0.3);
+      part(arm, 0.07, 0.06, 0.26, shell, 0.04 * s, 0, 0.12);
+      part(arm, 0.12, 0.08, 0.16, pale, 0.06 * s, 0, 0.3); // pincer
+      this.claws.push(arm);
+      for (let i = 0; i < 4; i++) {
+        const l = pivot(this.body, 0.17 * s, -0.02, 0.14 - i * 0.12);
+        part(l, 0.24, 0.04, 0.04, dark, 0.12 * s, -0.06, 0).rotation.z = -0.5 * s;
+        this.legs.push(l);
+      }
+    }
+    // Five tail segments, each hinged on the one before, then the sting.
+    let prev: THREE.Object3D = this.body;
+    for (let i = 0; i < 5; i++) {
+      const seg = pivot(prev, 0, 0.02, i === 0 ? -0.25 : -0.14);
+      part(seg, 0.12 - i * 0.01, 0.1, 0.14, i === 4 ? pale : shell, 0, 0, -0.07);
+      this.tail.push(seg);
+      prev = seg;
+    }
+    part(prev, 0.06, 0.06, 0.12, 0x1a120c, 0, -0.04, -0.17).rotation.x = 0.8;
+    this.fl = new MeshFlash(this.root);
+  }
+  pose(p: Pose): void {
+    this.p = p;
+  }
+  flash(kind: 'hit' | 'tell', secs: number): void {
+    this.fl.set(kind, secs);
+  }
+  update(dt: number): void {
+    this.fl.update(dt);
+    const p = this.p;
+    const moving = p === 'walk' || p === 'run';
+    this.t += dt * (p === 'run' ? 16 : p === 'walk' ? 9 : 2);
+    this.legs.forEach((l, i) => (l.rotation.y = moving ? Math.sin(this.t + i * 1.3 + (i >= 4 ? Math.PI : 0)) * 0.35 : 0));
+    // The tail curls over the back, rises and trembles for the tell, and whips forward to sting.
+    const ready = p === 'crouch' || p === 'growl';
+    const curl = p === 'lunge' ? 0.95 : ready ? 0.72 + Math.sin(this.t * 9) * 0.04 : p === 'dead' ? 0.1 : 0.55 + Math.sin(this.t) * 0.03;
+    for (const s of this.tail) s.rotation.x += (curl - s.rotation.x) * Math.min(1, dt * (p === 'lunge' ? 30 : 10));
+    const open = ready || p === 'lunge' ? 0.7 : 0.35;
+    this.claws.forEach((c, i) => (c.rotation.y += ((i === 0 ? open : -open) - c.rotation.y) * Math.min(1, dt * 10)));
+    this.body.position.y = p === 'dead' ? 0.12 : 0.2 + (moving ? Math.abs(Math.sin(this.t * 2)) * 0.015 : 0);
+    this.body.rotation.x = p === 'hit' ? -0.2 : p === 'crouch' ? 0.08 : 0;
+    this.body.rotation.z += ((p === 'dead' ? Math.PI : 0) - this.body.rotation.z) * Math.min(1, dt * 6);
+  }
+}
+
+/** Horned viper (Cerastes): sand-coloured, banded, a horn over each eye. */
+class ProcViper implements BeastModel {
+  root = new THREE.Group();
+  readonly proc = true;
+  private base: THREE.Group;
+  private head: THREE.Group;
+  private segs: THREE.Group[] = [];
+  private p: Pose = 'idle';
+  private t = Math.random() * 10;
+  private fl: MeshFlash;
+  constructor() {
+    const sand = 0xc8a878;
+    const band = 0x8a6a48;
+    this.base = pivot(this.root, 0, 0.05, 0.3);
+    this.head = pivot(this.base, 0, 0, 0);
+    part(this.head, 0.11, 0.06, 0.14, sand, 0, 0.01, 0.07);
+    for (const s of [-1, 1]) part(this.head, 0.02, 0.05, 0.02, band, 0.035 * s, 0.05, 0.09); // horns
+    let prev: THREE.Object3D = this.base;
+    for (let i = 0; i < 8; i++) {
+      const seg = pivot(prev, 0, 0, i === 0 ? 0 : -0.12);
+      part(seg, 0.09 - i * 0.006, 0.07 - i * 0.004, 0.13, i % 2 ? band : sand, 0, 0, -0.06);
+      this.segs.push(seg);
+      prev = seg;
+    }
+    this.fl = new MeshFlash(this.root);
+  }
+  pose(p: Pose): void {
+    this.p = p;
+  }
+  flash(kind: 'hit' | 'tell', secs: number): void {
+    this.fl.set(kind, secs);
+  }
+  update(dt: number): void {
+    this.fl.update(dt);
+    const p = this.p;
+    const moving = p === 'walk' || p === 'run';
+    this.t += dt * (p === 'run' ? 12 : p === 'walk' ? 7 : 1.5);
+    const k = Math.min(1, dt * (p === 'lunge' ? 30 : 10));
+    // Coiled at rest, an S-wave when it moves, reared for the tell, stretched for the strike.
+    this.segs.forEach((s, i) => {
+      const yaw = moving ? Math.sin(this.t - i * 0.9) * 0.4 : p === 'lunge' || p === 'dead' ? 0 : p === 'crouch' || p === 'growl' ? (i < 3 ? 0 : 0.6) : 0.62 + i * 0.07;
+      s.rotation.y += (yaw - s.rotation.y) * k;
+      const pitch = (p === 'crouch' || p === 'growl') && i < 2 ? (i === 0 ? -0.9 : 0.9) : 0;
+      s.rotation.x += (pitch - s.rotation.x) * k;
+    });
+    const rear = p === 'crouch' || p === 'growl';
+    const y = rear ? 0.24 + Math.sin(this.t * 6) * 0.01 : p === 'lunge' ? 0.12 : 0.05;
+    const z = p === 'lunge' ? 0.62 : 0.3;
+    this.base.position.y += (y - this.base.position.y) * k;
+    this.base.position.z += (z - this.base.position.z) * k;
+    this.head.rotation.z = p === 'dead' ? Math.PI / 2 : 0;
+  }
+}
+
 /** Lappet-faced vulture: dark brown wings, a pale ruff, a bare pink head. */
 class ProcVulture implements BeastModel {
   root = new THREE.Group();
@@ -330,12 +455,53 @@ interface BeastDef {
   size?: number;
   /** Coat colour (hound-model beasts). */
   coat?: number;
+  /** Its own strike instead of the hound's leap (scaled by size): speed, hop, range, reach and the closest it strikes from. */
+  lunge?: { speed: number; hop: number; range: number; reach: number; min: number };
+  /** How far from home it hunts (m). */
+  leash?: number;
+  /** Circling distance while it waits for an opening (m). */
+  circle?: number;
+  /** Lies in wait: never wanders from its spot. */
+  ambush?: boolean;
+  /** Low to the ground: a shorter target, and its bar sits lower. */
+  low?: boolean;
 }
 
 const DEFS: Record<BeastKind, BeastDef> = {
   hound: { title: 'Desert Hound', hp: 55, sight: 18, walk: 1.6, run: 7.2, dmg: 14, knock: 1.8, tell: 0.45, cooldown: [1.4, 2.8] },
   rat: { title: 'Rat', hp: 12, sight: 10, walk: 1.2, run: 6.5, dmg: 5, knock: 0.4, tell: 0.25, cooldown: [0.9, 1.8], size: 0.36, coat: 0x6b625a },
   vulture: { title: 'Vulture', hp: 40, sight: 16, walk: 4, run: 7, dmg: 11, knock: 1.2, tell: 0.6, cooldown: [2.4, 4.2] },
+  scorpion: {
+    title: 'Desert Scorpion',
+    hp: 34,
+    sight: 9,
+    walk: 0.9,
+    run: 3.4,
+    dmg: 16,
+    knock: 0.6,
+    tell: 0.45,
+    cooldown: [1.2, 2.2],
+    lunge: { speed: 7, hop: 0, range: 3, reach: 1.25, min: 0.5 },
+    leash: 22,
+    circle: 2.2,
+    low: true,
+  },
+  viper: {
+    title: 'Horned Viper',
+    hp: 18,
+    sight: 5.5,
+    walk: 0.8,
+    run: 2.6,
+    dmg: 20,
+    knock: 0.5,
+    tell: 0.32,
+    cooldown: [1.4, 2.4],
+    lunge: { speed: 12, hop: 0.12, range: 3.2, reach: 1.05, min: 0.4 },
+    leash: 9,
+    circle: 2.4,
+    ambush: true,
+    low: true,
+  },
 };
 
 const LUNGE = { speed: 11, time: 0.42, hop: 0.55, range: 6.2, reach: 1.15 };
@@ -379,6 +545,9 @@ export class Beast implements Foe {
   private groundY = 0;
   private wanderT = 2;
   private wander: THREE.Vector3 | null = null;
+  /** Its leap or strike (the def's own, or the hound's scaled by size). */
+  private lg: { speed: number; hop: number; range: number; reach: number; min: number };
+  private leash: number;
 
   constructor(
     readonly kind: BeastKind,
@@ -411,8 +580,19 @@ export class Beast implements Foe {
     const coats = [0xc9a56b, 0xd9c09a, 0x8a5a33, 0xe8dcc8];
     const coat = this.def.coat ?? coats[Math.floor(this.rnd() * coats.length)];
     const fourLegged = kind !== 'vulture';
-    this.model = model ? new GlbBeast(model, !fourLegged, fourLegged && !nativeModel ? coat : undefined) : fourLegged ? new ProcHound(coat) : new ProcVulture();
+    this.model = model
+      ? new GlbBeast(model, !fourLegged, fourLegged && !nativeModel ? coat : undefined)
+      : kind === 'scorpion'
+        ? new ProcScorpion()
+        : kind === 'viper'
+          ? new ProcViper()
+          : fourLegged
+            ? new ProcHound(coat)
+            : new ProcVulture();
     if (this.size !== 1) this.model.root.scale.setScalar(this.size);
+    const k = this.size;
+    this.lg = this.def.lunge ?? { speed: LUNGE.speed * Math.max(0.55, k), hop: LUNGE.hop * k, range: LUNGE.range * Math.max(0.5, k), reach: LUNGE.reach * Math.max(0.7, k), min: 2 * Math.min(1, k + 0.2) };
+    this.leash = this.def.leash ?? LEASH;
     this.model.pose(kind === 'vulture' ? 'glide' : 'idle', 0);
     this.sync();
   }
@@ -441,7 +621,7 @@ export class Beast implements Foe {
     return tOr(`enemies.${this.variant ?? this.kind}`, this.def.title);
   }
   get headY(): number {
-    return this.pos.y + (this.flying ? 0.6 : 1.0);
+    return this.pos.y + (this.flying ? 0.6 : this.def.low ? 0.55 : 1.0);
   }
   get telegraphing(): boolean {
     return this.state === 'tell';
@@ -465,7 +645,7 @@ export class Beast implements Foe {
     return this.flying ? -0.3 : 0.15 * this.size;
   }
   get hitHi(): number {
-    return this.flying ? 0.35 : 0.95 * this.size;
+    return this.flying ? 0.35 : (this.def.low ? 0.6 : 0.95) * this.size;
   }
   get root(): THREE.Object3D {
     return this.model.root;
@@ -495,6 +675,24 @@ export class Beast implements Foe {
     if (e.gain > 0.02) fn(e.pan, e.gain);
   }
 
+  /** A four-legged beast's voice: hounds growl and bark, scorpions click, vipers hiss. */
+  private say(what: 'growl' | 'bark' | 'snarl' | 'yelp' | 'die' | 'bite', loud = 1): void {
+    this.sound((p, g) => {
+      g *= loud;
+      if (this.kind === 'scorpion') {
+        if (what === 'bite') this.sfx.sting(p, g);
+        else if (what !== 'bark') this.sfx.scorpionClick(p, what === 'die' ? g * 1.3 : g);
+      } else if (this.kind === 'viper') {
+        if (what === 'bite') this.sfx.sting(p, g * 0.7);
+        else if (what !== 'bark') this.sfx.hiss(p, g, what === 'growl' || what === 'die');
+      } else if (what === 'growl') this.sfx.houndGrowl(p, g);
+      else if (what === 'bark') this.sfx.houndBark(p, g);
+      else if (what === 'snarl') this.sfx.houndSnarl(p, g);
+      else if (what === 'bite') this.sfx.bite(p, g);
+      else this.sfx.houndYelp(p, g, what === 'die');
+    });
+  }
+
   private setState(s: BState, timer = 0): void {
     this.state = s;
     this.timer = timer;
@@ -521,7 +719,7 @@ export class Beast implements Foe {
       } else {
         this.setState('dead');
         this.model.pose('dead', 0);
-        this.sound((p, g) => this.sfx.houndYelp(p, g, true));
+        this.say('die');
       }
       res.killed = true;
       this.onKilled(this);
@@ -529,7 +727,7 @@ export class Beast implements Foe {
     }
     this.knock.copy(away).multiplyScalar(this.flying ? 2.5 : 3.5);
     if (this.flying) this.sound((p, g) => this.sfx.vultureCry(p, g, false));
-    else this.sound((p, g) => this.sfx.houndYelp(p, g, false));
+    else this.say('yelp');
     // A blow knocks it out of its lunge or dive.
     this.setState('stagger', this.flying ? 0.55 : 0.4);
     this.model.pose('hit', 0);
@@ -557,7 +755,7 @@ export class Beast implements Foe {
   }
 
   private playerHere(player: PlayerView): boolean {
-    return !player.dead && Math.hypot(player.pos.x - this.home.x, player.pos.z - this.home.z) < LEASH;
+    return !player.dead && Math.hypot(player.pos.x - this.home.x, player.pos.z - this.home.z) < this.leash;
   }
 
   // --- hound ---------------------------------------------------------------------------
@@ -576,7 +774,7 @@ export class Beast implements Foe {
             this.speed = 0;
             this.model.pose('idle', 0);
           } else this.model.pose('walk', d.walk);
-        } else if (this.wanderT <= 0) {
+        } else if (this.wanderT <= 0 && !d.ambush) {
           this.wanderT = 3 + this.rnd() * 5;
           const a = this.rnd() * Math.PI * 2;
           const tx = this.home.x + Math.sin(a) * 3;
@@ -588,7 +786,7 @@ export class Beast implements Foe {
           this.setState('alert', 0.5 + this.rnd() * 0.3);
           this.speed = 0;
           this.model.pose('growl', 0);
-          this.sound((p, g) => this.sfx.houndGrowl(p, g));
+          this.say('growl');
         }
         break;
       }
@@ -597,12 +795,12 @@ export class Beast implements Foe {
         this.yaw = turnToward(this.yaw, toPlayer, 6, dt);
         if (this.timer <= 0) {
           this.setState('chase');
-          this.sound((p, g) => this.sfx.houndBark(p, g));
+          this.say('bark');
         }
         break;
       case 'chase':
       case 'circle': {
-        if (!this.playerHere(player) || fromHome > LEASH) {
+        if (!this.playerHere(player) || fromHome > this.leash) {
           this.setState('return');
           this.follow.clear();
           break;
@@ -610,18 +808,19 @@ export class Beast implements Foe {
         this.nextBark -= dt;
         if (this.nextBark <= 0) {
           this.nextBark = 2.5 + this.rnd() * 4;
-          this.sound((p, g) => this.sfx.houndBark(p, g * 0.8));
+          this.say('bark', 0.8);
         }
         const clear = this.world.nav.lineClear(this.pos.x, this.pos.z, pp.x, pp.z);
-        if (this.cooldown <= 0 && dist < LUNGE.range * Math.max(0.5, this.size) && dist > 2 * Math.min(1, this.size + 0.2) && clear) {
+        if (this.cooldown <= 0 && dist < this.lg.range && dist > this.lg.min && clear) {
           this.setState('tell', d.tell);
           this.speed = 0;
           this.model.pose('crouch', 0);
           this.model.flash('tell', 0.16);
-          this.sound((p, g) => this.sfx.houndGrowl(p, g * 1.2));
+          this.say('growl', 1.2);
           break;
         }
-        if (dist > 7.5) {
+        const cr = d.circle ?? 4.6;
+        if (dist > cr + 2.9) {
           this.state = 'chase';
           this.moveToward(pp.x, pp.z, d.run, dt, 4);
           this.model.pose('run', d.run);
@@ -629,7 +828,7 @@ export class Beast implements Foe {
           // Circle at a few metres, waiting for the opening.
           this.state = 'circle';
           this.orbitA += this.orbitSide * dt * 0.9;
-          const r = 4.6;
+          const r = cr;
           const tx = pp.x + Math.sin(this.orbitA) * r;
           const tz = pp.z + Math.cos(this.orbitA) * r;
           const left = this.moveToward(tx, tz, d.run * 0.55, dt, 0, false);
@@ -649,20 +848,20 @@ export class Beast implements Foe {
           this.setState('lunge', LUNGE.time);
           this.struck = false;
           this.model.pose('lunge', LUNGE.speed);
-          this.sound((p, g) => this.sfx.houndSnarl(p, g));
+          this.say('snarl');
         }
         break;
       case 'lunge': {
         this.timer -= dt;
         const u = 1 - this.timer / LUNGE.time;
-        const ls = LUNGE.speed * Math.max(0.55, this.size);
+        const ls = this.lg.speed;
         this.speed = ls;
         this.step(this.dir.x * ls * dt, this.dir.z * ls * dt);
-        this.pos.y = this.world.floor(this.pos.x, this.pos.z, this.pos.y) + Math.sin(Math.PI * Math.min(1, u)) * LUNGE.hop * this.size;
-        if (!this.struck && dist < LUNGE.reach * Math.max(0.7, this.size) && !player.dead) {
+        this.pos.y = this.world.floor(this.pos.x, this.pos.z, this.pos.y) + Math.sin(Math.PI * Math.min(1, u)) * this.lg.hop;
+        if (!this.struck && dist < this.lg.reach && !player.dead) {
           this.struck = true;
           player.hurt(d.dmg, this.pos, d.knock);
-          this.sound((p, g) => this.sfx.bite(p, g));
+          this.say('bite');
         }
         if (this.timer <= 0) {
           this.pos.y = this.world.floor(this.pos.x, this.pos.z, this.pos.y);
@@ -684,7 +883,7 @@ export class Beast implements Foe {
         }
         break;
       case 'return': {
-        if (dist < d.sight * 0.6 && this.playerHere(player) && fromHome < LEASH - 8) {
+        if (dist < d.sight * 0.6 && this.playerHere(player) && fromHome < this.leash - 8) {
           this.setState('chase');
           break;
         }
@@ -923,9 +1122,13 @@ export class Beast implements Foe {
   }
 }
 
-/** Build the beast for a spawn of kind hound / vulture. */
-export function createBeast(kind: BeastKind, s: Spawn, world: World, sfx: Sfx, ear: Ear, models: { dog: GLTF | null; bird: GLTF | null; rat?: GLTF | null }, seed: number): Beast {
-  // Rats have their own model now; without it, a shrunken hound stands in.
-  const own = kind === 'rat' && models.rat ? models.rat : null;
+export type BeastModels = { dog: GLTF | null; bird: GLTF | null; rat?: GLTF | null; scorpion?: GLTF | null; viper?: GLTF | null };
+
+/** Build the beast for a spawn of a beast kind. */
+export function createBeast(kind: BeastKind, s: Spawn, world: World, sfx: Sfx, ear: Ear, models: BeastModels, seed: number): Beast {
+  // Rats, scorpions and vipers use their own model when it exists; without it a
+  // shrunken hound stands in for the rat, and the others are built in boxes.
+  const own = (kind === 'rat' || kind === 'scorpion' || kind === 'viper' ? models[kind] : null) ?? null;
+  if ((kind === 'scorpion' || kind === 'viper') && !own) return new Beast(kind, s, s.camp ?? '', world, sfx, ear, null, seed, true);
   return new Beast(kind, s, s.camp ?? '', world, sfx, ear, kind === 'vulture' ? models.bird : own ?? models.dog, seed, !!own);
 }

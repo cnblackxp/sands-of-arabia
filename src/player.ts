@@ -539,7 +539,8 @@ export class Player implements PlayerView {
       } else {
         this.speed = Math.max(0, this.speed - JUMP.air * dt);
       }
-      this.updateAttack(dt, f);
+      if (this.hasBow) this.updateBow(dt, f, false);
+      else this.updateAttack(dt, f);
       // Hold the tuck pose until we come down.
       const a = this.rig.anim;
       if (a.base === 'Jump' && a.baseTime() > 0.27) a.setBase('Jump', 0, 0);
@@ -860,6 +861,8 @@ export class Player implements PlayerView {
   }
 
   private updateAttack(dt: number, f: Frame): void {
+    // A weapon without swings (the bow) has nothing to do here.
+    if (!this.swings.length) return;
     if (this.attackT >= 0) this.attackT += dt;
     if (this.horse && f.attack && !this.talking) this.attackQueued = 0.35;
     const cur = this.swings[this.attackIdx];

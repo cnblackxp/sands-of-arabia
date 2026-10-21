@@ -49,6 +49,8 @@ export interface CommonAssets {
   dog: GLTF | null;
   bird: GLTF | null;
   rat: GLTF | null;
+  scorpion: GLTF | null;
+  viper: GLTF | null;
   dogClips: Record<string, ClipMeta>;
   birdClips: Record<string, ClipMeta>;
   envHdr: THREE.DataTexture;
@@ -85,9 +87,9 @@ function counter(total: number, onProgress: Progress) {
 }
 
 export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
-  const tick = counter(15, onProgress);
+  const tick = counter(17, onProgress);
   const optional = (path: string, label: string) => tick(label, gltf.loadAsync(asset(path)).catch(() => null));
-  const [person, horse, camel, envHdr, bg, manifest, maps, wingedHorse, bonfireProp, chestProp, arrowProp, rockProp, dog, bird, rat] = await Promise.all([
+  const [person, horse, camel, envHdr, bg, manifest, maps, wingedHorse, bonfireProp, chestProp, arrowProp, rockProp, dog, bird, rat, scorpion, viper] = await Promise.all([
     tick('people', gltf.loadAsync(asset('characters/person.glb'))),
     tick('horses', gltf.loadAsync(asset('characters/horse.glb'))),
     tick('camels', gltf.loadAsync(asset('characters/camel.glb'))),
@@ -108,6 +110,8 @@ export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
     optional('characters/dog.glb', 'hounds'),
     optional('characters/bird.glb', 'vultures'),
     optional('characters/rat.glb', 'rats'),
+    optional('characters/scorpion.glb', 'scorpions'),
+    optional('characters/viper.glb', 'vipers'),
   ]);
   bg.mapping = THREE.EquirectangularReflectionMapping;
   bg.colorSpace = THREE.SRGBColorSpace;
@@ -124,6 +128,8 @@ export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
     dog,
     bird,
     rat,
+    scorpion,
+    viper,
     dogClips: manifest?.assets?.dog?.clips ?? {},
     birdClips: manifest?.assets?.bird?.clips ?? {},
     envHdr,

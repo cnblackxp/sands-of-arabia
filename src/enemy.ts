@@ -1,14 +1,13 @@
 import * as THREE from 'three';
 import type RAPIER from '@dimforge/rapier3d-compat';
 import { CharacterFactory, CLIP_SPEED, type Accessory, type Rig } from './characters';
-import { BEAST_KINDS, createBeast, type Beast, type BeastKind, type Ear } from './beasts';
+import { BEAST_KINDS, createBeast, type Beast, type BeastKind, type BeastModels, type Ear } from './beasts';
 import type { Foe, HitResult, PlayerView } from './combat';
 import { Flash, type Sfx } from './fx';
 import { tOr } from './i18n';
 import type { Spawn } from './level';
 import { PathFollower } from './nav';
 import { angleTo, dampAngle, mulberry32, turnToward, wrapAngle } from './util';
-import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { World } from './world';
 
 /**
@@ -17,7 +16,7 @@ import type { World } from './world';
  * recovery is the opening. Poise decides whether a hit makes them flinch.
  */
 
-export type EnemyKind = 'raider' | 'skirmisher' | 'brute' | 'chief' | 'slinger' | 'clubman' | 'archer' | 'champion';
+export type EnemyKind = 'raider' | 'skirmisher' | 'brute' | 'chief' | 'slinger' | 'clubman' | 'archer' | 'champion' | 'ghul';
 
 interface KindDef {
   title: string;
@@ -53,6 +52,8 @@ interface KindDef {
   ranged?: { min: number; max: number; cooldown: [number, number]; dmg: number; arrow?: boolean };
   /** Big wooden club: heavier swing sounds. */
   club?: boolean;
+  /** Vanishes in a whirl of sand and stands behind the player, every [min, max] s (the ghul). */
+  blink?: [number, number];
 }
 
 const KINDS: Record<EnemyKind, KindDef> = {
@@ -207,6 +208,32 @@ const KINDS: Record<EnemyKind, KindDef> = {
     block: 0.35,
     backstep: 0.25,
   },
+  ghul: {
+    title: 'Ghul of the Sandstorm',
+    hp: 900,
+    poise: 6,
+    walk: 1.7,
+    run: 4.6,
+    scale: 1.45,
+    dmg: 32,
+    knock: 3.4,
+    range: 2.5,
+    windup: 0.7,
+    comboWindup: 0.35,
+    strikeSpeed: 1.55,
+    recover: 0.9,
+    maxCombo: 3,
+    comboChance: 0.55,
+    sight: 22,
+    turn: 3,
+    lunge: 3.4,
+    acc: ['Hair', 'Cloak'],
+    colours: { P_Robe: 0x2a2420, P_Sash: 0x4a3a2c, P_Wrap: 0x3a332b, P_Pants: 0x2a2420, P_Skin: 0x7d7a6e, P_Hair: 0x1a1714, P_Cloak: 0x3b2f26 },
+    swings: [2, 0, 1],
+    block: 0,
+    backstep: 0.3,
+    blink: [5, 8],
+  },
   archer: {
     title: 'Archer',
     hp: 60,
@@ -321,6 +348,9 @@ export class Enemy implements Foe {
   readonly flying = false;
   /** Called at the telegraph moment of a windup (glint VFX). */
   onTell: (e: Enemy) => void = () => {};
+  /** The ghul vanished at `from` and stands at `to` (sand VFX and sound). */
+  onBlink: (e: Enemy, from: THREE.Vector3, to: THREE.Vector3) => void = () => {};
+  private blinkT = 3;
   private home: THREE.Vector3;
   private homeYaw: number;
   private timer = 0;
@@ -342,7 +372,7 @@ export class Enemy implements Foe {
   private guardHits = 0;
   /** Grunt pitch: brutes are deep, skirmishers light. */
   private get voicePitch(): number {
-    return this.kind === 'brute' || this.kind === 'clubman' ? 85 : this.kind === 'skirmisher' || this.kind === 'slinger' ? 165 : this.kind === 'chief' ? 105 : 130;
+    return this.kind === 'ghul' ? 62 : this.kind === 'brute' || this.kind === 'clubman' ? 85 : this.kind === 'skirmisher' || this.kind === 'slinger' ? 165 : this.kind === 'chief' ? 105 : 130;
   }
   private sawPlayerAttack = false;
 
@@ -551,6 +581,7 @@ export class Enemy implements Foe {
   }
 
   private alert(): void {
+    if (this.def.blink) this.sfx.ghulHowl();
     this.timer = 0.35 + this.rnd() * 0.25;
     this.follow.clear();
     this.enter('alert');
@@ -562,6 +593,7 @@ export class Enemy implements Foe {
     if (this.poiseTimer > 0 && (this.poiseTimer -= dt) <= 0) this.poiseHits = 0;
     this.cooldown -= dt;
     const d = this.def;
+    if (d.blink) this.blinkT -= dt;
     const dx = player.pos.x - this.pos.x;
     const dz = player.pos.z - this.pos.z;
     const dist = Math.hypot(dx, dz);
@@ -645,6 +677,7 @@ export class Enemy implements Foe {
           this.rangedApproach(dt, player, dist, toPlayer);
           break;
         }
+        if (d.blink && this.blinkT <= 0 && dist > 5 && dist < 20 && this.blink(player)) break;
         if (this.hasToken && dist < d.range + 0.3 && this.cooldown <= 0) {
           this.startSwing(true);
           break;
@@ -874,6 +907,28 @@ export class Enemy implements Foe {
   private swingDef: Swing = SWINGS[0];
   private lastPlayer = new THREE.Vector3();
 
+  /** The ghul is suddenly behind you, in a whirl of sand: a short pause, then it swings. */
+  private blink(player: PlayerView): boolean {
+    const b = this.def.blink!;
+    this.blinkT = b[0] + this.rnd() * (b[1] - b[0]);
+    const ax = player.pos.x - this.pos.x;
+    const az = player.pos.z - this.pos.z;
+    const len = Math.hypot(ax, az) || 1;
+    const tx = player.pos.x + (ax / len) * 2.8;
+    const tz = player.pos.z + (az / len) * 2.8;
+    if (this.world.nav.isBlocked(tx, tz)) return false;
+    const from = this.pos.clone();
+    this.pos.set(tx, this.world.floor(tx, tz, player.pos.y), tz);
+    this.yaw = Math.atan2(player.pos.x - tx, player.pos.z - tz);
+    this.follow.clear();
+    this.sync();
+    this.onBlink(this, from, this.pos.clone());
+    this.flash.tell(0.2);
+    this.timer = 0.45;
+    this.enter('alert');
+    return true;
+  }
+
   private pickReposition(p: THREE.Vector3): void {
     // Step to the side around the player, Souls-style spacing.
     const side = this.rnd() < 0.5 ? -1 : 1;
@@ -962,6 +1017,21 @@ function buildClub(): THREE.Group {
   return g;
 }
 
+/** The ghul's eyes: two embers in an ashen face (until it has a model of its own). */
+const EMBER = new THREE.MeshBasicMaterial({ color: 0xff8a1a, fog: false, toneMapped: false });
+const EYE_GEO = new THREE.BoxGeometry(0.045, 0.028, 0.03);
+function addEmberEyes(rig: Rig, scale: number): void {
+  const head = rig.bones.get('head');
+  if (!head) return;
+  rig.root.updateMatrixWorld(true);
+  const at = head.getWorldPosition(new THREE.Vector3());
+  for (const s of [-1, 1]) {
+    const eye = new THREE.Mesh(EYE_GEO, EMBER);
+    eye.position.copy(head.worldToLocal(at.clone().add(new THREE.Vector3(0.06 * s * scale, 0.25 * scale, 0.165 * scale))));
+    head.add(eye);
+  }
+}
+
 export class EnemySystem {
   /** Every hostile: raiders and beasts. */
   readonly list: Foe[] = [];
@@ -977,7 +1047,7 @@ export class EnemySystem {
     private factory: CharacterFactory,
     private scene: THREE.Scene,
     private sfx: Sfx,
-    private models: { dog: GLTF | null; bird: GLTF | null; rat?: GLTF | null },
+    private models: BeastModels,
   ) {
     for (const s of world.level.spawns) {
       if (s.role !== 'enemy') continue;
@@ -1009,12 +1079,14 @@ export class EnemySystem {
     const colours = s.variant && look[s.variant] ? { ...def.colours, ...look[s.variant] } : def.colours;
     const rig = this.factory.createPerson(def.acc, colours, def.scale);
     if (def.club && !this.factory.hasPart('Club')) rig.bones.get('hand_R')?.add(buildClub());
+    if (def.blink) addEmberEyes(rig, def.scale);
     const at = new THREE.Vector3(...s.pos);
     at.y = this.world.floor(at.x, at.z, s.pos[1]);
     const col = this.world.physics.addActor(RADIUS * def.scale, 0.55 * def.scale, at);
     const e = new Enemy(kind, rig, s, s.camp ?? '', col, this.world, this.sfx, this.seed++);
     e.onThrow = (en, from, dmg) => this.onThrow(en, from, dmg);
     e.onTell = this.tellFx ? this.tellFor(e) : () => {};
+    e.onBlink = (_, a, b) => this.onBlink(a, b);
     e.onKilled = this.killHook;
     this.scene.add(rig.root);
     this.humans.push(e);
@@ -1022,6 +1094,8 @@ export class EnemySystem {
     return e;
   }
 
+  /** The ghul moved through the sand (the game adds the dust and the sound). */
+  onBlink: (from: THREE.Vector3, to: THREE.Vector3) => void = () => {};
   /** A slinger lets a stone fly (the game turns it into a projectile). */
   onThrow: (e: Enemy, from: THREE.Vector3, dmg: number) => void = () => {};
   private tellFx: ((follow: () => THREE.Vector3) => void) | null = null;

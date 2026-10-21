@@ -96,6 +96,8 @@ export interface LevelData {
   lights: { type: 'lamp' | 'fire'; pos: Vec3 }[];
   paths: Record<string, Vec3[]>;
   landmarks: Record<string, Vec3>;
+  /** Landmark names in English and Arabic (minimap and full map). */
+  landmark_names?: Record<string, { en: string; ar: string }>;
 }
 
 /** Bilinear sampler over the float32 heightfield (row = z, col = x). */

@@ -23,7 +23,7 @@ import type { Enemy } from './enemy';
 import { ARROW, Projectiles, solveBallistic, type ProjTarget } from './projectiles';
 import { Progress } from './progress';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './settings';
-import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, sameMap, setMapAliases, type QuestDef } from './quests';
+import { escortIn, FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, sameMap, setMapAliases, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
 import { mulberry32 } from './util';
 import { cutout, isNewLand, loadCommon, loadMap, mapRequested, World, type CommonAssets, type MapEntry } from './world';
@@ -440,7 +440,7 @@ class Game {
     scene.add(this.player.rig.root);
 
     this.npcs = new NpcSystem(this.world, factory, scene, this.sfx);
-    this.enemies = new EnemySystem(this.world, factory, scene, this.sfx, { dog: this.common.dog, bird: this.common.bird, rat: this.common.rat });
+    this.enemies = new EnemySystem(this.world, factory, scene, this.sfx, { dog: this.common.dog, bird: this.common.bird, rat: this.common.rat, scorpion: this.common.scorpion, viper: this.common.viper });
     this.enemies.ear = (q) => {
       const d = Math.hypot(q.x - this.player.pos.x, q.z - this.player.pos.z);
       return { pan: this.pan(q.x, q.z), gain: Math.max(0, 1 - d / 32) };
@@ -464,6 +464,11 @@ class Game {
     this.setupRace(level);
     this.setupConvoy(level);
     this.enemies.setTellFx((follow) => this.glints.spawn(follow));
+    // The ghul: a whirl of sand where it was and where it stands.
+    this.enemies.onBlink = (from, to) => {
+      for (const at of [from, to]) this.particles.burst(at.clone().setY(at.y + 1), 26, { color: 0xc9a06a, speed: 3.2, up: 2.2, size: 0.11, life: 0.8, gravity: 2 });
+      this.sfx.ghulBlink();
+    };
     this.enemies.setKillHook((e) => this.onEnemyKilled(e));
     const tmp = new THREE.Vector3();
     this.npcs.onTell = (n) => {
@@ -1691,12 +1696,12 @@ class Game {
     });
   }
 
-  /** Dumat's escort: the keeper and the convoy camels on the `convoy` road. */
+  /** An escort (Dumat's gods, al-Faw's Sabaean caravan): the keeper and the convoy camels on the quest's road. */
   private setupConvoy(level: import('./level').LevelData): void {
-    const path = level.paths.convoy;
-    const keeperSpawn = level.spawns.find((s) => (s.role as string) === 'caravaneer' && s.id === 'dumat_convoy_master');
-    if (!path?.length || !keeperSpawn) return;
-    const keeper = this.npcs.npcs.find((n) => n.refId === keeperSpawn.id);
+    const esc = escortIn(this.mapName);
+    const path = esc ? level.paths[esc.path] : undefined;
+    if (!esc || !path?.length) return;
+    const keeper = this.npcs.npcs.find((n) => n.refId === esc.keeper);
     const camels = level.spawns
       .filter((s) => s.role === 'camel' && s.convoy)
       .map((s) => this.camels.find((c) => Math.hypot(c.rig.root.position.x - s.pos[0], c.rig.root.position.z - s.pos[2]) < 0.6))
@@ -1966,9 +1971,10 @@ class Game {
       if (this.visitT <= 0 && !p.dead) {
         this.visitT = 0.5;
         const lm = this.world.level.landmarks;
-        this.quests.visit(this.mapName, (key) => {
-          const at = lm[key];
-          return !!at && Math.hypot(at[0] - p.pos.x, at[2] - p.pos.z) < 7 && Math.abs(at[1] - p.pos.y) < 6;
+        this.quests.visit(this.mapName, (o) => {
+          const at = lm[o.landmark];
+          if (!at || Math.hypot(at[0] - p.pos.x, at[2] - p.pos.z) >= (o.radius ?? 7)) return false;
+          return o.below !== undefined ? p.pos.y < at[1] + o.below && p.pos.y > at[1] - 1.5 : Math.abs(at[1] - p.pos.y) < 6;
         });
       }
       for (const k of this.pickups) k.update(dt);

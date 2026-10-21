@@ -737,6 +737,31 @@ export class Sfx {
   talonRake(pan = 0, gain = 1): void {
     for (let i = 0; i < 3; i++) this.noiseBurst(0.06, 4500, 2000, 2, 0.2 * gain, 'bandpass', pan, i * 0.04);
   }
+  /** Scorpion: dry chitinous clicks. */
+  scorpionClick(pan = 0, gain = 1): void {
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) this.noiseBurst(0.025, 5200, 3800, 4, 0.16 * gain, 'bandpass', pan, i * 0.06 + Math.random() * 0.02);
+  }
+  /** Viper: a hiss, long when it rears. */
+  hiss(pan = 0, gain = 1, long = false): void {
+    this.noiseBurst(long ? 0.9 : 0.4, 6500, 4800, 1.2, 0.18 * gain, 'highpass', pan);
+  }
+  /** A sting or a fang strike landing. */
+  sting(pan = 0, gain = 1): void {
+    this.noiseBurst(0.12, 1800, 4200, 1.5, 0.22 * gain, 'bandpass', pan);
+    this.tone(0.05, 900, 400, 0.12 * gain, 'square', 0.08, pan);
+  }
+  /** The ghul: a low, wavering howl that bends upward. */
+  ghulHowl(): void {
+    this.tone(1.6, 110, 190, 0.16, 'sawtooth');
+    this.tone(1.6, 166, 280, 0.08, 'triangle', 0.05);
+    this.noiseBurst(1.5, 600, 1800, 1.2, 0.12, 'bandpass');
+  }
+  /** Sand whirling away and back: the ghul is somewhere else. */
+  ghulBlink(): void {
+    this.noiseBurst(0.6, 2400, 300, 0.7, 0.28, 'bandpass');
+    this.noiseBurst(0.5, 300, 2600, 0.7, 0.24, 'bandpass', 0, 0.35);
+  }
   /** A body hitting the ground. */
   thud(pan = 0, gain = 1): void {
     this.tone(0.2, 90, 45, 0.5 * gain, 'triangle', 0, pan);
