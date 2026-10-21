@@ -737,6 +737,11 @@ export class Sfx {
   talonRake(pan = 0, gain = 1): void {
     for (let i = 0; i < 3; i++) this.noiseBurst(0.06, 4500, 2000, 2, 0.2 * gain, 'bandpass', pan, i * 0.04);
   }
+  /** The aim arc settles on a foe: a soft, high double tick. */
+  aimLock(): void {
+    this.tone(0.05, 1760, 1760, 0.06, 'triangle');
+    this.tone(0.06, 2350, 2350, 0.045, 'triangle', 0.05);
+  }
   /** Scorpion: dry chitinous clicks. */
   scorpionClick(pan = 0, gain = 1): void {
     const n = 3 + Math.floor(Math.random() * 3);

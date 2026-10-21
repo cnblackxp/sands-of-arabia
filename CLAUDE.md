@@ -236,7 +236,7 @@ Decisions worth knowing:
     - third person: along the centre of the view (there is no crosshair; the aim arc shows where the arrow lands);
     - overhead camera with a mouse: at the cursor, with a ballistic solve;
     - overhead camera with a gamepad: the left stick turns the aim (you stand still), snapping to foes in a 22° cone.
-  - The aim arc is shown as dots plus a landing ring, which turns red over a target.
+  - The aim arc is shown as dots plus a landing ring. When the arc would hit a foe, the dots turn red, the ring hides and a small red arrow bobs above the foe pointing down (`Projectiles.aimMark`), with a soft tick (`Sfx.aimLock`) each time it settles on a new foe.
 - **Prompts** sit low on screen (`.prompt`, top 74%) and fade in and out. The dismount prompt only shows after the ridden horse has stood still for 2 s (`horseStillFor`); dismounting works at any time.
   - The quiver holds 10 arrows (`progress.data.arrows`). Arrows stick in the ground, walls and bodies; walk over them to take them back (not out of a living foe). Resting at a bonfire refills the quiver.
   - Uses `BowDraw`, `BowAim` and `BowRelease` with `BowHeld` and `Quiver`. Older models fall back to a procedural pose and bow.

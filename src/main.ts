@@ -135,6 +135,8 @@ class Game {
   loreStones: LoreStone[] = [];
   /** Reading an inscription (lore spawn): its lines and the line shown. */
   private reading: { stone: LoreStone; lines: string[]; i: number } | null = null;
+  /** What the bow's aim arc is on (a tick when it settles on a new foe). */
+  private aimTarget: unknown = null;
   /** Temples, shrines and tombs of this map (the sacred music mood). */
   private sacredSpots: [number, number][] = [];
   private visitT = 0;
@@ -2026,7 +2028,10 @@ class Game {
     this.day.skyVisible = !overhead;
     // Bow: aim arc and HUD.
     const aiming = !paused && p.aiming && !!p.aim && p.drawK > 0.15;
-    this.projectiles.preview(aiming ? p.aim!.from : null, aiming ? p.aim!.vel : null);
+    const aimHit = this.projectiles.preview(aiming ? p.aim!.from : null, aiming ? p.aim!.vel : null);
+    const aimTarget = aimHit?.target ?? null;
+    if (aimTarget && aimTarget !== this.aimTarget) this.sfx.aimLock();
+    this.aimTarget = aimTarget;
     this.hud.setAmmo(this.progress.hasBow && p.hasBow ? this.progress.data.arrows : null, ARROW.max);
     this.world.update(realDt, p.pos, this.cam.zoom);
     this.world.setFogOffset(this.cam.targetDepth);

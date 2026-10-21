@@ -131,6 +131,8 @@ export class Projectiles {
   /** Preview arc: dots along the path and a ring where it lands. */
   private readonly dots: THREE.InstancedMesh;
   private readonly ring: THREE.Mesh;
+  /** Over a foe: a small red arrow bobbing above it, pointing down (the ring hides). */
+  private readonly aimMark: THREE.Group;
   private readonly tmpM = new THREE.Matrix4();
   private readonly tmpV = new THREE.Vector3();
 
@@ -157,6 +159,18 @@ export class Projectiles {
     this.ring.renderOrder = 21;
     this.ring.visible = false;
     scene.add(this.ring);
+    const markMat = new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: 0.95, depthTest: false, fog: false });
+    this.aimMark = new THREE.Group();
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.3, 4), markMat);
+    tip.rotation.x = Math.PI;
+    const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.24, 0.08), markMat);
+    shaft.position.y = 0.22;
+    for (const m of [tip, shaft]) {
+      m.renderOrder = 22;
+      this.aimMark.add(m);
+    }
+    this.aimMark.visible = false;
+    scene.add(this.aimMark);
   }
 
   private makeMesh(kind: ShotKind): THREE.Object3D {
@@ -378,6 +392,7 @@ export class Projectiles {
     if (!from || !vel) {
       this.dots.count = 0;
       this.ring.visible = false;
+      this.aimMark.visible = false;
       return null;
     }
     const list = this.targets(side);
@@ -409,6 +424,17 @@ export class Projectiles {
     }
     this.dots.count = count;
     this.dots.instanceMatrix.needsUpdate = true;
+    // On a foe the arc turns red, and the landing ring gives way to an arrow over it.
+    (this.dots.material as THREE.MeshBasicMaterial).color.setHex(end?.target ? 0xff4a32 : 0xffd27a);
+    const tg = end?.target;
+    this.aimMark.visible = !!tg;
+    if (end && tg) {
+      const t = performance.now() / 1000;
+      this.aimMark.position.set(tg.pos.x, tg.pos.y + tg.hitHi + 1.05 + Math.sin(t * 5) * 0.08, tg.pos.z);
+      this.aimMark.rotation.y = t * 1.5;
+      this.ring.visible = false;
+      return { pos: end.pos, target: tg };
+    }
     if (end) {
       this.ring.visible = true;
       this.ring.position.copy(end.pos);
@@ -419,7 +445,6 @@ export class Projectiles {
         this.ring.rotation.set(-Math.PI / 2, 0, 0);
         this.ring.position.y += 0.04;
       }
-      (this.ring.material as THREE.MeshBasicMaterial).color.setHex(end.target ? 0xff5a3a : 0xffd27a);
       return { pos: end.pos, target: end.target };
     }
     this.ring.visible = false;
@@ -436,5 +461,6 @@ export class Projectiles {
     this.lying = [];
     this.dots.removeFromParent();
     this.ring.removeFromParent();
+    this.aimMark.removeFromParent();
   }
 }
