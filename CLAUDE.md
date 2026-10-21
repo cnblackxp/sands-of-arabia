@@ -131,6 +131,7 @@ Windows quirks: long heredocs that contain Python break in Git Bash, so write sc
 
 ## Working rules
 - Verify gameplay in the built-in browser preview: set up `.claude/launch.json` for the Vite dev server, check the console for errors, and take screenshots.
+- Test muted: open the preview at `http://localhost:5173/?mute`. The `?mute` flag silences sound effects, ambience and music without changing the volume settings, and it survives reloads. Go back to the plain URL when done.
 - Keep performance in mind for about 80 NPCs: share geometry and materials, and use simple per-NPC state machines. Raycasts against the heightfield are cheaper than physics for NPCs.
 - Never add Claude attribution, such as Co-Authored-By trailers or "Generated with" lines, to commits, PRs or docs.
 - Every new feature ships with all of these. They are acceptance criteria, not extras:

@@ -248,6 +248,12 @@ export class Sfx {
   private noise: AudioBuffer | null = null;
   volume = 0.6;
   musicVolume = 0.45;
+  /**
+   * Silent run (`?mute` in the URL, used for automated testing): everything
+   * still plays through the graph, but the outputs are at zero. The volume
+   * settings are left alone.
+   */
+  readonly muted = new URLSearchParams(location.search).has('mute');
   /** Called once the context exists (music and ambience start then). */
   onReady: (ctx: AudioContext) => void = () => {};
 
@@ -271,13 +277,13 @@ export class Sfx {
       if (!AC) return;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = this.volume;
+      this.master.gain.value = this.muted ? 0 : this.volume;
       this.master.connect(this.ctx.destination);
       this.ambBus = this.ctx.createGain();
       this.ambBus.gain.value = 1;
       this.ambBus.connect(this.master);
       this.musicBus = this.ctx.createGain();
-      this.musicBus.gain.value = this.musicVolume;
+      this.musicBus.gain.value = this.muted ? 0 : this.musicVolume;
       this.musicBus.connect(this.ctx.destination);
       const len = this.ctx.sampleRate * 2;
       this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -290,12 +296,12 @@ export class Sfx {
 
   setVolume(v: number): void {
     this.volume = v;
-    if (this.master) this.master.gain.value = v;
+    if (this.master) this.master.gain.value = this.muted ? 0 : v;
   }
 
   setMusicVolume(v: number): void {
     this.musicVolume = v;
-    if (this.musicBus) this.musicBus.gain.value = v;
+    if (this.musicBus) this.musicBus.gain.value = this.muted ? 0 : v;
   }
 
   /** Output node, optionally panned. */
