@@ -78,6 +78,13 @@ export class HeightField {
     private meta: LevelData['heights'],
   ) {}
 
+  /** Lowest sample in the field. */
+  get min(): number {
+    let m = Infinity;
+    for (let i = 0; i < this.data.length; i++) if (this.data[i] < m) m = this.data[i];
+    return m;
+  }
+
   height(x: number, z: number): number {
     const { cols, rows, step, x0, z0 } = this.meta;
     const fx = Math.min(Math.max((x - x0) / step, 0), cols - 1.001);

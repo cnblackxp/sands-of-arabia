@@ -26,19 +26,22 @@ export class Horse {
   private flapT = 0;
   private airJumps = 0;
 
-  constructor(factory: CharacterFactory, private physics: Physics, spawn: Spawn, rnd: () => number, winged = false) {
+  /** Coat colours (kept when the horse travels with its rider). */
+  readonly coat: Record<string, number>;
+
+  constructor(factory: CharacterFactory, private physics: Physics, spawn: Spawn, rnd: () => number, winged = false, coat?: Record<string, number>) {
     this.winged = winged;
+    this.coat =
+      coat ??
+      (winged
+        ? { H_Coat: 0xf2efe8, H_Mane: 0xd9c9a0, H_Blanket: 0x2c3e73 }
+        : { H_Coat: pick(PAL.horseCoat, rnd), H_Mane: pick(PAL.horseMane, rnd), H_Blanket: pick(PAL.blanket, rnd) });
     // The dedicated winged model (wings + Flap/Glide clips) when available,
     // else a white horse standing in for it.
     this.hasWings = winged && factory.hasWingedModel;
     this.rig = this.hasWings
       ? factory.createWingedHorse()
-      : factory.createHorse(
-          winged
-            ? { H_Coat: 0xf2efe8, H_Mane: 0xd9c9a0, H_Blanket: 0x2c3e73 }
-            : { H_Coat: pick(PAL.horseCoat, rnd), H_Mane: pick(PAL.horseMane, rnd), H_Blanket: pick(PAL.blanket, rnd) },
-          true,
-        );
+      : factory.createHorse(this.coat, true);
     const feet = new THREE.Vector3(...spawn.pos);
     // Markers on platforms carry their height (the winged horse waits on a plateau).
     feet.y = physics.support(feet.x, feet.z, spawn.pos[1] + 0.3);

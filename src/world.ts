@@ -116,20 +116,45 @@ export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
   };
 }
 
+/** Retry a download a few times (flaky connections must not strand the player on the loading screen). */
+async function retry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (i >= tries - 1) throw e;
+      await new Promise((r) => setTimeout(r, 600 * (i + 1)));
+    }
+  }
+}
+
+function fetchOk(url: string): Promise<Response> {
+  return fetch(url).then((r) => {
+    if (!r.ok) throw new Error(`${r.status} ${url}`);
+    return r;
+  });
+}
+
 const mapCache = new Map<string, Promise<MapAssets>>();
+/** Everyone waiting on a map's download (the traveller and any background prefetch). */
+const mapListeners = new Map<string, Set<Progress>>();
 
 export function loadMap(entry: MapEntry, onProgress: Progress): Promise<MapAssets> {
+  let listeners = mapListeners.get(entry.name);
+  if (!listeners) mapListeners.set(entry.name, (listeners = new Set()));
+  listeners.add(onProgress);
+  const all: Progress = (f, label) => listeners!.forEach((l) => l(f, label));
   let p = mapCache.get(entry.name);
   if (!p) {
     p = (async () => {
-      const level = (await fetch(asset(entry.level)).then((r) => r.json())) as LevelData;
-      const opt = (path: string | undefined, label: string) => (path ? tick(label, gltf.loadAsync(asset(path))) : Promise.resolve(null));
+      const level = (await retry(() => fetchOk(asset(entry.level)).then((r) => r.json()))) as LevelData;
+      const opt = (path: string | undefined, label: string) => (path ? tick(label, retry(() => gltf.loadAsync(asset(path)))) : Promise.resolve(null));
       const files = [level.terrain, level.town, level.backdrop, level.backdrop_ground, level.dressing].filter(Boolean).length + 1;
-      const tick = counter(files, onProgress);
+      const tick = counter(files, all);
       const [heightsBuf, terrain, town, backdrop, backdropGround, dressing] = await Promise.all([
-        tick('heights', fetch(asset(level.heights.file)).then((r) => r.arrayBuffer())),
-        tick('terrain', gltf.loadAsync(asset(level.terrain))),
-        tick('town', gltf.loadAsync(asset(level.town))),
+        tick('heights', retry(() => fetchOk(asset(level.heights.file)).then((r) => r.arrayBuffer()))),
+        tick('terrain', retry(() => gltf.loadAsync(asset(level.terrain)))),
+        tick('town', retry(() => gltf.loadAsync(asset(level.town)))),
         opt(level.backdrop, 'backdrop'),
         opt(level.backdrop_ground, 'far ground'),
         opt(level.dressing, 'dressing'),
@@ -139,7 +164,14 @@ export function loadMap(entry: MapEntry, onProgress: Progress): Promise<MapAsset
     mapCache.set(entry.name, p);
     p.catch(() => mapCache.delete(entry.name));
   }
+  // Done (or failed): this caller stops listening.
+  p.finally(() => listeners!.delete(onProgress)).catch(() => {});
   return p;
+}
+
+/** True once a map has been downloaded (or is downloading). */
+export function mapRequested(name: string): boolean {
+  return mapCache.has(name);
 }
 
 // --- See-through cutout ------------------------------------------------------------
@@ -174,17 +206,48 @@ const CUT_GLSL = /* glsl */ `
   }
 `;
 
-function applyCutout(mat: THREE.Material): void {
-  if (mat.userData.cutout) return;
-  mat.userData.cutout = true;
+// --- Map edge -------------------------------------------------------------------------
+// Overhead views: everything beyond the playable rectangle fades to black, so the
+// map reads as a board floating in darkness instead of showing the ragged end of
+// the terrain. Off in third person, where the sky and distant ground stay.
+
+export const edge = {
+  uEdgeOn: { value: 0 },
+  uEdgeMin: { value: new THREE.Vector2(-200, -200) },
+  uEdgeMax: { value: new THREE.Vector2(200, 200) },
+};
+
+const EDGE_GLSL = /* glsl */ `
+  if (uEdgeOn > 0.0) {
+    vec2 wxz = (uCamWorld * vec4(-vViewPosition, 1.0)).xz;
+    vec2 o = max(uEdgeMin - wxz, wxz - uEdgeMax);
+    float outside = max(o.x, o.y);
+    gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.0), uEdgeOn * smoothstep(-9.0, 9.0, outside));
+  }
+`;
+
+/**
+ * Patch a static world material: the see-through cutout (town, dressing) and
+ * the overhead map-edge fade (all static ground and scenery).
+ */
+function patchWorldMaterial(mat: THREE.Material, cut: boolean): void {
+  const m = mat as THREE.MeshStandardMaterial;
+  if (mat.userData.patched || !(m.isMeshStandardMaterial || (mat as THREE.MeshLambertMaterial).isMeshLambertMaterial)) return;
+  mat.userData.patched = true;
   mat.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, cutout);
+    Object.assign(shader.uniforms, cutout, edge);
+    let fs = shader.fragmentShader;
+    if (cut) fs = fs.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + CUT_GLSL);
+    fs = fs.replace('#include <fog_fragment>', '#include <fog_fragment>\n' + EDGE_GLSL);
     shader.fragmentShader =
-      `uniform vec2 uCutCenter;\nuniform float uCutRadius;\nuniform float uCutAspect;\nuniform float uCutDepth;\nuniform float uCutFloorY;\nuniform mat4 uCamWorld;\nuniform vec2 uResolution;\n` +
-      shader.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n' + CUT_GLSL);
+      `uniform vec2 uCutCenter;\nuniform float uCutRadius;\nuniform float uCutAspect;\nuniform float uCutDepth;\nuniform float uCutFloorY;\nuniform mat4 uCamWorld;\nuniform vec2 uResolution;\nuniform float uEdgeOn;\nuniform vec2 uEdgeMin;\nuniform vec2 uEdgeMax;\n` + fs;
   };
-  mat.customProgramCacheKey = () => 'cutout';
+  mat.customProgramCacheKey = () => (cut ? 'world-cut' : 'world-edge');
   mat.needsUpdate = true;
+}
+
+function applyCutout(mat: THREE.Material): void {
+  patchWorldMaterial(mat, true);
 }
 
 interface LightSpot {
@@ -258,6 +321,28 @@ export class World {
     prep(map.dressing?.scene, true, true);
     prep(map.backdrop?.scene, false, true);
     prep(map.backdropGround?.scene, false, false);
+
+    // Underlay: one big sand sheet below the lowest ground, so the seams between
+    // the terrain and the far ground ring show sand instead of sky.
+    const sand = this.averageGroundColour(map.terrain.scene);
+    const under = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshStandardMaterial({ color: sand, roughness: 1 }));
+    under.rotation.x = -Math.PI / 2;
+    under.position.y = map.heights.min - 0.6;
+    under.receiveShadow = false;
+    under.matrixAutoUpdate = false;
+    under.updateMatrix();
+    under.name = 'Underlay';
+    scene.add(under);
+    edge.uEdgeMin.value.set(level.bounds.x[0], level.bounds.z[0]);
+    edge.uEdgeMax.value.set(level.bounds.x[1], level.bounds.z[1]);
+    // The edge fade applies to every static piece of the map.
+    for (const root of [map.terrain.scene, map.backdrop?.scene, map.backdropGround?.scene, under]) {
+      root?.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        for (const mat of Array.isArray(m.material) ? m.material : [m.material]) patchWorldMaterial(mat, false);
+      });
+    }
 
     for (const root of [map.town.scene, map.dressing?.scene]) {
       root?.traverse((o) => {
@@ -400,6 +485,29 @@ export class World {
       }
     });
     for (const m of this.flameMats) m.emissiveIntensity = 2.5 * flick * Math.max(0.5, lf);
+  }
+
+  /** Mean vertex colour of the terrain (the underlay matches the sand). */
+  private averageGroundColour(root: THREE.Object3D): THREE.Color {
+    const sum = new THREE.Color(0, 0, 0);
+    let n = 0;
+    root.traverse((o) => {
+      const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+      const c = g?.getAttribute('color');
+      if (!c) return;
+      for (let i = 0; i < c.count; i += 7) {
+        sum.r += c.getX(i);
+        sum.g += c.getY(i);
+        sum.b += c.getZ(i);
+        n++;
+      }
+    });
+    return n ? sum.multiplyScalar(1 / n) : new THREE.Color(0xc9a06a);
+  }
+
+  /** Overhead cameras: black beyond the playable area (third person keeps the horizon). */
+  setEdgeFade(on: boolean): void {
+    edge.uEdgeOn.value = on ? 1 : 0;
   }
 
   setFogOffset(depth: number): void {

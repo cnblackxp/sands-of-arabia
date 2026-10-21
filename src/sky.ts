@@ -139,6 +139,8 @@ export class DayCycle {
   private pmrem: THREE.PMREMGenerator;
   private envRT: THREE.WebGLRenderTarget | null = null;
   private lastEnvHour = -99;
+  /** Real time of the last environment rebuild (fast time speeds would otherwise rebuild it many times a second). */
+  private lastEnvAt = 0;
   private tmp = new THREE.Color();
   lampFactor = 1;
   /** Current night-grade strength (0 = none). */
@@ -185,6 +187,11 @@ export class DayCycle {
   }
 
   /** Draw the night grade over the frame just rendered. */
+  /** The sky dome (hidden in the overhead views, where the void beyond the map is black). */
+  set skyVisible(v: boolean) {
+    this.dome.visible = v;
+  }
+
   renderGrade(renderer: THREE.WebGLRenderer): void {
     if (this.grade < 0.01) return;
     const auto = renderer.autoClear;
@@ -290,8 +297,10 @@ export class DayCycle {
       u.photoMix.value = photo;
     }
 
-    if (force || Math.abs(this.hours - this.lastEnvHour) > 0.2) {
+    const now = performance.now();
+    if (force || (Math.abs(this.hours - this.lastEnvHour) > 0.2 && now - this.lastEnvAt > 1000)) {
       this.lastEnvHour = this.hours;
+      this.lastEnvAt = now;
       const rt = this.pmrem.fromScene(this.envScene, 0.02);
       w.scene.environment = rt.texture;
       this.envRT?.dispose();

@@ -101,7 +101,11 @@ export class Input {
       this.pressed.add(e.code);
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => this.keys.clear());
+    // A release the page never saw (focus lost, pointer-lock change, button let go
+    // outside the window) must not leave a key or button held.
+    window.addEventListener('blur', () => this.releaseAll());
+    document.addEventListener('visibilitychange', () => this.releaseAll());
+    document.addEventListener('pointerlockchange', () => this.releaseAll(true));
     window.addEventListener('mousemove', () => {
       this.device = 'keyboard';
     });
@@ -131,6 +135,9 @@ export class Input {
       if (e.button === 1) this.mmbDrag = false;
     });
     window.addEventListener('mousemove', (e) => {
+      // `buttons` is the truth: drop a held button whose mouseup went missing.
+      if (this.mouseBlock && !(e.buttons & 2)) this.mouseBlock = false;
+      if (this.mmbDrag && !(e.buttons & 4)) this.mmbDrag = false;
       if (this.mmbDrag) this.dragX += e.movementX;
       if (this.thirdPerson) {
         this.lookDX += e.movementX;
@@ -153,6 +160,14 @@ export class Input {
       },
       { passive: false },
     );
+  }
+
+  /** Forget everything held (keys always; mouse buttons unless only the lock changed). */
+  private releaseAll(keepMouse = false): void {
+    this.keys.clear();
+    if (keepMouse) return;
+    this.mouseBlock = false;
+    this.mmbDrag = false;
   }
 
   /** The held-back click counts after all (no pointer lock came of it). */

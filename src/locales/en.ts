@@ -363,6 +363,7 @@ export const en = {
     mountHorse: 'Mount horse',
   },
   toast: {
+    loadFailed: 'Could not reach {map}. Check your connection and try again.',
     fallen: '{name} the {title} has fallen.',
     fallenF: '{name} the {title} has fallen.',
     chestHidden: 'A hidden chest! ',

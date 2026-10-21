@@ -240,5 +240,15 @@ Decisions worth knowing:
   - All of them are `Foe`s (`combat.ts`). `EnemySystem.list` holds every foe; `humans` are the raiders that share attack tokens and ring slots.
 - **Settings are remembered** (`settings.ts`, key `sands-of-arabia.settings.v1`). They are written when the menu closes and when the page hides or unloads. Settings → "Reset settings to defaults" restores them all, including English and the map's own time of day. Add any new option to `Settings`, `DEFAULT_SETTINGS`, `persistSettings()` and `resetSettings()`.
 - **Camera matrices.** `FollowCamera.update` ends by refreshing both cameras' matrices. `lookAt()` updates the matrix from the position *before* it turns the camera, and HUD items projected before the render (enemy bars) need this frame's view.
+- **Map edges.**
+  - A sand-coloured underlay sheet sits below the lowest ground, so seams between the terrain and the far ground ring never show the sky.
+  - In the overhead views (orthographic and perspective), every static map material fades to black beyond `level.bounds` (`edge` uniforms, `patchWorldMaterial` in `world.ts`) and the sky dome is hidden. Third person keeps the sky and the horizon.
+- **Travel.**
+  - A mounted rider keeps their horse (same coat and wings) on arrival.
+  - Map downloads retry 3 times. A failed travel keeps you on the current map with a toast, instead of hanging on the loading screen.
+  - A few seconds after arrival, the maps behind each exit are prefetched in the background, one at a time.
+  - Shaders compile with `compileAsync` behind the loading screen.
+- **Input safety.** Losing focus, hiding the tab or a pointer-lock change releases all held keys, and `mousemove` drops buttons whose `mouseup` was missed. A stuck key used to close dialogue at once.
+- **Sky lighting** (PMREM environment) is rebuilt at most once a second, however fast time runs.
 - **Dropped arrows** that can be picked up show a short pale-gold light shaft with a glowing tip (`Projectiles.mark`).
 - **Interface size** (Settings) sets the `--ui` CSS variable, and the HUD panels and menu use CSS `zoom`. Screen-anchored items (enemy bars, float texts) divide their pixel positions by `Hud.uiScale`.

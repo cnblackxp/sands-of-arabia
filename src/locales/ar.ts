@@ -483,6 +483,7 @@ export const ar: Dict = {
     mountHorse: 'اركب الفرس',
   },
   toast: {
+    loadFailed: 'تعذر الوصول إلى {map}. تحقق من اتصالك ثم حاول مرة أخرى.',
     fallen: 'سقط {name} ({title}).',
     fallenF: 'سقطت {name} ({title}).',
     chestHidden: 'صندوق خفي! ',

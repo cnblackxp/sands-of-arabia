@@ -23,7 +23,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './s
 import { FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
 import { mulberry32 } from './util';
-import { cutout, loadCommon, loadMap, World, type CommonAssets, type MapEntry } from './world';
+import { cutout, loadCommon, loadMap, mapRequested, World, type CommonAssets, type MapEntry } from './world';
 
 const TALK_RANGE = 2.4;
 /** See-through radius around the player, metres. */
@@ -335,13 +335,27 @@ class Game {
     const msg = document.querySelector('#loading .msg') as HTMLDivElement;
     (document.querySelector('#loading .title') as HTMLDivElement).textContent = this.mapTitle(entry.name);
     loading.classList.remove('done');
-    const map = await loadMap(entry, (f, label) => {
-      bar.style.width = `${50 + f * 50}%`;
-      msg.textContent = t('loading.loaded', { label: tOr(`loading.assets.${label}`, label) });
-    });
+    let map;
+    try {
+      map = await loadMap(entry, (f, label) => {
+        bar.style.width = `${50 + f * 50}%`;
+        msg.textContent = t('loading.loaded', { label: tOr(`loading.assets.${label}`, label) });
+      });
+    } catch (e) {
+      // Nothing was torn down yet: stay where we are (or report it at startup).
+      this.travelling = false;
+      if (!this.world) throw e;
+      console.error(e);
+      loading.classList.add('done');
+      this.last = performance.now();
+      this.hud.showToast(t('toast.loadFailed', { map: this.mapTitle(entry.name) }), 4);
+      return;
+    }
 
     // Carry over what belongs to the player and the clock.
     const prev = this.player && !at?.revive ? { hp: this.player.hp, stamina: this.player.stamina } : null;
+    // A rider keeps their horse across maps (same coat, wings and all).
+    const riding = this.player?.horse && !at?.revive ? { winged: this.player.horse.winged, coat: this.player.horse.coat } : null;
     const hours = this.day?.hours;
     this.teardown();
 
@@ -394,6 +408,10 @@ class Game {
         scene.add(c.rig.root);
       }
     }
+    if (riding) {
+      const h = this.addHorse({ role: 'horse', pos: [pos.x, pos.y, pos.z], yaw: this.player.yaw }, riding.winged, rnd, riding.coat);
+      this.player.mount(h);
+    }
     this.enemies.setTellFx((follow) => this.glints.spawn(follow));
     this.enemies.setKillHook((e) => this.onEnemyKilled(e));
     const tmp = new THREE.Vector3();
@@ -428,15 +446,38 @@ class Game {
 
     this.physics.step();
     this.cam.snap(this.player.pos);
-    // Compile shaders before the first frame to avoid a hitch.
-    this.renderer.compile(scene, this.cam.camera);
+    // Compile shaders behind the loading screen (in parallel where the browser
+    // can), so the first frames and the first sight of each object don't hitch.
+    try {
+      await this.renderer.compileAsync(scene, this.cam.camera);
+    } catch {
+      this.renderer.compile(scene, this.cam.camera);
+    }
     loading.classList.add('done');
     this.last = performance.now();
     this.travelling = false;
     this.hud.showToast(this.mapTitle(entry.name), 3);
+    this.prefetchNeighbours();
   }
 
   private lookIndex = 0;
+
+  /**
+   * Download the maps this one's exits lead to, quietly in the background, one
+   * at a time, so walking through an exit doesn't wait on the network.
+   */
+  private prefetchNeighbours(): void {
+    const here = this.mapName;
+    const next = [...new Set(this.exits.map((e) => e.to))].filter((n) => n !== here && !mapRequested(n) && this.common.maps.maps.some((m) => m.name === n));
+    const step = (i: number) => {
+      if (i >= next.length || this.mapName !== here) return;
+      loadMap(this.mapEntry(next[i]), () => {})
+        .catch(() => {})
+        .finally(() => setTimeout(() => step(i + 1), 500));
+    };
+    // Give the arrival a few seconds to settle first.
+    setTimeout(() => step(0), 3000);
+  }
 
   /** Arrows and slingers' stones: targets, impacts, pickups. */
   private setupProjectiles(scene: THREE.Scene): void {
@@ -658,8 +699,8 @@ class Game {
     return start.addScaledVector(d, hi);
   }
 
-  private addHorse(s: Spawn, winged: boolean, rnd: () => number): Horse {
-    const h = new Horse(this.factory, this.physics, s, rnd, winged);
+  private addHorse(s: Spawn, winged: boolean, rnd: () => number, coat?: Record<string, number>): Horse {
+    const h = new Horse(this.factory, this.physics, s, rnd, winged, coat);
     this.horses.push(h);
     this.world.scene.add(h.rig.root);
     return h;
@@ -1630,6 +1671,10 @@ class Game {
     this.cam.occlusion = (o, d, max) => this.physics.rayStatic(o, d, max);
     this.cam.groundAt = (x, z) => this.world.ground(x, z);
     this.cam.update(realDt, focus);
+    // Overhead views float the map in darkness; third person keeps the sky.
+    const overhead = !this.cam.thirdPerson && !this.cam.override;
+    this.world.setEdgeFade(overhead);
+    this.day.skyVisible = !overhead;
     // Bow: aim arc and HUD.
     const aiming = !paused && p.aiming && !!p.aim && p.drawK > 0.15;
     this.projectiles.preview(aiming ? p.aim!.from : null, aiming ? p.aim!.vel : null);
