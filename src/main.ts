@@ -25,7 +25,7 @@ import { Progress } from './progress';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './settings';
 import { escortIn, FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, sameMap, setMapAliases, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
-import { mulberry32 } from './util';
+import { mulberry32, wrapAngle } from './util';
 import { cutout, isNewLand, loadCommon, loadMap, mapRequested, World, type CommonAssets, type MapEntry } from './world';
 
 const TALK_RANGE = 2.4;
@@ -162,6 +162,54 @@ class Game {
   loreStones: LoreStone[] = [];
   /** Reading an inscription (lore spawn): its lines and the line shown. */
   private reading: { stone: LoreStone; lines: string[]; i: number } | null = null;
+  /** Aim assist applies: a controller, the third-person camera, the bow drawn, and the option on. */
+  private assisting(): boolean {
+    return this.settings.aimAssist && this.cam.thirdPerson && this.lastFrame?.device === 'gamepad' && this.player.aiming;
+  }
+
+  /** Where to aim at a foe: its chest (a bird's body). */
+  private aimPoint(e: Foe): THREE.Vector3 {
+    return e.pos.clone().setY(e.pos.y + (e.flying ? 0 : e.hitHi * 0.6));
+  }
+
+  /** The visible foe nearest the centre of the view, within `cone` radians and 45 m, and the camera turn that centres it. */
+  private foeNearView(cone: number): { foe: Foe; dYaw: number; dPitch: number } | null {
+    const c = this.cam.persp.position;
+    const dir = this.cam.aimDirection(new THREE.Vector3());
+    let best: { foe: Foe; dYaw: number; dPitch: number } | null = null;
+    let bestAng = cone;
+    for (const e of this.enemies.list) {
+      if (e.dead) continue;
+      const to = this.aimPoint(e).sub(c);
+      const len = to.length();
+      if (len < 2 || len > 45) continue;
+      to.divideScalar(len);
+      const ang = Math.acos(THREE.MathUtils.clamp(to.dot(dir), -1, 1));
+      if (ang >= bestAng) continue;
+      if (this.physics.rayStatic(c, to, len) < len - 0.6) continue;
+      bestAng = ang;
+      // The camera looks along -back: yaw and pitch that point it at the foe.
+      best = { foe: e, dYaw: wrapAngle(Math.atan2(-to.x, -to.z) - this.cam.tpYaw), dPitch: Math.asin(-to.y) - this.cam.tpPitch };
+    }
+    return best;
+  }
+
+  /** Controller aim assist: snap onto a foe when the bow comes up, then a gentle pull while it stays near the centre. */
+  private assistSnapT = 0;
+  private wasAiming = false;
+  private updateAimAssist(dt: number): void {
+    const on = this.assisting();
+    if (on && !this.wasAiming) this.assistSnapT = 0.25;
+    this.wasAiming = on;
+    if (!on) return;
+    this.assistSnapT -= dt;
+    const snap = this.assistSnapT > 0;
+    const near = this.foeNearView(THREE.MathUtils.degToRad(snap ? 14 : 7));
+    if (!near) return;
+    const k = 1 - Math.exp(-dt * (snap ? 16 : 2.5));
+    this.cam.look(near.dYaw * k, near.dPitch * k);
+  }
+
   /** Aiming in third person: the player (and their horse) fade so they don't block the view. */
   private seeK = 1;
   private seeHorse: Horse | null = null;
@@ -274,6 +322,7 @@ class Game {
     s.mouseSens = this.input.mouseSens;
     s.stickSens = this.input.stickSens;
     s.invertY = this.input.invertY;
+    s.aimAssist = this.settings.aimAssist;
     saveSettings(s);
   }
 
@@ -299,6 +348,7 @@ class Game {
     this.input.mouseSens = d.mouseSens;
     this.input.stickSens = d.stickSens;
     this.input.invertY = d.invertY;
+    this.settings.aimAssist = d.aimAssist;
     if (lang() !== 'en') setLang('en');
     this.persistSettings();
     this.sfx.ui(true);
@@ -733,7 +783,16 @@ class Game {
       target = o.addScaledVector(dir, dist);
       yaw = Math.atan2(dir.x, dir.z);
       const a = from(yaw);
-      const vel = target.clone().sub(a).normalize().multiplyScalar(speed);
+      let vel = target.clone().sub(a).normalize().multiplyScalar(speed);
+      // Controller aim assist: with a foe on or near the centre, loose on the arc that reaches it.
+      const near = this.assisting() ? this.foeNearView(THREE.MathUtils.degToRad(4)) : null;
+      if (near) {
+        const lob = solveBallistic(a, this.aimPoint(near.foe), speed, g);
+        if (lob) {
+          vel = lob;
+          yaw = Math.atan2(vel.x, vel.z);
+        }
+      }
       return { yaw, pitch: Math.asin(THREE.MathUtils.clamp(vel.y / speed, -1, 1)), from: a, vel };
     }
     if (f && f.device === 'keyboard') {
@@ -1377,6 +1436,14 @@ class Game {
               this.cam.usePerspective = next === 'persp';
               if ((next === 'third') !== this.cam.thirdPerson) this.setThirdPerson(next === 'third');
             },
+          },
+          {
+            label: t('settings.aimAssist'),
+            kind: 'choice',
+            value: () => t(this.settings.aimAssist ? 'menu.on' : 'menu.off'),
+            sub: () => t('settings.aimAssistSub'),
+            adjust: () => (this.settings.aimAssist = !this.settings.aimAssist),
+            activate: () => (this.settings.aimAssist = !this.settings.aimAssist),
           },
           {
             label: t('settings.uiScale'),
@@ -2061,6 +2128,7 @@ class Game {
     focus.y += p.horse ? 1.6 : 1.0;
     this.cam.aiming = p.aiming && this.cam.thirdPerson;
     this.cam.mounted = !!p.horse;
+    this.updateAimAssist(realDt);
     this.updateSeeThrough(realDt);
     this.cam.occlusion = (o, d, max) => this.physics.rayStatic(o, d, max);
     this.cam.groundAt = (x, z) => this.world.ground(x, z);
@@ -2385,7 +2453,11 @@ class Game {
     const horseStill = this.horseStillFor();
     if (f.zoom) this.cam.zoomBy(f.zoom);
     if (f.rotate) this.cam.rotateBy(f.rotate);
-    if (this.cam.thirdPerson && (f.lookYaw || f.lookPitch)) this.cam.look(f.lookYaw, f.lookPitch);
+    if (this.cam.thirdPerson && (f.lookYaw || f.lookPitch)) {
+      // Aim assist slow-down: the stick turns more gently across a foe.
+      const k = this.assisting() && this.foeNearView(THREE.MathUtils.degToRad(6)) ? 0.45 : 1;
+      this.cam.look(f.lookYaw * k, f.lookPitch * k);
+    }
 
     const p = this.player;
     const k = (a: Action) => this.hud.key(a);

@@ -28,6 +28,8 @@ export interface Settings {
   mouseSens: number;
   stickSens: number;
   invertY: boolean;
+  /** Controller aim assist for the bow in third person. */
+  aimAssist: boolean;
 }
 
 export const DEFAULT_SETTINGS: Readonly<Settings> = {
@@ -48,6 +50,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   mouseSens: 0.0026,
   stickSens: 2.6,
   invertY: false,
+  aimAssist: true,
 };
 
 const KEY = 'sands-of-arabia.settings.v1';

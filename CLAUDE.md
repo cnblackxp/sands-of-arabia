@@ -236,6 +236,10 @@ Decisions worth knowing:
     - third person: along the centre of the view (there is no crosshair; the aim arc shows where the arrow lands);
     - overhead camera with a mouse: at the cursor, with a ballistic solve;
     - overhead camera with a gamepad: the left stick turns the aim (you stand still), snapping to foes in a 22° cone.
+  - **Controller aim assist** (third person, bow drawn, last device a gamepad; Settings → Aim assist, `Settings.aimAssist`, on by default):
+    - drawing snaps the view onto the nearest visible foe within 14° (0.25 s);
+    - a gentle pull follows a foe within 7°, and the right stick turns at 45% within 6° of one;
+    - with a foe within 4° of the centre, the arrow is loosed on the ballistic arc that reaches its chest (`solveBallistic`).
   - The aim arc is shown as dots plus a landing ring. When the arc would hit a foe, the dots turn red, the ring hides and a small red arrow bobs above the foe pointing down (`Projectiles.aimMark`), with a soft tick (`Sfx.aimLock`) each time it settles on a new foe.
 - **Prompts** sit low on screen (`.prompt`, top 74%) and fade in and out. The dismount prompt only shows after the ridden horse has stood still for 2 s (`horseStillFor`); dismounting works at any time.
   - The quiver holds 100 arrows (`progress.data.arrows`; older saves were topped up once, `quiver100`). Arrows stick in the ground, walls and bodies; walk over them to take them back (not out of a living foe). Resting at a bonfire refills the quiver.

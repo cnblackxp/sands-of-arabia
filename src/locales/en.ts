@@ -1142,6 +1142,8 @@ export const en = {
     music: 'Music',
     nowPlaying: 'Now playing: {title}',
     soundtrack: 'Soundtrack',
+    aimAssist: 'Aim assist (controller)',
+    aimAssistSub: 'With the bow drawn: snaps to a nearby foe, slows the stick over it and allows for the arrow\'s drop.',
     soundtracks: { original: 'Original (Kevin MacLeod)', lmms: 'New (made in LMMS)' } as Record<string, string>,
     controls: 'Controls',
     credits: 'Credits',
