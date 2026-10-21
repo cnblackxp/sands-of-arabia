@@ -228,7 +228,7 @@ export class Player implements PlayerView {
   get hasBow(): boolean {
     return this.wpn.kind === 'bow';
   }
-  /** Bow drawn and aimed (HUD crosshair, camera shoulder view, aim arc). */
+  /** Bow drawn and aimed (camera shoulder view, aim arc). */
   get aiming(): boolean {
     return this.hasBow && (this.aimHeld || this.quickShot) && !this._dead;
   }

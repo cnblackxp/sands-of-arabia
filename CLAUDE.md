@@ -231,10 +231,11 @@ Decisions worth knowing:
 - **Bow** (`composite_bow` in `items.ts`, `kind: 'bow'`). It is two-handed, so there is no shield.
   - Block (RMB / LT) draws and aims. Attack (LMB / RT) looses the arrow once it is fully drawn; pressing early queues the shot. Attack without aiming makes a quick shot with aim assist. Every arrow needs a fresh draw (`draw` seconds).
   - Aim direction:
-    - third person: along the crosshair ray;
+    - third person: along the centre of the view (there is no crosshair; the aim arc shows where the arrow lands);
     - overhead camera with a mouse: at the cursor, with a ballistic solve;
     - overhead camera with a gamepad: the left stick turns the aim (you stand still), snapping to foes in a 22° cone.
   - The aim arc is shown as dots plus a landing ring, which turns red over a target.
+- **Prompts** sit low on screen (`.prompt`, top 74%) and fade in and out. The dismount prompt only shows after the ridden horse has stood still for 2 s (`horseStillFor`); dismounting works at any time.
   - The quiver holds 10 arrows (`progress.data.arrows`). Arrows stick in the ground, walls and bodies; walk over them to take them back (not out of a living foe). Resting at a bonfire refills the quiver.
   - Uses `BowDraw`, `BowAim` and `BowRelease` with `BowHeld` and `Quiver`. Older models fall back to a procedural pose and bow.
 - **New foes.** Enemy spawns can have `kind` hound, vulture, slinger or clubman. The Debug tab spawns each next to the player.

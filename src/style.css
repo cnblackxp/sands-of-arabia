@@ -215,7 +215,8 @@ small {
 .prompt {
   position: absolute;
   left: 50%;
-  top: 60%;
+  top: 74%;
+  transition: opacity 0.35s ease;
   transform: translateX(-50%);
   padding: 6px 14px;
   background: rgba(30, 18, 10, 0.75);
@@ -223,6 +224,10 @@ small {
   border-radius: 4px;
   font-size: 15px;
   white-space: nowrap;
+}
+.prompt.off {
+  opacity: 0;
+  pointer-events: none;
 }
 .hint-item {
   margin: 0 9px;
@@ -735,49 +740,9 @@ html:lang(ar) .prompt i {
 #hud .pause-panel,
 #hud .minimap,
 #hud .ammo,
-#hud .crosshair,
 #hud .floater,
 #hud .ebar {
   zoom: var(--ui, 1);
-}
-
-/* Third-person crosshair. */
-.crosshair {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 0;
-  height: 0;
-}
-.crosshair::before {
-  content: '';
-  position: absolute;
-  left: -2px;
-  top: -2px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: rgba(255, 240, 210, 0.9);
-  box-shadow: 0 0 2px #000;
-}
-.crosshair i {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 18px;
-  height: 18px;
-  border: 1.5px solid rgba(255, 226, 176, 0.75);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  transition: opacity 0.12s;
-  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
-}
-.crosshair.aiming i {
-  opacity: 1;
-}
-.crosshair.ready i {
-  border-color: #ffd25a;
 }
 
 /* Quiver counter, under the purse. */

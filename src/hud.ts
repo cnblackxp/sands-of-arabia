@@ -125,7 +125,6 @@ export class Hud {
   uiScale = 1;
   /** Third-person camera: "camera" prompts show the look control instead. */
   thirdPerson = false;
-  private cross: HTMLDivElement;
   private boss: HTMLDivElement;
   private bossLag = 1;
   private ammo: HTMLDivElement;
@@ -144,11 +143,10 @@ export class Hud {
       <div class="floaters"></div>
       <div class="fps"></div>
       <div class="enemy-bars"></div>
-      <div class="prompt hidden"></div>
+      <div class="prompt off"></div>
       <div class="toast hidden"></div>
       <div class="dialogue hidden"><div class="dlg-name"></div><div class="dlg-text"></div><div class="dlg-more"></div></div>
       <div class="hint"></div>
-      <div class="crosshair hidden"><i></i></div>
       <div class="bossbar hidden"><div class="boss-name"></div><div class="boss-track"><div class="boss-lag"></div><div class="boss-fill"></div></div></div>
       <div class="ammo hidden"></div>
       <div class="vignette"></div>
@@ -177,18 +175,8 @@ export class Hud {
     this.flaskEl = q('.flasks');
     this.trackerEl = q('.tracker');
     this.floaters = q('.floaters');
-    this.cross = q('.crosshair');
     this.boss = q('.bossbar');
     this.ammo = q('.ammo');
-  }
-
-  /** Third-person crosshair: a dot, a closing ring while the bow draws. */
-  setCrosshair(show: boolean, draw: number, aiming: boolean): void {
-    this.cross.classList.toggle('hidden', !show);
-    if (!show) return;
-    this.cross.classList.toggle('aiming', aiming);
-    this.cross.classList.toggle('ready', aiming && draw >= 1);
-    (this.cross.firstElementChild as HTMLElement).style.transform = `translate(-50%, -50%) scale(${aiming ? 2.2 - 1.2 * draw : 1})`;
   }
 
   /** A boss's big health bar (null hides it); the lost chunk trails behind. */
@@ -290,7 +278,8 @@ export class Hud {
     const key = (html ?? '') + this.device;
     if (key === this.promptKey) return;
     this.promptKey = key;
-    this.prompt.classList.toggle('hidden', !html);
+    // Fades in and out; the old text stays while it fades away.
+    this.prompt.classList.toggle('off', !html);
     if (html) this.prompt.innerHTML = html;
   }
 

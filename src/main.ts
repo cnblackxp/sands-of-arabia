@@ -274,7 +274,6 @@ class Game {
     this.hud.thirdPerson = on;
     this.sfx.cameraMode(on);
     if (!on && document.pointerLockElement) document.exitPointerLock();
-    this.hud.setCrosshair(on, 0, false);
   }
 
   async start(): Promise<void> {
@@ -643,7 +642,7 @@ class Game {
   }
 
   /**
-   * Where the bow points. Third person: along the crosshair. Overhead camera:
+   * Where the bow points. Third person: along the centre of the view. Overhead camera:
    * at the mouse cursor (keyboard & mouse), or along the left stick with aim
    * assist (gamepad). Returns the launch point and velocity of the arrow.
    */
@@ -2027,7 +2026,6 @@ class Game {
     // Bow: aim arc and HUD.
     const aiming = !paused && p.aiming && !!p.aim && p.drawK > 0.15;
     this.projectiles.preview(aiming ? p.aim!.from : null, aiming ? p.aim!.vel : null);
-    this.hud.setCrosshair(this.cam.thirdPerson && !paused, p.drawK, p.aiming);
     this.hud.setAmmo(this.progress.hasBow && p.hasBow ? this.progress.data.arrows : null, ARROW.max);
     this.world.update(realDt, p.pos, this.cam.zoom);
     this.world.setFogOffset(this.cam.targetDepth);
@@ -2325,7 +2323,17 @@ class Game {
     return best;
   }
 
+  /** Seconds the ridden horse has stood still (the dismount prompt waits for a pause). */
+  private horseStillSince = 0;
+  private horseStillFor(): number {
+    const h = this.player.horse;
+    const now = performance.now();
+    if (!h || h.speed > 0.3 || h.jumping) this.horseStillSince = now;
+    return (now - this.horseStillSince) / 1000;
+  }
+
   private handleInput(f: Frame): void {
+    const horseStill = this.horseStillFor();
     if (f.zoom) this.cam.zoomBy(f.zoom);
     if (f.rotate) this.cam.rotateBy(f.rotate);
     if (this.cam.thirdPerson && (f.lookYaw || f.lookPitch)) this.cam.look(f.lookYaw, f.lookPitch);
@@ -2403,7 +2411,7 @@ class Game {
     else if (chest) prompt = `${k('talk')} ${t(chest.buried ? 'dig.prompt' : 'prompt.chest')}`;
     else if (atLine) prompt = p.horse ? `${k('talk')} ${t('race.prompt')}` : t('race.needHorse');
     else if (exit) prompt = `${k('talk')} ${this.exitLabel(exit)}`;
-    else if (p.horse) prompt = `${k('mount')} ${t('prompt.dismount')}`;
+    else if (p.horse && horseStill > 2) prompt = `${k('mount')} ${t('prompt.dismount')}`;
     else if (horse) prompt = `${k('mount')} ${t(horse.winged ? 'prompt.mountWinged' : 'prompt.mountHorse')}`;
     this.hud.setPrompt(prompt);
     // One interact button for everything in reach.
