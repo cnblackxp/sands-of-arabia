@@ -100,6 +100,8 @@ export const en = {
     marib_warden_north: 'Warden of the north sluice',
     marib_warden_south: 'Warden of the south sluice',
     marib_caravan_master: 'Caravan master',
+    himyar_envoy_1: 'Envoy of Himyar',
+    himyar_envoy_2: 'Envoy of Himyar',
   } as Record<string, string>,
   /** Female forms of `titles`, where the language has them. */
   titlesF: { poet: 'Poetess', kahin: 'Soothsayer (kahina)' } as Record<string, string>,

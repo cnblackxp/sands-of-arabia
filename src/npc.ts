@@ -5,7 +5,7 @@ import { conversation, personName, randomName, recitation, ROLES, type NpcRole }
 import { cultureOf, type Culture } from './lore';
 import type { HitResult, PlayerView } from './combat';
 import { Flash, type Sfx } from './fx';
-import { tOr } from './i18n';
+import { L, tOr } from './i18n';
 import type { Spawn, Vec3 } from './level';
 import { PathFollower } from './nav';
 import type { World } from './world';
@@ -511,6 +511,9 @@ export class NpcSystem {
                     ? 'prisoner'
                     : 'wanderer';
       }
+      // Named people of any role (the mukarrib, the canal wardens, the envoys) take their own title and voice.
+      if (!giver && s.id && L().titles[s.id]) npc.titleId = s.id;
+      if (!giver && s.id && /envoy/.test(s.id)) npc.linesRole = 'envoy';
       npc.refIndex = counts[s.role] ?? 0;
       counts[s.role] = npc.refIndex + 1;
       if (shop) npc.shop = true;

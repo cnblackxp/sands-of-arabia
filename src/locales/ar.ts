@@ -164,6 +164,8 @@ export const ar: Dict = {
     marib_warden_north: 'حارس المصرف الشمالي',
     marib_warden_south: 'حارس المصرف الجنوبي',
     marib_caravan_master: 'شيخ القافلة',
+    himyar_envoy_1: 'رسول حمير',
+    himyar_envoy_2: 'رسول حمير',
     // Quest givers, by spawn id.
     oasis_priest: 'السادن',
     oasis_elder: 'الشيخ',
