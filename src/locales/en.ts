@@ -1141,6 +1141,8 @@ export const en = {
     volume: 'Volume',
     music: 'Music',
     nowPlaying: 'Now playing: {title}',
+    soundtrack: 'Soundtrack',
+    soundtracks: { original: 'Original (Kevin MacLeod)', lmms: 'New (made in LMMS)' } as Record<string, string>,
     controls: 'Controls',
     credits: 'Credits',
   },

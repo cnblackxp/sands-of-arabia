@@ -212,8 +212,10 @@ Decisions worth knowing:
   - It also covers vocal grunts and yelps when people are hit, the spear thrust, jump and double jump, knockdown and getting up, shield raise and guard break, mounting, quest jingles, the shop, travel and the YOU DIED drone. Pass `Sfx` only finite values; it ignores NaN rather than throwing.
   - Dialogue types out at about 42 characters per second, with pauses at punctuation. `Hud.onVoice` voices every other letter as an "animalese" blip (`Sfx.voice`) at a pitch set per NPC (`voiceOf` in `main.ts`). Interact or confirm finishes the line, then advances to the next.
   - `audio.ts` has `Ambience` (wind, crowd, water, fire crackle, birds by day, crickets at night, all levels driven by the surroundings) and `Music`.
-  - `Music` plays tracks listed in `assets/audio/music/music.json`, by mood: explore, town, night, combat, stronghold.
-  - The tracks are Kevin MacLeod's, CC BY 4.0. Keep the credits in the README and in `music.json`.
+  - `Music` plays tracks listed in `assets/audio/music/music.json`, by mood: explore, town, night, sacred (near temples, shrines and tombs, or reading an inscription), combat, boss and stronghold.
+  - **Two soundtracks** (`soundtracks` in music.json, each with its own folder): `original` (Kevin MacLeod, CC BY 4.0) and `lmms` (the user's LMMS pieces in `music/lmms/`; some instruments come from SoundFonts with an unclear licence, so it's for prototype use). Settings → Soundtrack switches them and the choice is saved (`Settings.soundtrack`).
+  - A mood a set has no piece for borrows another's (`FALLBACK` in `audio.ts`: sacred → explore, boss → combat). The next piece starts 3 s before the current one ends, so the reverb tails overlap. A track's `gain` trims its level in dB.
+  - Keep the credits in the README, `CREDITS.txt` and `music.json`.
 - **Localisation (English + Arabic).** Every visible string goes through `src/i18n.ts`; never hard-code English in UI code.
   - Add the string to `src/locales/en.ts` and the same key to `src/locales/ar.ts`. `ar` is typed as `Dict` (the shape of `en`), so the build fails if the Arabic is missing.
   - Use `t('section.key', { name })` for UI text (`{name}` placeholders), `L().section` for data tables (quest text by quest id, small talk by role), and `tOr('section.' + id, fallback)` for keys built from level data ids (map titles, exits by `"map>to"`, landmarks, camps, bonfires, NPC titles and names).

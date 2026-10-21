@@ -34,6 +34,8 @@ const CUT_RADIUS = 2.6;
 const MOUNT_RANGE = 2.8;
 const USE_RANGE = 2.2;
 
+/** Landmarks whose surroundings take the sacred music mood. */
+const SACRED = /temple|shrine|sanctuary|altar|tomb|khazneh|betyl|marzeah|mrzh|ruda|kahl|shams/;
 const ROBES: (number | null)[] = [null, 0xf1ece0, 0x2c3e73, 0x7b2a24, 0xc9902e, 0x2f6d4f, 0x5b2d6e, 0x2b2622, 0xb8a48a];
 /** Time-of-day speeds; labels are in locales/ `flow.<id>`. */
 const FLOW: { id: string; on: boolean; speed: number }[] = [
@@ -133,6 +135,8 @@ class Game {
   loreStones: LoreStone[] = [];
   /** Reading an inscription (lore spawn): its lines and the line shown. */
   private reading: { stone: LoreStone; lines: string[]; i: number } | null = null;
+  /** Temples, shrines and tombs of this map (the sacred music mood). */
+  private sacredSpots: [number, number][] = [];
   private visitT = 0;
   private lyreT = 2;
   pickups: Pickup[] = [];
@@ -201,6 +205,7 @@ class Game {
     this.lookIndex = ((Math.round(s.look) % PLAYER_LOOKS.length) + PLAYER_LOOKS.length) % PLAYER_LOOKS.length;
     this.sfx.setVolume(THREE.MathUtils.clamp(s.volume, 0, 1));
     this.sfx.setMusicVolume(THREE.MathUtils.clamp(s.music, 0, 1));
+    this.music.setSoundtrack(s.soundtrack);
     this.input.mouseSens = THREE.MathUtils.clamp(s.mouseSens, 0.0008, 0.008);
     this.input.stickSens = s.stickSens;
     this.input.invertY = s.invertY;
@@ -220,6 +225,7 @@ class Game {
     if (this.minimap) s.minimap = this.minimap.mode;
     s.volume = this.sfx.volume;
     s.music = this.sfx.musicVolume;
+    s.soundtrack = this.music.soundtrack;
     s.uiScale = this.uiScale;
     s.mouseSens = this.input.mouseSens;
     s.stickSens = this.input.stickSens;
@@ -243,6 +249,7 @@ class Game {
     this.minimap.setVisible(false);
     this.sfx.setVolume(d.volume);
     this.sfx.setMusicVolume(d.music);
+    this.music.setSoundtrack(d.soundtrack);
     this.uiScale = d.uiScale;
     this.applyUiScale();
     this.input.mouseSens = d.mouseSens;
@@ -463,6 +470,9 @@ class Game {
     }
     this.setupRace(level);
     this.setupConvoy(level);
+    this.sacredSpots = Object.entries(level.landmarks)
+      .filter(([k]) => SACRED.test(k))
+      .map(([, p]) => [p[0], p[2]] as [number, number]);
     this.enemies.setTellFx((follow) => this.glints.spawn(follow));
     // The ghul: a whirl of sand where it was and where it stands.
     this.enemies.onBlink = (from, to) => {
@@ -1369,6 +1379,21 @@ class Game {
             adjust: (k) => this.sfx.setMusicVolume(Math.min(1, Math.max(0, this.sfx.musicVolume + k * 0.1))),
             slider: { min: 0, max: 1, step: 0.01, get: () => this.sfx.musicVolume, set: (v) => this.sfx.setMusicVolume(v) },
           },
+          ...(this.music.soundtracks.length > 1
+            ? [
+                {
+                  label: t('settings.soundtrack'),
+                  kind: 'choice' as const,
+                  value: () => tOr(`settings.soundtracks.${this.music.soundtrack}`, this.music.soundtrack),
+                  adjust: (k: number) => {
+                    const ids = this.music.soundtracks;
+                    const i = ids.indexOf(this.music.soundtrack);
+                    this.music.setSoundtrack(ids[(i + (k > 0 ? 1 : ids.length - 1)) % ids.length]);
+                    this.persistSettings();
+                  },
+                },
+              ]
+            : []),
           { label: t('settings.reset'), kind: 'button', sub: () => t('settings.resetSub'), activate: () => this.resetSettings() },
           { label: t('settings.controls'), kind: 'header' },
           ...this.controlRows(),
@@ -2182,10 +2207,14 @@ class Game {
     // Music mood.
     let mood: Mood = 'explore';
     const fighting = this.enemies.list.some((e) => e.engaged && !e.dead && Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z) < 30) || this.npcs.npcs.some((n) => n.hostile);
-    if (fighting) mood = 'combat';
+    const boss = fighting && this.enemies.humans.some((e) => e.boss && e.engaged && !e.dead && Math.hypot(e.pos.x - pos.x, e.pos.z - pos.z) < 45);
+    const sacred = !!this.reading || this.sacredSpots.some(([x, z]) => Math.hypot(x - pos.x, z - pos.z) < 26);
+    if (boss) mood = 'boss';
+    else if (fighting) mood = 'combat';
     else if (this.mapName === 'raider_fort') mood = 'stronghold';
+    else if (sacred) mood = 'sacred';
     else if (this.day.grade > 0.6) mood = 'night';
-    else if (['oasis', 'hegra', 'caravanserai', 'rooftops'].includes(this.mapName) && crowd > 3) mood = 'town';
+    else if (crowd > 3 && !['wadi', 'cliffs', 'ruined_temple'].includes(this.mapName)) mood = 'town';
     this.music.want(mood);
   }
 

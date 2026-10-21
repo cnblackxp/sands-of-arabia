@@ -109,26 +109,44 @@ export class Ambience {
   }
 }
 
-export type Mood = 'explore' | 'town' | 'night' | 'combat' | 'stronghold';
+export type Mood = 'explore' | 'town' | 'night' | 'combat' | 'stronghold' | 'sacred' | 'boss';
+
+/** A mood a soundtrack has no piece for borrows another's (the original set has no sacred or boss pieces). */
+const FALLBACK: Partial<Record<Mood, Mood>> = { sacred: 'explore', boss: 'combat', stronghold: 'combat', night: 'explore', town: 'explore' };
 
 export interface TrackDef {
   file: string;
   title: string;
   moods: Mood[];
+  /** Level trim in dB (the drum-heavy combat pieces sit a little lower). */
+  gain?: number;
 }
 
+/** One set of pieces (the original Kevin MacLeod set, the LMMS set), switched in Settings. */
+export interface Soundtrack {
+  id: string;
+  /** Folder under audio/music/. */
+  dir: string;
+  tracks: TrackDef[];
+  credits: string[];
+}
+
+/** Seconds before a piece's end that the next one starts, so the reverb tails overlap. */
+const CROSSFADE = 3;
+
 /**
- * Music: tracks listed in assets/audio/music/music.json, grouped by mood.
- * Cross-fades between moods; within a mood, plays the next track when one ends.
+ * Music: soundtracks listed in assets/audio/music/music.json, each grouped by mood.
+ * Cross-fades between moods; within a mood, the next piece (or the same one again)
+ * starts a few seconds before the current one ends.
  */
 export class Music {
-  private tracks: TrackDef[] = [];
+  private sets: Soundtrack[] = [];
+  private setId = 'original';
   private current: { el: HTMLAudioElement; track: TrackDef; gain: GainNode; node: MediaElementAudioSourceNode } | null = null;
   private fading: { el: HTMLAudioElement; gain: GainNode }[] = [];
   private mood: Mood | null = null;
   private wanted: Mood = 'explore';
   private holdT = 0;
-  credits: string[] = [];
 
   constructor(
     private sfx: Sfx,
@@ -139,12 +157,36 @@ export class Music {
     try {
       const r = await fetch(this.base + 'audio/music/music.json');
       if (!r.ok) return;
-      const j = (await r.json()) as { tracks: TrackDef[]; credits?: string[] };
-      this.tracks = j.tracks ?? [];
-      this.credits = j.credits ?? [];
+      const j = (await r.json()) as { soundtracks?: Soundtrack[]; tracks?: TrackDef[]; credits?: string[] };
+      this.sets = j.soundtracks ?? [{ id: 'original', dir: '', tracks: j.tracks ?? [], credits: j.credits ?? [] }];
     } catch {
       // No music shipped: silence is fine.
     }
+  }
+
+  /** Ids of the soundtracks (Settings cycles through them). */
+  get soundtracks(): string[] {
+    return this.sets.map((s) => s.id);
+  }
+
+  get soundtrack(): string {
+    return this.setId;
+  }
+
+  /** Switch soundtracks: the current mood cross-fades to a piece of the new set. */
+  setSoundtrack(id: string): void {
+    if (id === this.setId) return;
+    this.setId = id;
+    this.mood = null;
+  }
+
+  private get set(): Soundtrack | undefined {
+    return this.sets.find((s) => s.id === this.setId) ?? this.sets[0];
+  }
+
+  /** Every soundtrack's credits (all of them ship with the game). */
+  get credits(): string[] {
+    return this.sets.flatMap((s) => s.credits);
   }
 
   get nowPlaying(): string {
@@ -153,7 +195,7 @@ export class Music {
 
   /** Ask for a mood; combat switches fast, calming down waits a few seconds. */
   want(mood: Mood): void {
-    if (mood === 'combat' || mood === 'stronghold') {
+    if (mood === 'combat' || mood === 'stronghold' || mood === 'boss') {
       this.wanted = mood;
       this.holdT = 6;
     } else if (this.holdT <= 0) {
@@ -165,11 +207,14 @@ export class Music {
     this.holdT -= dt;
     const ctx = this.sfx.context;
     const bus = this.sfx.music;
-    if (!ctx || !bus || this.tracks.length === 0) return;
-    if (this.wanted !== this.mood || (this.current && this.current.el.ended)) this.play(this.wanted);
+    if (!ctx || !bus || !this.set?.tracks.length) return;
+    const c = this.current;
+    const nearEnd = !!c && Number.isFinite(c.el.duration) && c.el.duration > CROSSFADE * 3 && c.el.currentTime > c.el.duration - CROSSFADE;
+    if (this.wanted !== this.mood || (c && c.el.ended)) this.play(this.wanted, false);
+    else if (nearEnd) this.play(this.wanted, true);
     // Fade out old tracks.
     this.fading = this.fading.filter((f) => {
-      if (f.gain.gain.value < 0.01) {
+      if (f.gain.gain.value < 0.01 || f.el.ended) {
         f.el.pause();
         return false;
       }
@@ -177,31 +222,47 @@ export class Music {
     });
   }
 
-  private play(mood: Mood): void {
+  /** Pieces for a mood, borrowing another mood's when this set has none. */
+  private pool(mood: Mood): TrackDef[] {
+    const tracks = this.set!.tracks;
+    for (let m: Mood | undefined = mood; m; m = FALLBACK[m]) {
+      const p = tracks.filter((t) => t.moods.includes(m!));
+      if (p.length) return p;
+    }
+    return tracks;
+  }
+
+  /** `next`: the current piece is ending, so start another (or the same again) under its tail. */
+  private play(mood: Mood, next: boolean): void {
     const ctx = this.sfx.context!;
     const bus = this.sfx.music!;
-    const pool = this.tracks.filter((t) => t.moods.includes(mood));
-    const list = pool.length ? pool : this.tracks;
+    const set = this.set!;
+    const list = this.pool(mood);
     // Don't restart the same piece if it suits the new mood too.
-    if (this.current && list.includes(this.current.track) && !this.current.el.ended) {
+    if (!next && this.current && list.includes(this.current.track) && !this.current.el.ended) {
       this.mood = mood;
       return;
     }
     const others = list.filter((t) => t !== this.current?.track);
-    const track = (others.length ? others : list)[Math.floor(Math.random() * (others.length ? others.length : list.length))];
+    const from = others.length ? others : list;
+    const track = from[Math.floor(Math.random() * from.length)];
     if (this.current) {
+      // Leaving a fight fades fast; everything else lingers.
+      const fast = this.mood === 'combat' || this.mood === 'boss';
       const g = this.current.gain;
-      g.gain.setTargetAtTime(0, ctx.currentTime, 1.2);
+      g.gain.cancelScheduledValues(ctx.currentTime);
+      g.gain.setTargetAtTime(0, ctx.currentTime, next ? 1 : fast && mood !== this.mood ? 0.5 : 1.2);
       this.fading.push({ el: this.current.el, gain: g });
     }
-    const el = new Audio(this.base + 'audio/music/' + encodeURIComponent(track.file));
+    const el = new Audio(this.base + 'audio/music/' + set.dir + encodeURIComponent(track.file));
     el.crossOrigin = 'anonymous';
     el.loop = false;
     const node = ctx.createMediaElementSource(el);
     const gain = ctx.createGain();
     gain.gain.value = 0;
     node.connect(gain).connect(bus);
-    gain.gain.setTargetAtTime(1, ctx.currentTime, mood === 'combat' ? 0.6 : 1.8);
+    const level = Math.pow(10, (track.gain ?? 0) / 20);
+    gain.gain.setTargetAtTime(level, ctx.currentTime, next ? 0.8 : mood === 'combat' || mood === 'boss' ? 0.6 : 1.8);
     void el.play().catch(() => {});
     this.current = { el, track, gain, node };
     this.mood = mood;

@@ -1357,6 +1357,8 @@ export const ar: Dict = {
     volume: 'الصوت',
     music: 'الموسيقى',
     nowPlaying: 'تعزف الآن: {title}',
+    soundtrack: 'الموسيقى التصويرية',
+    soundtracks: { original: 'الأصلية (كيفن ماكلاود)', lmms: 'الجديدة (صنعت في LMMS)' } as Record<string, string>,
     controls: 'التحكم',
     credits: 'الحقوق',
   },

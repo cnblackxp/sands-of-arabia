@@ -9,3 +9,9 @@ http://creativecommons.org/licenses/by/4.0/
 "Nu Flute" Kevin MacLeod (incompetech.com)
 "Ibn Al-Noor" Kevin MacLeod (incompetech.com)
 "Curse of the Scarab" Kevin MacLeod (incompetech.com)
+
+LMMS soundtrack (lmms/), made in LMMS by cnblackxp, re-encoded at 160 kbps:
+"The Empty Quarter", "Iram of the Pillars", "The Fair of Ukaz",
+"The House of the Ancients", "Raid at Dusk", "Drums of the Tribes".
+Instruments: CC0 samples, GeneralUser GS and LMMS factory sounds, plus the
+ArabTurk and m3 SoundFonts (licence unclear: prototype and personal use only).

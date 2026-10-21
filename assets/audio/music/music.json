@@ -1,15 +1,37 @@
 {
-  "tracks": [
-    { "file": "Tabuk.mp3", "title": "Tabuk — Kevin MacLeod", "moods": ["explore"] },
-    { "file": "Old Road.mp3", "title": "Old Road — Kevin MacLeod", "moods": ["explore"] },
-    { "file": "Desert City.mp3", "title": "Desert City — Kevin MacLeod", "moods": ["town"] },
-    { "file": "Mystery Bazaar.mp3", "title": "Mystery Bazaar — Kevin MacLeod", "moods": ["town", "night"] },
-    { "file": "Nu Flute.mp3", "title": "Nu Flute — Kevin MacLeod", "moods": ["night"] },
-    { "file": "Ibn Al-Noor.mp3", "title": "Ibn Al-Noor — Kevin MacLeod", "moods": ["combat"] },
-    { "file": "Curse of the Scarab.mp3", "title": "Curse of the Scarab — Kevin MacLeod", "moods": ["stronghold", "combat"] }
-  ],
-  "credits": [
-    "Music: Kevin MacLeod (incompetech.com) — Licensed under Creative Commons: By Attribution 4.0 (creativecommons.org/licenses/by/4.0/)",
-    "Tracks: Tabuk, Old Road, Desert City, Mystery Bazaar, Nu Flute, Ibn Al-Noor, Curse of the Scarab"
+  "soundtracks": [
+    {
+      "id": "original",
+      "dir": "",
+      "tracks": [
+        { "file": "Tabuk.mp3", "title": "Tabuk — Kevin MacLeod", "moods": ["explore"] },
+        { "file": "Old Road.mp3", "title": "Old Road — Kevin MacLeod", "moods": ["explore"] },
+        { "file": "Desert City.mp3", "title": "Desert City — Kevin MacLeod", "moods": ["town"] },
+        { "file": "Mystery Bazaar.mp3", "title": "Mystery Bazaar — Kevin MacLeod", "moods": ["town", "night"] },
+        { "file": "Nu Flute.mp3", "title": "Nu Flute — Kevin MacLeod", "moods": ["night"] },
+        { "file": "Ibn Al-Noor.mp3", "title": "Ibn Al-Noor — Kevin MacLeod", "moods": ["combat"] },
+        { "file": "Curse of the Scarab.mp3", "title": "Curse of the Scarab — Kevin MacLeod", "moods": ["stronghold", "combat"] }
+      ],
+      "credits": [
+        "Music: Kevin MacLeod (incompetech.com) — Licensed under Creative Commons: By Attribution 4.0 (creativecommons.org/licenses/by/4.0/)",
+        "Tracks: Tabuk, Old Road, Desert City, Mystery Bazaar, Nu Flute, Ibn Al-Noor, Curse of the Scarab"
+      ]
+    },
+    {
+      "id": "lmms",
+      "dir": "lmms/",
+      "tracks": [
+        { "file": "The_Empty_Quarter.mp3", "title": "The Empty Quarter", "moods": ["explore", "night"] },
+        { "file": "Iram_of_the_Pillars.mp3", "title": "Iram of the Pillars", "moods": ["explore"] },
+        { "file": "The_Fair_of_Ukaz.mp3", "title": "The Fair of Ukaz", "moods": ["town"] },
+        { "file": "The_House_of_the_Ancients.mp3", "title": "The House of the Ancients", "moods": ["sacred", "night"] },
+        { "file": "Raid_at_Dusk.mp3", "title": "Raid at Dusk", "moods": ["combat", "stronghold"], "gain": -1.5 },
+        { "file": "Drums_of_the_Tribes.mp3", "title": "Drums of the Tribes", "moods": ["boss", "stronghold"], "gain": -1.5 }
+      ],
+      "credits": [
+        "Soundtrack made in LMMS by cnblackxp: The Empty Quarter, Iram of the Pillars, The Fair of Ukaz, The House of the Ancients, Raid at Dusk, Drums of the Tribes",
+        "Instruments: CC0 samples, GeneralUser GS and LMMS factory sounds, plus the ArabTurk and m3 SoundFonts (licence unclear: prototype use only)"
+      ]
+    }
   ]
 }

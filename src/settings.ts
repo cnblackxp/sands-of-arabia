@@ -18,6 +18,8 @@ export interface Settings {
   minimap: number;
   volume: number;
   music: number;
+  /** Which soundtrack plays (music.json `soundtracks` id). */
+  soundtrack: string;
   uiScale: number;
   mouseSens: number;
   stickSens: number;
@@ -35,6 +37,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   minimap: 0,
   volume: 0.6,
   music: 0.45,
+  soundtrack: 'original',
   uiScale: 1,
   mouseSens: 0.0026,
   stickSens: 2.6,
