@@ -4228,6 +4228,39 @@
    ],
    "yaw": 0.0,
    "id": "serai_old_post_chest"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    88,
+    8.3391,
+    -80
+   ],
+   "yaw": -2.2082,
+   "kind": "hound",
+   "camp": "ridge"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    82,
+    6.4224,
+    -86
+   ],
+   "yaw": 2.2552,
+   "kind": "hound",
+   "camp": "ridge"
+  },
+  {
+   "role": "enemy",
+   "pos": [
+    96,
+    10.7928,
+    -90
+   ],
+   "yaw": -2.4435,
+   "kind": "slinger",
+   "camp": "ridge"
   }
  ],
  "lights": [

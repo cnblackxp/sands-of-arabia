@@ -6,16 +6,20 @@
    "size": [
     1.218,
     2.701,
-    1.156
+    1.171
    ],
    "materials": [
     "P_Armor",
     "P_ArmorTrim",
     "P_Band",
     "P_Bow",
+    "P_BowHorn",
+    "P_BowSinew",
+    "P_BowTip",
     "P_Brass",
     "P_Clay",
     "P_Cloak",
+    "P_Club",
     "P_Eyes",
     "P_Fletch",
     "P_Grip",
@@ -29,6 +33,7 @@
     "P_Shield",
     "P_ShieldPaint",
     "P_Skin",
+    "P_SlingCord",
     "P_Steel",
     "P_Vest",
     "P_Waterskin",
@@ -52,7 +57,9 @@
     "BeardLong",
     "Belly",
     "Bow",
+    "BowHeld",
     "Cloak",
+    "Club",
     "FaceWrap",
     "Hair",
     "Headband",
@@ -60,7 +67,9 @@
     "Jar",
     "Keffiyeh",
     "Lamellar",
+    "Quiver",
     "Shield",
+    "Sling",
     "Spear",
     "Sword",
     "Turban",
@@ -102,6 +111,34 @@
      "loop": false,
      "duration": 0.417,
      "layer": "upper"
+    },
+    "BowAim": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "upper"
+    },
+    "BowDraw": {
+     "frames": 13,
+     "loop": false,
+     "duration": 0.542,
+     "layer": "upper"
+    },
+    "BowRelease": {
+     "frames": 6,
+     "loop": false,
+     "duration": 0.25,
+     "layer": "upper",
+     "release_time": 0.0
+    },
+    "ClubSwing": {
+     "frames": 30,
+     "loop": false,
+     "duration": 1.25,
+     "layer": "upper",
+     "hit_frame": 22,
+     "hit_time": 0.875,
+     "windup_end_time": 0.708
     },
     "Death": {
      "frames": 30,
@@ -183,6 +220,14 @@
      "loop": true,
      "duration": 2.0,
      "layer": "upper"
+    },
+    "Throw": {
+     "frames": 16,
+     "loop": false,
+     "duration": 0.667,
+     "layer": "upper",
+     "hit_frame": 9,
+     "hit_time": 0.333
     },
     "Thrust": {
      "frames": 20,
@@ -316,7 +361,7 @@
     5.625
    ],
    "materials": [
-    "Mud1",
+    "Mud0",
     "Opening",
     "Wood"
    ]
@@ -330,7 +375,7 @@
     6.125
    ],
    "materials": [
-    "Mud2",
+    "Mud1",
     "Opening",
     "Wood"
    ]
@@ -344,7 +389,7 @@
     4.825
    ],
    "materials": [
-    "Mud0",
+    "Mud1",
     "Opening",
     "Wood"
    ]
@@ -358,7 +403,7 @@
     6.625
    ],
    "materials": [
-    "Mud1",
+    "Mud0",
     "Opening",
     "Wood"
    ]
@@ -373,7 +418,7 @@
    ],
    "materials": [
     "Lime",
-    "Mud0",
+    "Mud2",
     "Opening"
    ]
   },
@@ -387,7 +432,7 @@
    ],
    "materials": [
     "Lime",
-    "Mud0",
+    "Mud1",
     "Opening"
    ]
   },
@@ -410,20 +455,18 @@
    "file": "market/stall_spice.glb",
    "kind": "prop",
    "size": [
-    4.144,
-    3.139,
-    4.18
+    4.713,
+    3.144,
+    3.864
    ],
    "materials": [
     "Aw0a",
     "Aw0b",
-    "Clay2",
-    "Rug0",
+    "Rug3",
     "Sack",
     "Spice0",
     "Spice1",
     "Spice2",
-    "Spice3",
     "Spice5",
     "Wood"
    ]
@@ -432,17 +475,18 @@
    "file": "market/stall_pots.glb",
    "kind": "prop",
    "size": [
-    3.943,
-    3.145,
-    3.81
+    4.82,
+    3.142,
+    3.79
    ],
    "materials": [
     "Aw1a",
     "Aw1b",
     "Clay",
     "Clay2",
-    "Rug2",
-    "Sack",
+    "LampFlame",
+    "Leather",
+    "Rug1",
     "Wood"
    ]
   },
@@ -450,14 +494,15 @@
    "file": "market/stall_cloth.glb",
    "kind": "prop",
    "size": [
-    4.3,
+    4.882,
     3.145,
-    3.856
+    3.861
    ],
    "materials": [
     "Aw2a",
     "Aw2b",
     "Clay2",
+    "Rug0",
     "Rug1",
     "Rug2",
     "Rug3",
@@ -470,18 +515,19 @@
    "file": "market/stall_brass.glb",
    "kind": "prop",
    "size": [
-    4.06,
-    3.14,
-    4.13
+    4.724,
+    3.147,
+    3.868
    ],
    "materials": [
     "Aw3a",
     "Aw3b",
     "Brass",
+    "Clay",
     "Clay2",
     "LampFlame",
     "Leather",
-    "Rug4",
+    "Rug3",
     "Wood"
    ]
   },
@@ -489,9 +535,9 @@
    "file": "nature/palm_a.glb",
    "kind": "nature",
    "size": [
-    7.893,
-    8.322,
-    6.78
+    7.299,
+    7.985,
+    7.094
    ],
    "materials": [
     "Dates",
@@ -503,9 +549,9 @@
    "file": "nature/palm_b.glb",
    "kind": "nature",
    "size": [
-    8.039,
-    12.71,
-    8.36
+    7.371,
+    12.036,
+    7.61
    ],
    "materials": [
     "Dates",
@@ -517,9 +563,9 @@
    "file": "nature/palm_c.glb",
    "kind": "nature",
    "size": [
-    6.442,
-    7.48,
-    5.595
+    5.277,
+    9.518,
+    6.456
    ],
    "materials": [
     "Dates",
@@ -705,43 +751,75 @@
    ]
   },
   "terrain": {
-   "file": "level/ruined_temple/terrain.glb",
+   "file": "level/terrain.glb",
    "kind": "terrain",
    "size": [
-    180.0,
-    11.082,
-    184.0
+    400.0,
+    30.931,
+    400.0
    ],
    "materials": [
     "SandVC"
-   ]
+   ],
+   "notes": "vertex colours, no normals: GLTFLoader enables flatShading automatically"
   },
   "town": {
-   "file": "level/ruined_temple/town.glb",
+   "file": "level/town.glb",
    "kind": "level",
    "size": [
-    170.568,
-    15.92,
-    174.409
+    141.796,
+    29.957,
+    169.465
    ],
    "materials": [
-    "Banner0",
-    "Bark",
-    "Bone",
-    "Canopy0",
-    "Canopy1",
-    "DryBrush",
+    "Aw1a",
+    "Aw1b",
+    "Aw2a",
+    "Aw2b",
+    "Aw3a",
+    "Aw3b",
+    "Aw4a",
+    "Aw4b",
+    "Aw5a",
+    "Aw5b",
+    "Betyl",
+    "Brass",
+    "Clay",
+    "Clay2",
+    "Dates",
+    "Fire",
+    "Frond",
+    "GoatHair",
+    "Grass",
+    "LampFlame",
     "Leather",
     "Lime",
+    "Mud0",
+    "Mud1",
+    "Mud2",
+    "Opening",
     "RockBand0",
     "RockBand1",
     "RockBand2",
     "RockBand3",
-    "Shrub0",
-    "Shrub1",
-    "Shrub2",
+    "Rug0",
+    "Rug1",
+    "Rug2",
+    "Rug3",
+    "Rug4",
+    "Sack",
+    "Spice0",
+    "Spice1",
+    "Spice2",
+    "Spice3",
+    "Spice4",
+    "Spice5",
     "Stone",
-    "StoneDark",
+    "TombDoor",
+    "TombFace",
+    "TombRock",
+    "Trunk",
+    "Water",
     "Wood"
    ]
   },
@@ -755,7 +833,7 @@
    ],
    "materials": [
     "FarRock",
-    "Rock.001",
+    "Rock",
     "RockBand0",
     "RockBand1",
     "RockBand2",
@@ -774,23 +852,24 @@
    "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
   },
   "backdrop_ground": {
-   "file": "level/ruined_temple/backdrop_ground.glb",
+   "file": "level/backdrop_ground.glb",
    "kind": "backdrop",
    "size": [
-    1620.0,
-    10.19,
-    1620.0
+    1800.0,
+    30.206,
+    1800.0
    ],
    "materials": [
     "SandVC"
-   ]
+   ],
+   "notes": "coarse ground ring around the playable terrain (hole in the middle)"
   },
   "dressing": {
    "file": "level/dressing.glb",
    "kind": "level",
    "size": [
     385.349,
-    29.358,
+    29.516,
     391.606
    ],
    "materials": [
@@ -809,6 +888,11 @@
     "Shrub2",
     "Stone",
     "StoneDark",
+    "Straw",
+    "TargetRing0",
+    "TargetRing1",
+    "TargetRing2",
+    "TargetRing3",
     "Wood"
    ],
    "notes": "dune dressing; colliders are in level.json"
@@ -913,9 +997,9 @@
    "file": "props/bonfire.glb",
    "kind": "prop",
    "size": [
-    1.829,
-    1.297,
-    1.837
+    1.898,
+    1.298,
+    1.811
    ],
    "materials": [
     "Ash",
@@ -941,6 +1025,182 @@
     "P_Brass"
    ],
    "notes": "Nodes: ChestBase and ChestLid (origin on the back hinge). Open with lid.rotation.x = -1.7."
+  },
+  "dog": {
+   "file": "characters/dog.glb",
+   "kind": "character",
+   "size": [
+    0.26,
+    0.965,
+    1.489
+   ],
+   "materials": [
+    "D_Coat",
+    "D_Collar",
+    "D_Dark",
+    "D_Eyes",
+    "D_Nose",
+    "D_Spike"
+   ],
+   "accessories": [
+    "Collar"
+   ],
+   "clips": {
+    "Bite": {
+     "frames": 12,
+     "loop": false,
+     "duration": 0.5,
+     "layer": "full",
+     "hit_frame": 6,
+     "hit_time": 0.208
+    },
+    "Death": {
+     "frames": 24,
+     "loop": false,
+     "duration": 1.0,
+     "layer": "full"
+    },
+    "Growl": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full"
+    },
+    "Hit": {
+     "frames": 10,
+     "loop": false,
+     "duration": 0.417,
+     "layer": "full"
+    },
+    "Idle": {
+     "frames": 48,
+     "loop": true,
+     "duration": 2.0,
+     "layer": "full"
+    },
+    "Lunge": {
+     "frames": 17,
+     "loop": false,
+     "duration": 0.708,
+     "layer": "full",
+     "hit_frame": 11,
+     "hit_time": 0.417
+    },
+    "Run": {
+     "frames": 8,
+     "loop": true,
+     "duration": 0.333,
+     "layer": "full"
+    },
+    "Walk": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full"
+    }
+   },
+   "notes": "Desert hound (enemy kind 'hound'). Walk 1.6 m/s, Run 7 m/s. Lunge leaps forward (move the root ~3 m over 0.25-0.55 s); bite lands at hit_time. Growl is a crouched loop. Death ends on its side. Recolour D_Coat / D_Dark."
+  },
+  "bird": {
+   "file": "characters/bird.glb",
+   "kind": "character",
+   "size": [
+    2.139,
+    0.515,
+    1.095
+   ],
+   "materials": [
+    "B_Beak",
+    "B_Dark",
+    "B_Eyes",
+    "B_Feather",
+    "B_Leg",
+    "B_Light",
+    "B_Skin"
+   ],
+   "origin": "body centre (it lives in the air; on the ground the origin sits ~0.32 m up)",
+   "clips": {
+    "Death": {
+     "frames": 30,
+     "loop": false,
+     "duration": 1.25,
+     "layer": "full"
+    },
+    "Dive": {
+     "frames": 16,
+     "loop": false,
+     "duration": 0.667,
+     "layer": "full",
+     "hit_frame": 12,
+     "hit_time": 0.458
+    },
+    "Fly": {
+     "frames": 12,
+     "loop": true,
+     "duration": 0.5,
+     "layer": "full"
+    },
+    "Glide": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full"
+    },
+    "Hit": {
+     "frames": 10,
+     "loop": false,
+     "duration": 0.417,
+     "layer": "full"
+    }
+   },
+   "notes": "Lappet-faced vulture (enemy kind 'vulture'), ~2 m wingspan, rest pose = wings spread. Fly: one wingbeat per 0.5 s (downstroke peaks 0.25 s). Dive: wings sweep back, talons forward, strike at hit_time. Death tumbles and ends sprawled (rest it on the ground with the origin ~0.15 m up). Recolour B_Feather / B_Dark."
+  },
+  "arrow": {
+   "file": "props/arrow.glb",
+   "kind": "prop",
+   "size": [
+    0.078,
+    0.056,
+    0.827
+   ],
+   "materials": [
+    "P_Bow",
+    "P_Brass",
+    "P_Vane",
+    "P_Wood"
+   ],
+   "notes": "~0.84 m overall; shaft along +Z, bronze tip at +Z, origin = shaft centre"
+  },
+  "rock_throw": {
+   "file": "props/rock_throw.glb",
+   "kind": "prop",
+   "size": [
+    0.153,
+    0.123,
+    0.127
+   ],
+   "materials": [
+    "ThrowStone"
+   ],
+   "notes": "~0.16 m stone, origin at its centre"
+  },
+  "archery_target": {
+   "file": "props/archery_target.glb",
+   "kind": "prop",
+   "size": [
+    1.1,
+    1.692,
+    0.993
+   ],
+   "materials": [
+    "Straw",
+    "TargetRing0",
+    "TargetRing1",
+    "TargetRing2",
+    "TargetRing3",
+    "Wood"
+   ],
+   "notes": "Straw butt on an A-frame; painted face toward +Z, centre 1.1 m up. In maps its collider tag is 'target'."
   }
  },
  "conventions": {

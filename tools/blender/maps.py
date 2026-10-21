@@ -17,6 +17,8 @@ from mathutils import Vector, noise
 import arabia_lib as L
 import kit as K
 
+R = math.radians
+
 
 def lerp3(a, b, t):
     return tuple(x + (y - x) * t for x, y in zip(a, b))
@@ -428,6 +430,9 @@ class Hegra(MapDef):
         ctx.exits.append({"to": "ruined_temple", "x": 60, "y": 134, "r": 6, "label": "North to the Sabaean temple ruins"})
         ctx.spawn("player", 60, 126, 0.0, **{"from": "ruined_temple"})
         K.cairn(mb, ctx, 64, 131)
+        # v5 enemies: hounds with the tomb robbers
+        for (x, y) in [(88, 98), (94, 110)]:
+            ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind="hound", camp="tomb_robbers")
 
 
 # ================================================================== Caravanserai
@@ -533,6 +538,10 @@ class Caravanserai(MapDef):
         ctx.spawn("pickup", cp.x + 7.5, cp.y, 0.0, id="cistern_waterskin")
         ctx.spawn("pickup", 74, -72, 0.0, id="lost_cargo")
         ctx.spawn("chest", 77, -69, 0.0, id="serai_old_post_chest")
+        # v5 enemies: hounds and a slinger with the ridge bandits
+        for (x, y) in [(88, 80), (82, 86)]:
+            ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind="hound", camp="ridge")
+        ctx.spawn("enemy", 96, 90, R(-140), kind="slinger", camp="ridge")
 
 
 # ================================================================== Wadi gardens
@@ -675,6 +684,10 @@ class Wadi(MapDef):
         ctx.exits.append({"to": "cliffs", "x": -124, "y": self.yc(-124), "r": 6, "label": "West, up to the aqueduct cliffs"})
         ctx.spawn("player", -114, self.yc(-114), -math.pi / 2, **{"from": "cliffs"})
         K.cairn(mb, ctx, -120, self.yc(-120) + 5)
+        # v5 enemies: vultures circling over the gardens
+        for x, h in ((-80, 18), (-20, 22), (40, 16), (90, 20)):
+            ctx.spawn("enemy", x, self.yc(x), 0.0, kind="vulture", camp="sky", z=round(L.height(x, self.yc(x)) + h, 3),
+                      airborne=True)
 
 
 # ================================================================== Raider fort
@@ -802,6 +815,15 @@ class RaiderFort(MapDef):
         ctx.spawn("pickup", 0, 24, 0.0, id="chief_seal")
         ctx.spawn("chest", -4, 28, 0.0, id="fort_loot_chest")
         ctx.spawn("chest", -60, -40, 0.0, id="fort_lookout_chest")
+        # v5 enemies: slingers on the tower platforms, clubmen and hounds in the yard
+        for (x, y), hgt in [((x0, y0), 6.0), ((x1, y0), 6.0), ((x1, y1), 6.0), ((x0, y1), 6.0), ((-5.5, y0 - 1.5), 7.0),
+                            ((5.5, y0 - 1.5), 7.0), ((-62, -42), 6.5)]:
+            ctx.spawn("enemy", x, y, face(x, y, 0, -40), kind="slinger", camp="towers",
+                      z=round(L.height(x, y) + hgt - 1.31, 3))
+        for (x, y, camp) in [(-12, 20, "yard"), (10, 26, "chief"), (2, -10, "gate")]:
+            ctx.spawn("enemy", x, y, face(x, y, 0, -40), kind="clubman", camp=camp)
+        for (x, y, camp) in [(-6, 10, "yard"), (8, 14, "yard"), (12, 6, "yard"), (-2, -12, "gate")]:
+            ctx.spawn("enemy", x, y, face(x, y, 0, -40), kind="hound", camp=camp)
 
 
 MAPS = {m.name: m for m in (Hegra(), Caravanserai(), Wadi(), RaiderFort())}

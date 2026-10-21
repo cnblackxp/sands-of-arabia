@@ -357,6 +357,8 @@ def clip_info():
             d["hit_time"] = round((a["hit"] - 1) / fps, 3)
         if "windup_end" in a:
             d["windup_end_time"] = round((a["windup_end"] - 1) / fps, 3)
+        if "release" in a:
+            d["release_time"] = round((a["release"] - 1) / fps, 3)
         out[a.name] = d
     return out
 
@@ -401,6 +403,26 @@ def export_characters():
         "accessories": ["Saddle", "Cargo"], "clips": clips,
         "sockets": {"mount": "attach the rider's root here; rider plays Ride"},
         "notes": "Clip ground speeds: Walk 1.8 m/s, Run 6 m/s. Sit is a lying-down loop.",
+    })
+    clear_scene()
+    arm = rigs.build_dog(col)
+    clips = clip_info()
+    export([arm], "characters/dog.glb", "character", anim=True, extra={
+        "accessories": ["Collar"], "clips": clips,
+        "notes": ("Desert hound (enemy kind 'hound'). Walk 1.6 m/s, Run 7 m/s. Lunge leaps forward (move the root "
+                  "~3 m over 0.25-0.55 s); bite lands at hit_time. Growl is a crouched loop. Death ends on its side. "
+                  "Recolour D_Coat / D_Dark."),
+    })
+    clear_scene()
+    arm = rigs.build_bird(col)
+    clips = clip_info()
+    export([arm], "characters/bird.glb", "character", anim=True, extra={
+        "origin": "body centre (it lives in the air; on the ground the origin sits ~0.32 m up)",
+        "clips": clips,
+        "notes": ("Lappet-faced vulture (enemy kind 'vulture'), ~2 m wingspan, rest pose = wings spread. Fly: one "
+                  "wingbeat per 0.5 s (downstroke peaks 0.25 s). Dive: wings sweep back, talons forward, strike at "
+                  "hit_time. Death tumbles and ends sprawled (rest it on the ground with the origin ~0.15 m up). "
+                  "Recolour B_Feather / B_Dark."),
     })
 
 
@@ -502,6 +524,37 @@ def export_props():
     lid = lm.build("ChestLid", L.C_LAND, loc=(0, d / 2, h))
     export([cb, lid], "props/chest.glb", "prop", extra={
         "notes": "Nodes: ChestBase and ChestLid (origin on the back hinge). Open with lid.rotation.x = -1.7."})
+
+    # arrow: shaft along +Z (three.js) = -Y (Blender), bronze tip at +Z, origin at the shaft centre
+    clear_scene()
+    mb = L.MB()
+    mb.box((0, 0, 0), (0.012, 0.75, 0.012), rigs.mat("P_Wood", "#7a5a3a", 0.8))
+    mb.box((0, -0.395, 0), (0.026, 0.05, 0.008), rigs.mat("P_Brass", "#c99a3a", 0.35, metallic=1.0))
+    mb.box((0, -0.43, 0), (0.014, 0.025, 0.006), rigs.mat("P_Brass", "#c99a3a", 0.35, metallic=1.0))
+    mb.box((0, 0.375, 0), (0.018, 0.02, 0.018), rigs.mat("P_Bow", "#5a3a22", 0.7))
+    vane = rigs.mat("P_Vane", "#2a2420", 0.9)
+    for a in (0, 120, 240):
+        mb.box((math.cos(R(a)) * 0.012, 0.31, math.sin(R(a)) * 0.012), (0.003, 0.09, 0.022), vane, rot=(0, R(a), 0))
+    ob = mb.build("arrow", L.C_LAND)
+    export([ob], "props/arrow.glb", "prop", extra={"notes": "~0.84 m overall; shaft along +Z, bronze tip at +Z, origin = shaft centre"})
+    # thrown stone: fist-sized, origin at its centre
+    clear_scene()
+    mb = L.MB()
+    mb.ico((0, 0, 0), (0.085, 0.075, 0.07), L.mat("ThrowStone", "#8a7a66", 0.9), sub=1, jitter=0.012)
+    ob = mb.build("rock_throw", L.C_LAND)
+    export([ob], "props/rock_throw.glb", "prop", extra={"notes": "~0.16 m stone, origin at its centre"})
+    # archery target
+    clear_scene()
+    import kit as _K
+    mb = L.MB()
+    _ctx = _K.Ctx()
+    _saved = L.HEIGHT_FN
+    L.HEIGHT_FN = lambda x, y: 0.0
+    _K.archery_target(mb, _ctx, 0, 0, 0.0)
+    L.HEIGHT_FN = _saved
+    ob = mb.build("archery_target", L.C_LAND)
+    export([ob], "props/archery_target.glb", "prop", extra={
+        "notes": "Straw butt on an A-frame; painted face toward +Z, centre 1.1 m up. In maps its collider tag is 'target'."})
 
     # standalone sword (pickups / racks): grip at origin, blade along +Y (three.js)
     clear_scene()
@@ -753,7 +806,8 @@ def export_level():
 
     # --- spawns (three.js coords, yaw about +Y)
     def sp(role, x, y, rot, **kw):
-        d = {"role": role, "pos": to3((x, y, L.height(x, y))), "yaw": round(rot, 4)}
+        z = kw.pop("z", None)
+        d = {"role": role, "pos": to3((x, y, L.height(x, y) if z is None else z)), "yaw": round(rot, 4)}
         d.update(kw)
         spawns.append(d)
     random.seed(9)
@@ -832,11 +886,29 @@ def export_level():
     cb = L.crest_point(-30)
     sp("pickup", cb.x, cb.y, 0.0, id="crest_lost_bundle")
     sp("chest", 63.0, 50.0, 0.0, id="oasis_camp_chest")
+    # v5: hound packs with the raider camps, test enemies near the start, slingers on high dunes
+    for camp, pts in {"tomb": [(70, 96), (75, 98), (66, 94)], "south_dunes": [(-34, -92), (-44, -90)],
+                      "crest": [(-88, 96), (-95, 101)], "east_flats": [(114, -24), (106, -25)]}.items():
+        for (x, y) in pts:
+            sp("enemy", x, y, random.uniform(-math.pi, math.pi), kind="hound", camp=camp)
+    for (x, y) in [(20, -72), (23.5, -74), (18, -76)]:
+        sp("enemy", x, y, R(200), kind="hound", camp="test")
+    sp("enemy", 12, -64, 0.0, kind="vulture", camp="test", z=round(L.height(12, -64) + 16, 3), airborne=True)
+    sp("enemy", -60, -60, 0.0, kind="vulture", camp="sky", z=round(L.height(-60, -60) + 20, 3), airborne=True)
+    sp("enemy", -26, -78, R(30), kind="slinger", camp="test")
+    sp("enemy", 120, -8, R(-120), kind="slinger", camp="east_flats")
+    sp("enemy", 30, -64, R(160), kind="clubman", camp="test")
+    sp("enemy", 112, -14, R(-100), kind="clubman", camp="east_flats")
+    # archery range west of the gate: targets face south toward the market
+    for k, (tx, ty) in enumerate([(-9.5, 18.6), (-13.5, 18.4), (-17.5, 18.0)]):
+        tc = K.archery_target(dmb, dctx, tx, ty, 0.0)
+    dctx.landmarks = getattr(dctx, "landmarks", {})
     dob = dmb.build("Dressing", L.C_LAND)
     export([dob], "level/dressing.glb", "level", extra={"notes": "dune dressing; colliders are in level.json"})
     bpy.data.objects.remove(dob, do_unlink=True)
     for c in dctx.colliders:
         box_col(*c)
+    archery = {"archery_range": to3((-13.5, 11.0, L.height(-13.5, 11.0)))}
     for k, x, y, z in dctx.lights:
         lights.append({"type": k, "pos": to3((x, y, z))})
     level = {
@@ -857,7 +929,7 @@ def export_level():
                   "market_lane": [to3((0, y, L.height(0, y))) for y in range(-34, 24, 4)]},
         "landmarks": {"gate": to3((0, 22, L.height(0, 22))), "temple": to3((6, 54, tz)),
                       "pool": to3((POOL.x, POOL.y, L.height(POOL.x, POOL.y))),
-                      "tomb": to3((72, 106, L.height(72, 106))), "camp": to3((60, 46, L.height(60, 46)))},
+                      "tomb": to3((72, 106, L.height(72, 106))), "camp": to3((60, 46, L.height(60, 46))), **archery},
     }
     with open(os.path.join(ASSETS, "level", "level.json"), "w", encoding="utf8") as f:
         json.dump(level, f, indent=1)
