@@ -59,7 +59,7 @@ def strata_column(mb, ctx, x, y, top, w, d, rot=0.0, palette=K.ROCK, bottom=None
 
 
 def strata_wall(mb, ctx, pts, top, depth=5.0, colw=7.0, offset=0.0, palette=K.ROCK, skip=lambda x, y: False,
-                tag="cliff"):
+                tag="cliff", bottom=None):
     """Strata columns along a polyline (offset sideways by `offset`), each `colw` wide."""
     for a, b in zip(pts, pts[1:]):
         a, b = Vector(a), Vector(b)
@@ -72,7 +72,7 @@ def strata_wall(mb, ctx, pts, top, depth=5.0, colw=7.0, offset=0.0, palette=K.RO
             if skip(c.x, c.y):
                 continue
             strata_column(mb, ctx, c.x, c.y, top if not callable(top) else top(c.x, c.y), dv.length / n + 0.6, depth,
-                          rot, palette, tag=tag)
+                          rot, palette, tag=tag, bottom=bottom)
 
 
 # ------------------------------------------------------------------ Sabaean stonework
@@ -521,3 +521,84 @@ def great_well(mb, ctx, x, y, r=9.0, frames=12):
             p = (x + math.cos(a + 0.26) * (r + 2.6), y + math.sin(a + 0.26) * (r + 2.6))
             pbox(mb, ctx, p[0], p[1], g + 3.4, 1.6, 1.0, MUD_PLASTER, a, tag="pillar")
     return g
+
+
+# ------------------------------------------------------------------ v8: Kindite town pieces (Qaryat al-Faw)
+PLASTER = L.mat("Plaster", "#e8d9bf", 0.9)
+PAINT_RED = L.mat("PaintRed", "#9a3b2a", 0.85)
+PAINT_OCHRE = L.mat("PaintOchre", "#c08a3a", 0.85)
+
+
+def suq(mb, ctx, x, y, side=34.0, wall_h=4.0, depth=4.0, tower_h=6.5, gates=("E", "W")):
+    """Square walled market: outer walls, shop rooms round the inside whose flat roofs (= wall top) make a walkable
+    rooftop circuit, four corner towers, gates (E/W/N/S) and a courtyard well. Returns the courtyard centre."""
+    g = L.height(x, y)
+    h = side / 2
+    t = 1.4
+    gw = 4.0
+    top = g + wall_h
+    sides = {"S": ((-h, -h), (h, -h)), "E": ((h, -h), (h, h)), "N": ((h, h), (-h, h)), "W": ((-h, h), (-h, -h))}
+    for key, (a, b) in sides.items():
+        a, b = Vector(a), Vector(b)
+        d = (b - a).normalized()
+        n = Vector((-d.y, d.x))                                  # points into the courtyard
+        ln = (b - a).length
+        rot = math.atan2(d.y, d.x)
+        pieces = [(0.0, ln)] if key not in gates else [(0.0, ln / 2 - gw / 2), (ln / 2 + gw / 2, ln)]
+        for (s0, s1) in pieces:
+            c = a + d * ((s0 + s1) / 2)
+            pbox(mb, ctx, x + c.x, y + c.y, top, s1 - s0, t, MUDBRICK[2], rot, bottom=g - 0.8, tag="wall")
+            r0 = a + d * ((s0 + s1) / 2) + n * (t / 2 + depth / 2)
+            # the shop roof (walkable, level with the wall top), partitions and doors underneath
+            pbox(mb, ctx, x + r0.x, y + r0.y, top, max(0.5, s1 - s0 - (depth if s0 == 0 else 0) - (depth if s1 == ln else 0)),
+                 depth, MUDBRICK[1], rot, bottom=top - 0.4, tag="roof")
+            nb = int((s1 - s0) / 4.0)
+            for i in range(nb + 1):
+                q = a + d * (s0 + i * (s1 - s0) / max(1, nb)) + n * (t / 2 + depth / 2)
+                pbox(mb, ctx, x + q.x, y + q.y, top - 0.4, 0.4, depth, MUDBRICK[0], rot, bottom=g - 0.5, tag="wall")
+            for i in range(nb):
+                q = a + d * (s0 + (i + 0.5) * (s1 - s0) / max(1, nb)) + n * (t / 2 + depth + 0.02)
+                lc = Local(mb, x + q.x, y + q.y, g, rot)
+                lc.box((0, 0, 1.05), (1.2, 0.06, 2.1), L.SHADOW)
+    for (cx, cy) in ((-h, -h), (h, -h), (h, h), (-h, h)):
+        pbox(mb, ctx, x + cx, y + cy, g + tower_h, 5.0, 5.0, MUDBRICK[0], 0.0, tag="tower")
+        lc = Local(mb, x + cx, y + cy, g + tower_h, 0.0)
+        for i in range(4):
+            for sy in (-1, 1):
+                lc.box((-1.8 + i * 1.2, sy * 2.35, 0.3), (0.6, 0.3, 0.6), MUDBRICK[0])
+    # steps up to the rooftop circuit inside the north-west corner
+    for i in range(3):
+        pbox(mb, ctx, x - h + t + depth + 1.2 + i * 1.6, y + h - t - depth - 1.0, g + 1.2 * (i + 1) - 0.2, 1.4, 1.4,
+             STONE_WHITE, 0.0, bottom=g - 0.5, tag="stair")
+    K.well(mb, ctx, x, y)
+    return Vector((x, y))
+
+
+def painted_room(mb, ctx, x, y, rot, w=8.0, d=6.0, h=3.6):
+    """The feasting brotherhood's painted room: a closed building whose only way in is a roof hatch; plaster walls
+    inside with a red and ochre band. Returns (floor centre, hatch centre, roof height)."""
+    g = L.height(x, y)
+    top = g + h
+    lc = Local(mb, x, y, g, rot)
+
+    def W(px, py):
+        return lc.world((px, py, 0))
+    for (px, py, ww, dd) in [(0, -d / 2, w, 0.6), (0, d / 2, w, 0.6), (-w / 2, 0, 0.6, d), (w / 2, 0, 0.6, d)]:
+        p = W(px, py)
+        pbox(mb, ctx, p.x, p.y, top, ww, dd, MUDBRICK[2], rot, bottom=g - 0.6, tag="wall")
+    for (px, py, ww, dd) in [(0, -d / 2 + 0.32, w - 1.2, 0.04), (0, d / 2 - 0.32, w - 1.2, 0.04),
+                             (-w / 2 + 0.32, 0, 0.04, d - 1.2), (w / 2 - 0.32, 0, 0.04, d - 1.2)]:
+        lc.box((px, py, h / 2), (ww, dd, h - 0.2), PLASTER)
+        lc.box((px, py, 1.1), (ww + 0.002, dd + 0.004, 0.3), PAINT_RED)
+        lc.box((px, py, 2.4), (ww + 0.002, dd + 0.004, 0.18), PAINT_OCHRE)
+    p = W(0, -0.6)                                                   # roof, leaving a 2 x 1.2 m hatch at the back
+    pbox(mb, ctx, p.x, p.y, top + 0.3, w, d - 1.2, MUDBRICK[1], rot, bottom=top - 0.1, tag="roof")
+    p = W(-1.6, d / 2 - 0.6)
+    pbox(mb, ctx, p.x, p.y, top + 0.3, w - 3.2, 1.2, MUDBRICK[1], rot, bottom=top - 0.1, tag="roof")
+    p = W(w / 2 - 0.6, d / 2 - 0.6)
+    pbox(mb, ctx, p.x, p.y, top + 0.3, 1.2, 1.2, MUDBRICK[1], rot, bottom=top - 0.1, tag="roof")
+    for i in range(3):                                               # benches and a low table
+        p = W(-w / 2 + 1.2 + i * 2.6, d / 2 - 1.1)
+    lc.box((0, 0.6, 0.35), (2.6, 1.0, 0.7), L.WOOD)
+    hatch = W(w / 2 - 2.2, d / 2 - 0.6)
+    return W(0, 0), hatch, top + 0.3

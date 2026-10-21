@@ -17,6 +17,7 @@ scene = bpy.context.scene
 MAP = next((a[4:] for a in ARGS if a.startswith("map=")), None)
 AT = next((a[3:] for a in ARGS if a.startswith("at=")), None)
 SCALE = float(next((a[6:] for a in ARGS if a.startswith("scale=")), "120"))
+YAW = float(next((a[4:] for a in ARGS if a.startswith("yaw=")), "-30"))
 LJ = f"level/{MAP}/level.json" if MAP else "level/level.json"
 level = json.load(open(os.path.join(A, LJ), encoding="utf8"))
 for key in ("terrain", "town", "backdrop", "backdrop_ground", "dressing"):
@@ -86,7 +87,7 @@ elif AT == "center" or MAP:
     target = Vector(((bx[0] + bx[1]) / 2, -(bz[0] + bz[1]) / 2, 0))
 else:
     target = Vector((0, 10, 2))
-cam.location = target + Euler((0, 0, math.radians(-30))).to_matrix() @ (Vector((0, -200, 170)) * max(1.0, SCALE / 250))
+cam.location = target + Euler((0, 0, math.radians(YAW))).to_matrix() @ (Vector((0, -200, 170)) * max(1.0, SCALE / 250))
 cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
 scene.render.engine = "CYCLES"
 prefs = bpy.context.preferences.addons["cycles"].preferences
@@ -101,6 +102,6 @@ except TypeError:
 scene.cycles.samples = 32
 scene.render.resolution_x, scene.render.resolution_y = 1600, 1000
 scene.view_settings.view_transform = "AgX"
-scene.render.filepath = os.path.join(A, "previews", f"level_{MAP or 'oasis'}{'_' + AT if AT else ''}.png")
+scene.render.filepath = os.path.join(A, "previews", f"level_{MAP or 'oasis'}{'_' + AT if AT else ''}{'_yaw' + str(int(YAW)) if YAW != -30 else ''}.png")
 bpy.ops.render.render(write_still=True)
 print("WROTE")

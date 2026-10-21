@@ -106,15 +106,16 @@ class JabalIthlib(MapDef):
         loop = boundary_loop(self.inside, *self.MC, n=110)
         mouth = Vector(self.SIQ[0])
         S.strata_wall(mb, ctx, loop, TOP, depth=5.0, colw=9.0, offset=-2.5,
-                      skip=lambda x, y: (Vector((x, y)) - mouth).length < 10)
+                      skip=lambda x, y: (Vector((x, y)) - mouth).length < 10, bottom=-2.0)
         # siq walls (both sides), bowl rim (inner face at BR), with openings for the siq and the Diwan
-        S.strata_wall(mb, ctx, self.SIQ, TOP, depth=4.0, colw=6.0, offset=self.SIQ_HW + 2.0)
-        S.strata_wall(mb, ctx, self.SIQ, TOP, depth=4.0, colw=6.0, offset=-(self.SIQ_HW + 2.0))
+        S.strata_wall(mb, ctx, self.SIQ, TOP, depth=4.0, colw=6.0, offset=self.SIQ_HW + 2.0, bottom=-2.0)
+        S.strata_wall(mb, ctx, self.SIQ, TOP, depth=4.0, colw=6.0, offset=-(self.SIQ_HW + 2.0), bottom=-2.0)
         rim = [(bx + math.cos(k / 36 * math.tau) * (BR + 2.5), by + math.sin(k / 36 * math.tau) * (BR + 2.5))
                for k in range(37)]
         siq_end = Vector(self.SIQ[-1])
         S.strata_wall(mb, ctx, rim, TOP, depth=5.0, colw=7.0, offset=0.0,
-                      skip=lambda x, y: (Vector((x, y)) - siq_end).length < 9 or (x > bx + BR - 4 and abs(y - by) < 9))
+                      skip=lambda x, y: (Vector((x, y)) - siq_end).length < 9 or (x > bx + BR - 4 and abs(y - by) < 9),
+                      bottom=-2.0)
         ctx.paths["siq"] = list(self.SIQ)
         ctx.landmarks["siq_mouth"] = self.SIQ[0]
         N["siq_mouth"] = ("Mouth of the siq", "مدخل السيق")
@@ -598,6 +599,12 @@ class Marib(MapDef):
         ctx.spawn("player", 0, 372, face(0, 372, 0, 0), **{"from": "ukaz"})
         K.cairn(mb, ctx, 6, 382)
         ctx.keepout += [(0, 372, 18)]
+        # east: the incense road north-east to Qaryat al-Faw
+        ctx.exits.append({"to": "qaryat_al_faw", "x": 492, "y": -20, "r": 7, "label": "North-east to Qaryat al-Faw",
+                          "label_ar": "إلى قرية الفاو في الشمال الشرقي"})
+        ctx.spawn("player", 474, -20, face(474, -20, 0, 0), **{"from": "qaryat_al_faw"})
+        K.cairn(mb, ctx, 486, -12)
+        ctx.keepout += [(474, -20, 16)]
         K.cairn(mb, ctx, 480, 380)
         for (x, y, bid) in [(452, 352, "marib_arrival"), (136, 8, "marib_city_gate"), (-250, 40, "marib_dam_foot"),
                             (ax, ay + 52, "marib_awwam")]:
@@ -1235,5 +1242,213 @@ class DumatAlJandal(MapDef):
         print("DUMAT houses", len(spots))
 
 
-for _m in (JabalIthlib(), Marib(), MaribBreach(), Ukaz(), Tayma(), DumatAlJandal()):
+# ================================================================== Qaryat al-Faw
+class QaryatAlFaw(MapDef):
+    """Qaryat al-Faw, first capital of Kindah: the Tuwaiq escarpment in the west (cliff tombs, ledge route, lookout),
+    the walled market with its rooftop circuit, houses on stone footings, the temples of Kahl and Shams, the painted
+    room of the brotherhood, the well field, and the Empty Quarter's dunes rolling in from the east."""
+    name = "qaryat_al_faw"
+    title = "Qaryat al-Faw: gate of the Empty Quarter"
+    title_ar = "قرية الفاو: بوابة الربع الخالي"
+    bounds = (-400.0, 400.0, -400.0, 400.0)
+    step = 4.0
+    tile = 125.0
+    instanced = True
+    culture = "kindite"
+    batch = 2
+    sun = (9.0, 95.0)                                    # early morning from the east, mist over the fields
+    fog = {"color": "#efe2c6", "near": 70, "far": 520}
+    TOP = 40.0
+    SUQ = (-80.0, 0.0)
+    color_base = staticmethod(ground_color("#c9a678", "#d8b88a", "#e4c89c", "#b8946a"))
+
+    @staticmethod
+    def xc(y):
+        return -230.0 + 12.0 * math.sin(y * 0.02) + 5.0 * math.sin(y * 0.071)
+
+    def height(self, x, y):
+        xc = self.xc(y)
+        plateau = self.TOP * L.smooth(xc - 3.0, xc - 8.5, x)          # the rise hides inside the 10 m strata face
+        base = 0.5 * noise.noise(Vector((x * 0.01, y * 0.01, 2.6))) + 0.2 * noise.noise(Vector((x * 0.05, y * 0.05, 7.1)))
+        p = Vector((x * 0.011 + y * 0.004, y * 0.022 - x * 0.006, 0.9))
+        dunes = ((1 - abs(noise.noise(p))) ** 3 * 9 + (noise.noise(Vector((x * 0.005, y * 0.005, 1.7))) * 0.5 + 0.5) * 5) \
+            * L.smooth(230, 300, x)
+        top_n = 1.5 * noise.noise(Vector((x * 0.02, y * 0.02, 8.0))) * L.smooth(xc, xc - 20, x)
+        return base + plateau + dunes + top_n
+
+    def color(self, c, nz):
+        if c.z > 30 or nz < 0.75:
+            u = 0.5 + 0.5 * math.sin(c.z * 0.5 + noise.noise(c * 0.05) * 3)
+            return L.lin(["#a8805a", "#c09a6c", "#9a7454", "#b48e64"][min(3, int(u * 4))])
+        if 70 < c.x < 230 and abs(c.y) < 130:
+            return L.lin("#7f6e48")                                                     # irrigated plots
+        return self.color_base(c, nz)
+
+    def build(self, mb, ctx):
+        N = ctx.names
+        TOP = self.TOP
+        # ---- the Tuwaiq escarpment: solid strata face, ledge route to cliff tombs, the lookout on top
+        face_pts = [(self.xc(y) - 5.0, y) for y in range(-400, 401, 8)]
+        S.strata_wall(mb, ctx, face_pts, TOP, depth=10.0, colw=8.0, offset=0.0, palette=K.ROCK, bottom=-2.0)
+        ctx.landmarks["escarpment"] = (self.xc(0) - 10, 0)
+        N["escarpment"] = ("The Tuwaiq escarpment", "جرف طويق")
+
+        def band_x(y, d):
+            return self.xc(y) + (1.4 if d > 0 else 4.0)
+        y, d, z = -60.0, 1, 1.2
+        ledges = []
+        tomb_doors = []
+        while z < TOP - 1.0:
+            w = random.uniform(3.8, 4.6)
+            x = band_x(y, d)
+            S.pbox(mb, ctx, x, y, z + L.height(x + 6, y) * 0, 2.8, w, K.ROCK[len(ledges) % 4], 0.0,
+                   bottom=z - (1.4 if d > 0 else 3.0), tag="ledge")
+            ledges.append((x, y, z))
+            if len(ledges) in (10, 20):                                                   # a cliff tomb at the landing
+                tz = z
+                fx = self.xc(y) + 0.6
+                door = K.tomb_facade(mb, ctx, fx, y + d * 6.0, tz - 0.2, R(90), w=6.0, h=8.0, face=K.FACADE_HEGRA)
+                S.pbox(mb, ctx, self.xc(y) + 2.6, y + d * 6.0, tz, 4.0, 7.0, K.ROCK[1], 0.0, bottom=tz - 1.6, tag="ledge")
+                tomb_doors.append((door.x, door.y, tz))
+            if len(ledges) == 15:
+                ctx.spawn("pickup", x, y, 0.0, id="red_ochre", z=round(z, 3))
+            ny = y + d * (w / 2 + random.uniform(1.0, 1.8) + 2.1)
+            if not -70 <= ny <= 70:
+                d = -d
+                ny = y + d * 0.6
+            y = ny
+            z = round(z + 1.2, 2)
+        lx, ly = self.xc(y) - 4.0, y
+        S.pbox(mb, ctx, self.xc(y) + 1.2, y, TOP - 0.2, 3.6, 4.6, K.ROCK[2], 0.0, bottom=TOP - 2.6, tag="ledge")
+        ctx.paths["escarpment_route"] = [(p[0], p[1]) for p in ledges]
+        for i, (dx_, dy_, dz_) in enumerate(tomb_doors):
+            ctx.landmarks[f"cliff_tomb_{i + 1}"] = (dx_, dy_)
+            N[f"cliff_tomb_{i + 1}"] = ("Cliff tomb", "مقبرة الجرف")
+        ctx.spawn("pickup", tomb_doors[-1][0] + 1.0, tomb_doors[-1][1], 0.0, id="ode_line_2", z=round(tomb_doors[-1][2], 3))
+        ox, oy = self.xc(80) - 14, 80.0                                                   # the lookout
+        S.pbox(mb, ctx, ox, oy, L.height(ox, oy) + 0.8, 8, 8, S.DRYSTONE[1], 0.0, tag="platform")
+        K.cairn(mb, ctx, ox + 2, oy + 2)
+        ctx.landmarks["lookout"] = (ox, oy)
+        N["lookout"] = ("The lookout", "المرقب")
+        ctx.keepout += [(self.xc(yy) + 4, yy, 12) for yy in range(-80, 81, 10)]
+        # ---- the walled market (suq) with its rooftop circuit
+        sx, sy = self.SUQ
+        S.suq(mb, ctx, sx, sy, side=36.0, wall_h=4.0, depth=4.0, tower_h=6.5, gates=("E", "W"))
+        ctx.spawn("shopkeeper", sx + 4, sy - 4, R(-90), id="faw_trader")
+        for k in range(10):
+            a = k / 10 * math.tau
+            ctx.spawn("merchant", sx + math.cos(a) * 11, sy + math.sin(a) * 11, face(sx + math.cos(a) * 11, sy + math.sin(a) * 11, sx, sy))
+        ctx.spawn("pickup", sx - 16, sy + 16, 0.0, id="ode_line_1", z=round(L.height(sx, sy) + 4.0, 3))
+        ctx.landmarks["suq"] = (sx, sy)
+        N["suq"] = ("The walled market", "السوق المسور")
+        ctx.keepout.append((sx, sy, 30))
+        # ---- temples of Kahl and Shams, the palace quarter, the painted room
+        kx, ky = -140.0, 82.0
+        ktop = S.stepped_platform(mb, ctx, kx, ky, R(-90), 20, 16, tiers=2, tier_h=1.0, palette=S.DRYSTONE)
+        S.drystone_house(mb, ctx, kx - 2, ky, R(-90), 9, 8, 5.0)
+        S.altar(mb, ctx, kx + 13, ky, L.height(kx + 13, ky), R(-90))
+        ctx.spawn("quest_giver", kx + 16, ky, R(-90), id="kahl_priest", title="priest of Kahl")
+        ctx.landmarks["temple_kahl"] = (kx, ky)
+        N["temple_kahl"] = ("Temple of Kahl", "معبد كهل")
+        px, py = -10.0, 96.0
+        S.stepped_platform(mb, ctx, px, py, math.pi, 30, 22, tiers=2, tier_h=1.2, palette=S.DRYSTONE)
+        for (ox_, oy_, hh) in [(-7, 3, 9.0), (6, 4, 11.0)]:
+            ob = L.tower_house(px + ox_, py + oy_, 0.0, 6.0, 6.0, hh)
+            ob.location.z += 2.4
+            ctx.col(px + ox_, py + oy_, L.height(px, py) + 2.4 + hh / 2, 6, 6, hh + 1.5, 0, "building")
+        S.altar(mb, ctx, px, py - 6, L.height(px, py) + 2.4, math.pi)
+        ctx.spawn("pickup", px + 2, py - 6, 0.0, id="ode_line_3", z=round(L.height(px, py) + 2.4, 3))
+        ctx.landmarks.update({"palace": (px, py), "temple_shams": (px, py - 6)})
+        N["palace"] = ("The palace quarter", "حي القصر")
+        N["temple_shams"] = ("Temple of Shams", "معبد شمس")
+        ctx.spawn("official", px - 4, py - 13, math.pi, id="faw_noble_1", title="Kindite noble")
+        ctx.spawn("official", px + 4, py - 13, math.pi, id="faw_noble_2", title="Kindite noble")
+        ctx.spawn("poet", px, py - 15, math.pi, id="faw_prince", title="Kindite prince", note="prefers poetry to war")
+        rmx, rmy = -46.0, -96.0
+        floor, hatch, rtop = S.painted_room(mb, ctx, rmx, rmy, 0.0, w=8.0, d=6.0, h=3.6)
+        ctx.spawn("chest", floor.x, floor.y, 0.0, id="faw_mrzh_room", secret=True)
+        ctx.landmarks.update({"mrzh_room": (rmx, rmy), "mrzh_hatch": (hatch.x, hatch.y)})
+        N["mrzh_room"] = ("Painted room of the brotherhood", "الغرفة المصورة")
+        N["mrzh_hatch"] = ("A hatch in the roof", "كوة في السقف")
+        for i in range(3):                                                             # crates up onto its roof
+            S.pbox(mb, ctx, rmx + 6.0, rmy + 3.6 - i * 1.6, L.height(rmx, rmy) + 1.2 * (i + 1), 1.4, 1.4, L.WOOD, 0.0,
+                   tag="crate")
+        ctx.spawn("quest_giver", rmx + 8, rmy - 6, 0.0, id="faw_painter", title="fresco painter")
+        ctx.keepout += [(kx, ky, 16), (px, py, 20), (rmx, rmy, 10)]
+        # ---- houses on stone footings
+        spots = []
+        for _ in range(38):
+            for _ in range(80):
+                x, y_ = random.uniform(-200, 30), random.uniform(-150, 150)
+                if ctx.free(x, y_, 6) and all((Vector((x, y_)) - s_).length > 9 for s_ in spots):
+                    spots.append(Vector((x, y_)))
+                    break
+        for s_ in spots:
+            w, dd, hh = random.uniform(5, 7), random.uniform(4.5, 6), random.uniform(3.6, 5.2)
+            rot = random.uniform(-0.12, 0.12)
+            S.pbox(mb, ctx, s_.x, s_.y, L.height(s_.x, s_.y) + 0.8, w + 0.3, dd + 0.3, K.STONE_DARK, rot, tag="building")
+            ob = L.house(s_.x, s_.y, rot, w, dd, hh, floors=2 if random.random() < 0.35 else 1)
+            ob.location.z += 0.8
+            ctx.col(s_.x, s_.y, L.height(s_.x, s_.y) + 0.8 + hh / 2, w, dd, hh + 1.6, rot, "building")
+            ctx.keepout.append((s_.x, s_.y, 6))
+        people(ctx, "wanderer", wander_pts(30, -80, 0, 110, 140, lambda x, y: all((Vector((x, y)) - s_).length > 4.5 for s_ in spots)))
+        # ---- the well field and irrigated plots
+        for gx in range(90, 221, 44):
+            for gy in range(-100, 101, 50):
+                K.well(mb, ctx, gx, gy)
+                for (ox_, oy_) in [(-16, -14), (16, -14), (-16, 14), (16, 14)]:
+                    I.field(ctx, gx + ox_, gy + oy_, random.choice(S.FIELD), w=26.0, d=20.0)
+                ctx.keepout.append((gx, gy, 26))
+        for gy in range(-110, 111, 22):
+            I.palm(ctx, 74, gy, random.uniform(0.9, 1.15), lite=True)
+            I.palm(ctx, 236, gy + 11, random.uniform(0.9, 1.15), lite=True)
+        ctx.spawn("pickup", 156, 54, 0.0, id="ode_line_4")
+        for i in range(2):
+            ctx.spawn("wave_spawn", 250, -40 + i * 80, R(-90), id=f"faw_rival_{i + 1}")
+        people(ctx, "farmer", wander_pts(12, 155, 0, 70, 110))
+        ctx.landmarks["well_field"] = (155, 0)
+        N["well_field"] = ("The well field", "حقل الآبار")
+        # ---- caravans from the south, traders from Saba and Gerrha
+        ctx.paths["caravan_south"] = [(40, -390), (30, -300), (10, -200), (-20, -120), (sx + 24, sy)]
+        ctx.spawn("caravaneer", 30, -150, R(10), id="faw_sabaean_caravan", title="Sabaean caravan master", culture="sabaean")
+        ctx.spawn("caravaneer", -40, -40, R(90), id="faw_gerrhan_trader", title="Gerrhan trader", culture="gulf")
+        for k in range(8):
+            ctx.spawn("camel", 36 + (k % 2) * 3, -170 - k * 3.6, R(10), convoy=True)
+        for k in range(3):
+            ctx.spawn("horse", -60 + k * 4, -60, R(30))
+        # ---- the Empty Quarter: raiders, the sandstorm ghul, scorpions and vipers
+        rc = Vector((320.0, -120.0))
+        for k in range(3):
+            I.tent(ctx, rc.x + (k - 1) * 10, rc.y - 8, 0.0)
+        K.campfire(mb, ctx, rc.x, rc.y)
+        for (kind, ox_, oy_) in [("raider", 0, 6), ("raider", 5, 8), ("skirmisher", -5, 7), ("archer", 8, 2),
+                                 ("raider", -8, 3), ("slinger", 2, 12)]:
+            ctx.spawn("enemy", rc.x + ox_, rc.y + oy_, random.uniform(-3, 3), kind=kind, camp="sand_raiders")
+        ctx.landmarks["raider_camp"] = tuple(rc)
+        N["raider_camp"] = ("Raiders of the sands", "غزاة الرمال")
+        ctx.spawn("enemy", 350, 220, 0.0, kind="ghul", boss=True, id="faw_ghul", camp="sandstorm", night_only=True,
+                  title="ghul of the sandstorm")
+        for (kind, x, y) in [("scorpion", 290, 60), ("scorpion", 300, 70), ("viper", 280, 150), ("viper", 330, -20),
+                             ("scorpion", 360, 120)]:
+            ctx.spawn("enemy", x, y, random.uniform(-3, 3), kind=kind, camp="sands")
+        ctx.spawn("chest", 310, 160, 0.0, id="faw_bronze_statue", secret=True, buried=True)
+        ctx.spawn("pickup", 300, 30, 0.0, id="ode_line_5")
+        ctx.landmarks["dunes"] = (320, 60)
+        N["dunes"] = ("Edge of the Empty Quarter", "طرف الربع الخالي")
+        ctx.keepout += [(rc.x, rc.y, 20)]
+        # ---- exits, arrivals, bonfires
+        ctx.exits.append({"to": "marib", "x": 40, "y": -394, "r": 7, "label": "South-west to Marib",
+                          "label_ar": "إلى مأرب في الجنوب الغربي"})
+        ctx.spawn("player", 40, -374, face(40, -374, -40, 0), **{"from": "marib"})
+        ctx.spawn("player", 40, -374, face(40, -374, -40, 0))
+        K.cairn(mb, ctx, 46, -386)
+        for (x, y, bid) in [(56, -362, "faw_arrival"), (sx + 26, sy + 8, "faw_suq"), (ox + 4, oy - 4, "faw_lookout")]:
+            ctx.spawn("bonfire", x, y, 0.0, id=bid, **({"z": round(L.height(ox, oy) + 0.8, 3)} if bid == "faw_lookout" else {}))
+        ctx.keepout += [(40, -374, 18)]
+        I.dress(mb, ctx, self, lambda x, y: x > self.xc(y) + 8, rocks=40, singles=90, shrubs=140, dry=120, acacias=24,
+                dead=10, ruins=2, nbones=6)
+        print("FAW ledges", len(ledges), "houses", len(spots), "tombs", len(tomb_doors))
+
+
+for _m in (JabalIthlib(), Marib(), MaribBreach(), Ukaz(), Tayma(), DumatAlJandal(), QaryatAlFaw()):
     M.MAPS[_m.name] = _m

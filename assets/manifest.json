@@ -751,36 +751,37 @@
    ]
   },
   "terrain": {
-   "file": "level/dumat_al_jandal/terrain.glb",
+   "file": "level/qaryat_al_faw/terrain.glb",
    "kind": "terrain",
    "size": [
-    700.0,
-    27.364,
-    700.0
+    800.0,
+    41.78,
+    800.0
    ],
    "materials": [
     "SandVC"
    ],
-   "tiles": 36,
-   "tile_size": 120.0
+   "tiles": 64,
+   "tile_size": 125.0
   },
   "town": {
-   "file": "level/dumat_al_jandal/town.glb",
+   "file": "level/qaryat_al_faw/town.glb",
    "kind": "level",
    "size": [
-    463.143,
-    33.374,
-    656.555
+    578.012,
+    45.944,
+    804.632
    ],
    "materials": [
-    "LampFlame",
+    "Fire",
+    "Lime",
     "TileMatte",
     "TileMetal",
     "WaterDeep"
    ],
-   "chunks": 11,
-   "chunk_size": 120.0,
-   "instance_groups": 36
+   "chunks": 25,
+   "chunk_size": 125.0,
+   "instance_groups": 42
   },
   "backdrop": {
    "file": "level/backdrop.glb",
@@ -811,12 +812,12 @@
    "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
   },
   "backdrop_ground": {
-   "file": "level/dumat_al_jandal/backdrop_ground.glb",
+   "file": "level/qaryat_al_faw/backdrop_ground.glb",
    "kind": "backdrop",
    "size": [
-    2140.0,
-    27.102,
-    2140.0
+    2240.0,
+    41.537,
+    2240.0
    ],
    "materials": [
     "SandVC"
@@ -1259,6 +1260,11 @@
    "file": "level/dumat_al_jandal/level.json",
    "kind": "level-data",
    "title": "Dumat al-Jandal: city of queens"
+  },
+  "level_qaryat_al_faw": {
+   "file": "level/qaryat_al_faw/level.json",
+   "kind": "level-data",
+   "title": "Qaryat al-Faw: gate of the Empty Quarter"
   }
  },
  "conventions": {
