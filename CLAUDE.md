@@ -226,6 +226,7 @@ Decisions worth knowing:
 - **Debug.** The backquote key toggles wireframes of the level.json colliders.
 - **True third-person camera** (the default; Settings → Camera cycles third person → orthographic → perspective, and the Debug tab has the same toggle). `FollowCamera.thirdPerson`:
   - The camera sits behind the player's right shoulder. A ray against the level boxes pulls the boom in so it never clips a wall.
+  - The character sits left of centre (shoulder offset 0.75 m, 1.05 m aiming). Riding (`FollowCamera.mounted`), the pivot rises to the rider's chest (+1.75 m over the horse's feet), the boom is about 1.3× longer plus 1.2 m, the shoulder offset grows to 1.15–1.45 m and the view tilts down at least 8°, so the horse never fills the screen, even when looking back.
   - Mouse look uses pointer lock: the first click captures the mouse, and Esc frees it and opens the menu. The gamepad's right stick looks around. Zoom is the wheel or D-pad up/down.
   - Sensitivity and invert-Y live in the Debug tab. `Input.thirdPerson` switches the stick mapping.
 - **Bow** (`composite_bow` in `items.ts`, `kind: 'bow'`). It is two-handed, so there is no shield.

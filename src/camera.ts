@@ -43,6 +43,9 @@ export class FollowCamera {
   private tpAimK = 0;
   /** Over-the-shoulder aim (bow drawn): closer and offset to the right. */
   aiming = false;
+  /** Riding: the camera rises to the rider and stands further back, so the horse doesn't fill the view. */
+  mounted = false;
+  private tpMountK = 0;
   /** Shortens the boom when a wall is between the player and the camera. */
   occlusion: (from: THREE.Vector3, dir: THREE.Vector3, max: number) => number = (_f, _d, max) => max;
   /** Ground height under a point (keeps the camera out of dunes). */
@@ -183,15 +186,21 @@ export class FollowCamera {
   private updateThirdPerson(dt: number, follow: THREE.Vector3): void {
     this.tpDist += (this.tpDistTarget - this.tpDist) * (1 - Math.exp(-dt * 10));
     this.tpAimK += ((this.aiming ? 1 : 0) - this.tpAimK) * (1 - Math.exp(-dt * 12));
-    // Pivot: the player's upper chest, followed tightly (no lag on turns).
+    this.tpMountK += ((this.mounted ? 1 : 0) - this.tpMountK) * (1 - Math.exp(-dt * 5));
+    const m = this.tpMountK;
+    // Pivot: the player's upper chest (the rider's, on a horse), followed tightly (no lag on turns).
     const pv = this.tpPivot.copy(follow).add(this.shake);
-    pv.y += 0.55;
-    const cp = Math.cos(this.tpPitch);
-    const back = new THREE.Vector3(Math.sin(this.tpYaw) * cp, Math.sin(this.tpPitch), Math.cos(this.tpYaw) * cp);
+    pv.y += THREE.MathUtils.lerp(0.55, 1.75, m);
+    // Riding, look a little down from above so the horse's back and neck don't block the view.
+    const pitch = Math.max(this.tpPitch, 0.14 * m);
+    const cp = Math.cos(pitch);
+    const back = new THREE.Vector3(Math.sin(this.tpYaw) * cp, Math.sin(pitch), Math.cos(this.tpYaw) * cp);
     const right = new THREE.Vector3(Math.cos(this.tpYaw), 0, -Math.sin(this.tpYaw));
-    // Over the right shoulder; tighter while aiming.
-    const shoulder = THREE.MathUtils.lerp(0.55, 0.95, this.tpAimK);
-    const dist = THREE.MathUtils.lerp(this.tpDist, Math.min(this.tpDist, 2.8), this.tpAimK);
+    // Over the right shoulder, so the character sits left of centre; wider while aiming and riding.
+    const shoulder = THREE.MathUtils.lerp(THREE.MathUtils.lerp(0.75, 1.05, this.tpAimK), THREE.MathUtils.lerp(1.15, 1.45, this.tpAimK), m);
+    const footDist = THREE.MathUtils.lerp(this.tpDist, Math.min(this.tpDist, 2.8), this.tpAimK);
+    const rideDist = THREE.MathUtils.lerp(this.tpDist * 1.3 + 1.2, Math.max(3.8, Math.min(this.tpDist * 1.3, 4.6)), this.tpAimK);
+    const dist = THREE.MathUtils.lerp(footDist, rideDist, m);
     const origin = pv.clone().addScaledVector(right, shoulder);
     // Keep the boom out of walls.
     const reach = this.occlusion(origin, back, dist + 0.25);

@@ -3,3 +3,5 @@ dist/
 __pycache__/
 *.blend1
 tools/blender/still.blend
+# Research reference images (large, local only)
+docs/research/images/

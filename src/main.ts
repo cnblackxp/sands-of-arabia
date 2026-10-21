@@ -2016,6 +2016,7 @@ class Game {
     const focus = p.pos.clone();
     focus.y += p.horse ? 1.6 : 1.0;
     this.cam.aiming = p.aiming && this.cam.thirdPerson;
+    this.cam.mounted = !!p.horse;
     this.cam.occlusion = (o, d, max) => this.physics.rayStatic(o, d, max);
     this.cam.groundAt = (x, z) => this.world.ground(x, z);
     this.cam.update(realDt, focus);
