@@ -20,6 +20,8 @@ export interface Settings {
   music: number;
   /** Which soundtrack plays (music.json `soundtracks` id). */
   soundtrack: string;
+  /** The player chose the soundtrack in Settings (otherwise the default applies, even after the default changes). */
+  soundtrackPicked: boolean;
   uiScale: number;
   mouseSens: number;
   stickSens: number;
@@ -37,7 +39,8 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   minimap: 0,
   volume: 0.6,
   music: 0.45,
-  soundtrack: 'original',
+  soundtrack: 'lmms',
+  soundtrackPicked: false,
   uiScale: 1,
   mouseSens: 0.0026,
   stickSens: 2.6,
@@ -66,6 +69,7 @@ export function loadSettings(): Settings {
       const ui = Number(localStorage.getItem(OLD_UI_KEY));
       if (ui >= 0.6 && ui <= 1.8) s.uiScale = ui;
     }
+    if (!s.soundtrackPicked) s.soundtrack = DEFAULT_SETTINGS.soundtrack;
   } catch {
     // No storage (private window): defaults for this session.
   }

@@ -11,7 +11,7 @@ import type { Progress } from './progress';
 import { dampAngle, wrapAngle } from './util';
 import type { ClipMeta, World } from './world';
 
-export const WALK_SPEED = 1.9;
+export const WALK_SPEED = 2.5;
 export const RUN_SPEED = 5.2;
 
 /** Stamina costs (Dark Souls style: actions need stamina > 0; regen pauses after use). */

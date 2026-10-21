@@ -1389,6 +1389,7 @@ class Game {
                     const ids = this.music.soundtracks;
                     const i = ids.indexOf(this.music.soundtrack);
                     this.music.setSoundtrack(ids[(i + (k > 0 ? 1 : ids.length - 1)) % ids.length]);
+                    this.settings.soundtrackPicked = true;
                     this.persistSettings();
                   },
                 },
