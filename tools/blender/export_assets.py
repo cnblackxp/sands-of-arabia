@@ -165,14 +165,14 @@ def fix_coplanar(ob, step=ZF_STEP):
     return fixed
 
 
-def export(objs, rel, kind, anim=False, extra=None, vcol=False, normals=True):
+def export(objs, rel, kind, anim=False, extra=None, vcol=False, normals=True, instances=False):
     """Export objs (and children) to assets/rel; record it in the manifest."""
     path = os.path.join(ASSETS, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     objs = descendants(objs)
     if not anim and not vcol:
         n = 0
-        for o in [o for o in objs if o.type == "MESH"]:
+        for o in [o for o in objs if o.type == "MESH" and o.data.users == 1]:
             for _ in range(3):                      # a lift can land near another plane; re-check
                 k = fix_coplanar(o)
                 n += k
@@ -193,9 +193,9 @@ def export(objs, rel, kind, anim=False, extra=None, vcol=False, normals=True):
         export_animations=anim, export_animation_mode="ACTIONS",
         export_force_sampling=not anim, export_anim_slide_to_zero=True, export_def_bones=False, export_leaf_bone=False,
         export_vertex_color="ACTIVE" if vcol else "NONE", export_all_vertex_colors=False,
-        export_normals=normals, export_image_format="NONE",
+        export_normals=normals, export_image_format="NONE", export_gpu_instances=instances,
     )
-    lo, hi = bounds(objs)
+    lo, hi = bounds([o for o in objs if o.type != "MESH" or o.data.users == 1] or objs)
     info = {"file": rel.replace("\\", "/"), "kind": kind,
             "size": [round(hi.x - lo.x, 3), round(hi.z - lo.z, 3), round(hi.y - lo.y, 3)],
             "materials": sorted({s.material.name for o in objs if o.type == "MESH"

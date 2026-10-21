@@ -17,6 +17,7 @@ import arabia_lib as L
 import kit as K
 import kit_sites as S
 import maps as M
+import inst as I
 from maps import MapDef, ground_color, rock_top, dress, people, wander_pts, face
 
 R = math.radians
@@ -64,7 +65,10 @@ class JabalIthlib(MapDef):
     title_ar = "جبل إثلب: الجبل المقدس"
     bounds = (-300.0, 300.0, -300.0, 300.0)
     step = 2.0
-    chunk = 200.0
+    tile = 120.0
+    instanced = True
+    culture = "nabataean"
+    batch = 2
     sun = (6.0, -70.0)                                   # blue hour into night is the mood; the game owns the clock
     fog = {"color": "#d9a98a", "near": 90, "far": 520}
     TOP = 32.0
@@ -224,8 +228,7 @@ class JabalIthlib(MapDef):
         for k in range(14):
             a = k / 14 * math.tau + random.uniform(-0.2, 0.2)
             px, py = gx + math.cos(a) * random.uniform(9, 16), gy + math.sin(a) * random.uniform(9, 16)
-            L.palm(px, py, random.uniform(0.9, 1.15), 0.2)
-            ctx.col(px, py, L.height(px, py) + 2, 0.7, 0.7, 4, 0, "palm")
+            I.palm(ctx, px, py, random.uniform(0.9, 1.15))
         ctx.landmarks["grove"] = (gx, gy)
         N["grove"] = ("The palm spring", "عين النخيل")
         ctx.spawn("pickup", gx + 8, gy + 2, 0.0, id="wadi_wine")
@@ -255,7 +258,7 @@ class JabalIthlib(MapDef):
         ctx.spawn("chest", -96, 62, 0.0, id="ithlib_hoard", secret=True, buried=True)
         # ---- the brotherhood and their feast
         sits = dw["bench_sits"]
-        ctx.spawn("quest_giver", sits[len(sits) // 3].x, sits[len(sits) // 3].y, R(90), id="ithlib_feast_master",
+        ctx.spawn("feast_master", sits[len(sits) // 3].x, sits[len(sits) // 3].y, R(90), id="ithlib_feast_master",
                   z=round(dw["floor"] + 0.45, 3))
         for i, p in enumerate(sits[:6]):
             ctx.spawn("sitter", p.x, p.y, R(90), group="brotherhood", z=round(dw["floor"] + 0.45, 3))
@@ -272,8 +275,8 @@ class JabalIthlib(MapDef):
         ctx.spawn("bonfire", -256, -262, 0.0, id="ithlib_arrival")
         ctx.spawn("bonfire", bx - 6, by - 18, 0.0, id="ithlib_bowl")
         ctx.keepout += [(-270, -270, 16)]
-        dress(mb, ctx, self, lambda x, y: self.inside(x, y) < -6, rocks=60, singles=120, shrubs=200, dry=90,
-              acacias=26, dead=8, ruins=3, bones=4)
+        I.dress(mb, ctx, self, lambda x, y: self.inside(x, y) < -6, rocks=60, singles=120, shrubs=200, dry=90,
+                acacias=26, dead=8, ruins=3, nbones=4)
         print("ITHLIB ledges", len(ledges), "niches", len(sills), "chockstone", round(chock_z, 2))
 
 
@@ -284,7 +287,10 @@ class Marib(MapDef):
     title_ar = "مأرب: سد سبأ العظيم"
     bounds = (-500.0, 500.0, -400.0, 400.0)
     step = 4.0
-    chunk = 200.0
+    tile = 125.0
+    instanced = True
+    culture = "sabaean"
+    batch = 2
     sun = (16.0, -110.0)                                 # golden hour over green fields
     fog = {"color": "#e6d2a8", "near": 140, "far": 820}
     breach = False
@@ -411,14 +417,13 @@ class Marib(MapDef):
                     if abs(x - 20) < 6 or abs(x + 160) < 6 or abs(x - 200) < 6:
                         continue
                     mats = S.DEAD_FIELD if br else S.FIELD
-                    S.field_plot(mb, x + 15, y, 29, 21, 0.0, random.choice(mats), furrows=True)
+                    I.field(ctx, x + 15, y, random.choice(mats))
             for k, x in enumerate(range(-250, 340, 22)):                                # palms along the main canal
                 y = self.canal_y(side, x) + side * 5.0
                 if br and k % 2:
-                    K.dead_tree(mb, ctx, x, y, 0.9)
+                    I.dead_tree(ctx, x, y, 0.9)
                 else:
-                    L.palm(x, y, random.uniform(0.85, 1.05), 0.1, lite=True)
-                    ctx.col(x, y, L.height(x, y) + 2, 0.7, 0.7, 4, 0, "palm")
+                    I.palm(ctx, x, y, random.uniform(0.85, 1.05), lite=True)
             for k in range(5):                                                          # farmsteads
                 fx, fy = -200 + k * 120, side * 350
                 L.house(fx, fy, 0.0 if side > 0 else math.pi, 6, 5, 4)
@@ -453,10 +458,11 @@ class Marib(MapDef):
             ctx.col(px + ox, py + oy, ptop + 8, 7, 6, 16.5, 0, "building")
         ctx.landmarks["palace"] = (px, py)
         N["palace"] = ("Palace of the mukarrib", "قصر المكرب")
-        ctx.spawn("quest_giver", px, py - 9.5, 0.0, id="marib_mukarrib", z=round(ptop, 3))
+        ctx.spawn("official", px, py - 9.5, 0.0, id="marib_mukarrib", title="mukarrib", z=round(ptop, 3))
         ctx.spawn("chest", px + 5, py + 2, 0.0, id="marib_archive", secret=True, z=round(ptop + 16.3, 3))
         for k in range(2):
-            ctx.spawn("envoy", px - 4 + k * 8, py - 14, 0.0, variant="himyar")
+            ctx.spawn("official", px - 4 + k * 8, py - 14, 0.0, id=f"himyar_envoy_{k + 1}", title="Himyarite envoy",
+                      culture="himyarite")
         mx, my = cx + 30, cy - 14                                                      # market
         for k, (ox, oy, r) in enumerate([(-8, -6, 0.0), (0, -7, 0.0), (8, -6, 0.0), (-8, 6, math.pi), (8, 6, math.pi)]):
             L.stall(mx + ox, my + oy, r)
@@ -522,8 +528,8 @@ class Marib(MapDef):
         # ---- people of the dam and the fields
         tn, sn = sluices["sluice_north"], sluices["sluice_south"]
         if not br:
-            ctx.spawn("quest_giver", tn[0] + 20, tn[1] - 8, 0.0, id="marib_warden_north")
-            ctx.spawn("quest_giver", sn[0] + 20, sn[1] + 8, math.pi, id="marib_warden_south")
+            ctx.spawn("official", tn[0] + 20, tn[1] - 8, 0.0, id="marib_warden_north", title="canal warden")
+            ctx.spawn("official", sn[0] + 20, sn[1] + 8, math.pi, id="marib_warden_south", title="canal warden")
             ctx.spawn("pickup", tn[0], tn[1] - 12, 0.0, id="warden_rota")
             for side in (1, -1):
                 people(ctx, "farmer", wander_pts(12, 50, side * 258, 270, 70))
@@ -541,7 +547,7 @@ class Marib(MapDef):
             ctx.keepout.append((rc.x, rc.y, 26))
         # caravan master and camels at the east gate
         eg = wall[0]
-        ctx.spawn("quest_giver", eg[0] + 10, eg[1], R(-90), id="marib_caravan_master")
+        ctx.spawn("caravaneer", eg[0] + 10, eg[1], R(-90), id="marib_caravan_master")
         for k in range(6):
             ctx.spawn("camel", eg[0] + 16 + (k % 3) * 3.4, eg[1] - 6 + (k // 3) * 4, R(-90), sitting=k % 2 == 0)
         for (x, y, r) in [(eg[0] + 14, eg[1] + 10, 0.3), (eg[0] + 17, eg[1] + 11, 0.6)]:
@@ -579,10 +585,10 @@ class Marib(MapDef):
                             (ax, ay + 52, "marib_awwam")]:
             ctx.spawn("bonfire", x, y, 0.0, id=bid)
         ctx.keepout += [(468, 368, 20)]
-        dress(mb, ctx, self, lambda x, y: not self.in_garden(x, y) and abs(abs(y) - 165) > 14 and
-              x > self.DAM_X + 30 and self.height(x, y) < 6, rocks=50, singles=110,
-              shrubs=160 if not br else 60, dry=80 if not br else 160, acacias=40 if not br else 14,
-              dead=6 if not br else 30, ruins=3, bones=4 if not br else 12, palette=self._hills)
+        I.dress(mb, ctx, self, lambda x, y: not self.in_garden(x, y) and abs(abs(y) - 165) > 14 and
+                x > self.DAM_X + 30 and self.height(x, y) < 6, rocks=50, singles=110,
+                shrubs=160 if not br else 60, dry=80 if not br else 160, acacias=40 if not br else 14,
+                dead=6 if not br else 30, ruins=3, nbones=4 if not br else 12, palette=self._hills, pal_name="maribhill")
         print("MARIB", "breach" if br else "whole", "plots", "spots", len(spots))
 
 

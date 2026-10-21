@@ -760,15 +760,17 @@
    ],
    "materials": [
     "SandVC"
-   ]
+   ],
+   "tiles": 64,
+   "tile_size": 125.0
   },
   "town": {
    "file": "level/marib_breach/town.glb",
    "kind": "level",
    "size": [
-    928.109,
-    63.924,
-    785.926
+    916.023,
+    61.502,
+    769.899
    ],
    "materials": [
     "Ashlar0",
@@ -776,12 +778,10 @@
     "Ashlar2",
     "Ashlar3",
     "AshlarShade",
-    "Aw1a",
-    "Aw1b",
+    "Aw0a",
+    "Aw0b",
     "Aw3a",
     "Aw3b",
-    "Aw4a",
-    "Aw4b",
     "Aw5a",
     "Aw5b",
     "Banner0",
@@ -807,7 +807,6 @@
     "Leather",
     "Lime",
     "MaribHill0",
-    "MaribHill1",
     "MaribHill2",
     "MaribHill3",
     "Mud0",
@@ -817,23 +816,26 @@
     "Putlog",
     "Rug0",
     "Rug1",
+    "Rug2",
     "Rug3",
     "Rug4",
     "Sack",
     "Shrub0",
     "Shrub1",
     "Shrub2",
-    "Spice0",
     "Spice1",
+    "Spice2",
     "Spice3",
+    "Spice4",
     "Stone",
     "StoneDark",
     "Trunk",
     "WaterDeep",
     "Wood"
    ],
-   "chunks": 22,
-   "chunk_size": 200.0
+   "chunks": 35,
+   "chunk_size": 125.0,
+   "instance_groups": 43
   },
   "backdrop": {
    "file": "level/backdrop.glb",

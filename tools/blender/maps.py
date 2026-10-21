@@ -80,6 +80,10 @@ class MapDef:
     title = "Map"
     title_ar = ""
     chunk = None                              # metres: export the town mesh as culling tiles (big maps)
+    tile = None                               # metres: tile terrain + town into Terrain_i_j / Town_i_j nodes
+    instanced = False                         # repeated props exported as EXT_mesh_gpu_instancing (inst.py)
+    culture = None                            # hijazi | nabataean | sabaean | ... (see game spec)
+    batch = None                              # maps.json "batch" (2 = the new lands)
     variant_of = None                         # another map's name if this is an alternate state of it
     bounds = (-120.0, 120.0, -120.0, 120.0)   # blender x0, x1, y0, y1
     step = 2.0
@@ -150,8 +154,15 @@ def export_ground(ex, m, rel_dir):
     ob = bpy.data.objects.new("Terrain", me)
     L.C_LAND.objects.link(ob)
     ex.bake_point_colors(ob, m.color)
-    ex.export([ob], f"{rel_dir}/terrain.glb", "terrain", vcol=True, normals=False)
-    bpy.data.objects.remove(ob, do_unlink=True)
+    if m.tile:
+        parts = split_chunks(ob, m.tile, "Terrain")
+        ex.export(parts, f"{rel_dir}/terrain.glb", "terrain", vcol=True, normals=False,
+                  extra={"tiles": len(parts), "tile_size": m.tile})
+        for o in parts:
+            bpy.data.objects.remove(o, do_unlink=True)
+    else:
+        ex.export([ob], f"{rel_dir}/terrain.glb", "terrain", vcol=True, normals=False)
+        bpy.data.objects.remove(ob, do_unlink=True)
     path = os.path.join(ex.ASSETS, rel_dir, "heights.bin")
     with open(path, "wb") as f:
         for j in range(ny + 1):
@@ -192,7 +203,7 @@ def export_far_ground(ex, m, rel_dir, extent=700.0, step=20.0, drop=0.5):
     bpy.data.objects.remove(ob, do_unlink=True)
 
 
-def split_chunks(ob, size):
+def split_chunks(ob, size, prefix="Chunk"):
     """Split a joined mesh into square tiles (by face centre) so a big map can be frustum-culled per tile."""
     import bmesh as _bm
     from collections import defaultdict
@@ -208,12 +219,18 @@ def split_chunks(ob, size):
         bm.from_mesh(me)
         bm.faces.ensure_lookup_table()
         _bm.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context="FACES")
-        nm = bpy.data.meshes.new(f"Chunk_{tx}_{ty}")
+        nm = bpy.data.meshes.new(f"{prefix}_{tx}_{ty}")
         bm.to_mesh(nm)
         bm.free()
         for mt in me.materials:
             nm.materials.append(mt)
-        o = bpy.data.objects.new(f"Chunk_{tx}_{ty}", nm)
+        if len(nm.color_attributes):                                     # keep vertex colours exportable
+            nm.color_attributes.active_color = nm.color_attributes[0]
+            try:
+                nm.color_attributes.render_color_index = 0
+            except AttributeError:
+                pass
+        o = bpy.data.objects.new(f"{prefix}_{tx}_{ty}", nm)
         o.matrix_world = ob.matrix_world
         ob.users_collection[0].objects.link(o)
         out.append(o)
@@ -221,7 +238,7 @@ def split_chunks(ob, size):
     return out
 
 
-def join_export(ex, objs, rel, kind="level", chunk=None):
+def join_export(ex, objs, rel, kind="level", chunk=None, prefix="Chunk", extra_objs=(), instances=False):
     meshes = [o for o in objs if o.type == "MESH" and len(o.data.polygons)]
     vl = bpy.context.view_layer
     bpy.context.view_layer.update()
@@ -235,8 +252,10 @@ def join_export(ex, objs, rel, kind="level", chunk=None):
     ob = vl.objects.active
     ob.name = os.path.splitext(os.path.basename(rel))[0].title()
     if chunk:
-        parts = split_chunks(ob, chunk)
-        ex.export(parts, rel, kind, extra={"chunks": len(parts), "chunk_size": chunk})
+        parts = split_chunks(ob, chunk, prefix)
+        ex.export(parts + list(extra_objs), rel, kind, instances=instances,
+                  extra={"chunks": len(parts), "chunk_size": chunk,
+                         **({"instance_groups": len(extra_objs)} if extra_objs else {})})
         for o in parts:
             bpy.data.objects.remove(o, do_unlink=True)
         return len(parts)
@@ -352,6 +371,7 @@ def level_dict(m, ctx, heights, rel_dir):
     names = {k: {"en": v[0], "ar": v[1]} for k, v in getattr(ctx, "names", {}).items()}
     return {
         "name": m.name, "title": m.title, **({"title_ar": m.title_ar} if m.title_ar else {}),
+        **({"culture": m.culture} if m.culture else {}),
         **({"variant_of": m.variant_of} if m.variant_of else {}),
         **({"landmark_names": names} if names else {}),
         "terrain": f"{rel_dir}/terrain.glb", "town": f"{rel_dir}/town.glb",
@@ -378,6 +398,8 @@ def export_map(ex, m):
     rel_dir = f"level/{m.name}"
     os.makedirs(os.path.join(ex.ASSETS, rel_dir), exist_ok=True)
     ex.clear_scene()
+    import inst as _inst
+    _inst.reset()
     L.HEIGHT_FN = m.height
     random.seed(sum(map(ord, m.name)))
     heights = export_ground(ex, m, rel_dir)
@@ -388,8 +410,17 @@ def export_map(ex, m):
     m.build(mb, ctx)
     objs = new_objects(before)
     stall_lights(ctx, objs)
+    inst_objs = set(_inst.PLACED)
+    objs = [o for o in objs if o not in inst_objs and o.type == "MESH"]
     objs.append(mb.build("Static", L.C_LAND))
-    nchunks = join_export(ex, objs, f"{rel_dir}/town.glb", chunk=m.chunk)
+    if m.tile:
+        empties = _inst.group_by_tile(m.tile) if m.instanced and _inst.PLACED else []
+        nchunks = join_export(ex, objs, f"{rel_dir}/town.glb", chunk=m.tile, prefix="Town", extra_objs=empties,
+                              instances=bool(empties))
+        print("INSTANCES", m.name, len(_inst.PLACED), "placed,", len({o.data.name for o in _inst.PLACED}), "prototypes,",
+              len(empties), "tile groups")
+    else:
+        nchunks = join_export(ex, objs, f"{rel_dir}/town.glb", chunk=m.chunk)
     lvl = level_dict(m, ctx, heights, rel_dir)
     enforce_spacing(lvl, m.height, m.name)
     with open(os.path.join(ex.ASSETS, rel_dir, "level.json"), "w", encoding="utf8") as f:
@@ -997,6 +1028,10 @@ def write_index(ex):
         e = {"name": n, "title": m.title, "title_ar": m.title_ar or AR_TITLES.get(n, ""), "level": f"level/{n}/level.json"}
         if m.variant_of:
             e["variant_of"] = m.variant_of
+        if m.batch:
+            e["batch"] = m.batch
+        if m.culture:
+            e["culture"] = m.culture
         idx["maps"].append(e)
     with open(os.path.join(ex.ASSETS, "level", "maps.json"), "w", encoding="utf8") as f:
         json.dump(idx, f, indent=1)
