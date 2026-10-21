@@ -108,7 +108,7 @@ def _split_wide(arm, keys, bones, limit=120.0):
     frames = sorted(keys)
     out = dict(keys)
     for f0, f1 in zip(frames, frames[1:]):
-        wide = max(math.degrees(q(f0, b).rotation_difference(q(f1, b)).angle) for b in bones)
+        wide = max(math.degrees(2 * math.acos(min(1.0, abs(q(f0, b).dot(q(f1, b)))))) for b in bones)   # q ~ -q
         n = math.ceil(wide / 90.0) if wide > limit else 1
         for i in range(1, n):
             t = i / n
@@ -121,6 +121,49 @@ def _split_wide(arm, keys, bones, limit=120.0):
                           "loc": tuple(x + (y - x) * t for x, y in zip(l0, l1))}
             out[f0 + (f1 - f0) * t] = mid
     return out
+
+
+def _fcurves(act):
+    if hasattr(act, "layers") and len(act.layers):
+        return [fc for lay in act.layers for st in lay.strips for cb in st.channelbags for fc in cb.fcurves]
+    return list(act.fcurves)
+
+
+def _bake_linear(act):
+    """Resample the keyed curves to one LINEAR key per frame (quaternions normalised, kept in one
+    hemisphere). The glTF exporter forces w >= 0 per key and writes bad cubic tangents where that flips
+    the sign, which three.js's component-wise cubic interpolation turns into a spin; LINEAR keys are
+    slerped the short way. Only the curves already keyed are touched, so clips still layer."""
+    fcs = _fcurves(act)
+    if not fcs:
+        return
+    first = min(fc.keyframe_points[0].co.x for fc in fcs)
+    last = max(fc.keyframe_points[-1].co.x for fc in fcs)
+    frames = list(range(int(round(first)), int(math.ceil(last - 1e-6)) + 1))
+    vals = {fc: [fc.evaluate(f) for f in frames] for fc in fcs}
+    quats = {}
+    for fc in fcs:
+        if fc.data_path.endswith("rotation_quaternion"):
+            quats.setdefault(fc.data_path, [None] * 4)[fc.array_index] = fc
+    for group in quats.values():
+        prev = None
+        for i in range(len(frames)):
+            q = [vals[fc][i] for fc in group]
+            n = math.sqrt(sum(c * c for c in q)) or 1.0
+            q = [c / n for c in q]
+            if prev and sum(a * b for a, b in zip(q, prev)) < 0:
+                q = [-c for c in q]
+            prev = q
+            for fc, c in zip(group, q):
+                vals[fc][i] = c
+    for fc in fcs:
+        kp = fc.keyframe_points
+        kp.clear()
+        kp.add(len(frames))
+        kp.foreach_set("co", [x for f, v in zip(frames, vals[fc]) for x in (f, v)])
+        for k in kp:
+            k.interpolation = "LINEAR"
+        fc.update()
 
 
 def clip(arm, name, length, keys, loop=True):
@@ -147,13 +190,14 @@ def clip(arm, name, length, keys, loop=True):
                 pb.rotation_mode = "QUATERNION"
             d = keys[f].get(b, {})
             q = Euler([R(a) for a in d.get("rot", (0, 0, 0))], pb.get("euler_order", "ZYX")).to_quaternion()
-            if b in prev:
-                q.make_compatible(prev[b])         # stay in one hemisphere so keys don't flip
+            if b in prev and q.dot(prev[b]) < 0:
+                q.negate()                         # same hemisphere as the last key: glTF cubic splines don't fix signs
             prev[b] = q
             pb.rotation_quaternion = q
             pb.location = d.get("loc", (0, 0, 0))
             pb.keyframe_insert("rotation_quaternion", frame=f)
             pb.keyframe_insert("location", frame=f)
+    _bake_linear(act)
     act["loop"] = loop
     act["frames"] = length
     try:
@@ -192,9 +236,18 @@ def S(t, ph=0.0):
 _AIM_CACHE = {}
 
 
-def limb_euler(d_world, twist=0.0):
+def limb_euler(d_world, twist=0.0, hint=None):
     """Euler (deg, rotation_mode ZYX) that points a hanging limb along d_world when its
-    parent bone (the spine) is twisted `twist` deg about the vertical. Grid search, then refine."""
+    parent bone (the spine) is twisted `twist` deg about the vertical. Grid search, then refine.
+    With `hint` (the previous key's Euler) it instead swings that pose by the smallest rotation onto
+    d_world, so the limb never rolls about itself between keys (the grid answer can flip 180 deg in roll)."""
+    if hint is not None:
+        from mathutils import Euler, Matrix
+        d = Matrix.Rotation(R(-twist), 3, "Z") @ Vector(d_world).normalized()
+        target = Vector((d.x, d.z, -d.y))
+        q = Euler([R(a) for a in hint], "ZYX").to_quaternion()
+        q = (q @ Vector((0, -1, 0))).rotation_difference(target) @ q
+        return tuple(round(math.degrees(a), 2) for a in q.to_euler("ZYX"))
     from mathutils import Euler, Matrix
     key = (tuple(round(c, 3) for c in d_world), round(twist, 2))
     if key in _AIM_CACHE:
@@ -655,32 +708,32 @@ def person_clips(arm):
         rz = _Mx.Rotation(R(tw), 3, "Z")
         return rz @ Vector((-0.34, 0, 0.43)) + Vector((0, 0, 1.0)), rz @ Vector((0.34, 0, 0.43)) + Vector((0, 0, 1.0))
 
-    def bow_pose(tw, aim=(0, -1, 0.04), draw=1.0, sway=0.0):
+    def bow_pose(tw, aim=(0, -1, 0.04), draw=1.0, sway=0.0, hint=None):
         ls, rs = shoulders(tw)
         aim_v = Vector(aim).normalized()
         al = limb_euler(tuple(aim_v), tw)
         grip = ls + aim_v * 0.6
         anchor = ls + Vector((0, 0, 0.12))
         target = grip.lerp(anchor, draw)
-        ar = limb_euler(tuple(target - rs), tw)
+        ar = limb_euler(tuple(target - rs), tw, hint)
         return {"spine": {"rot": (2 + sway, tw, 0)}, "head": {"rot": (-2, -tw * 0.85, 0)},
                 "arm_L": {"rot": al}, "hand_L": {"rot": bow_hand(al)}, "arm_R": {"rot": ar}}
-    clip(arm, "BowDraw", 13, {
-        1: {"spine": {"rot": (0, 0, 0)}, "arm_L": {"rot": limb_euler((0, -0.45, -0.9), 0)},
-            "hand_L": {"rot": bow_hand(limb_euler((0, -0.45, -0.9), 0))}, "arm_R": {"rot": (-20, 0, -8)}},
-        5: bow_pose(24, draw=0.0),
-        9: bow_pose(32, draw=0.6),
-        13: bow_pose(35, draw=1.0),
-    }, loop=False)
+    # the string arm's Euler is chained key to key (hint) through draw, aim and release so it never rolls
+    d1 = {"spine": {"rot": (0, 0, 0)}, "arm_L": {"rot": limb_euler((0, -0.45, -0.9), 0)},
+          "hand_L": {"rot": bow_hand(limb_euler((0, -0.45, -0.9), 0))}, "arm_R": {"rot": (-20, 0, -8)}}
+    d5 = bow_pose(24, draw=0.0, hint=d1["arm_R"]["rot"])
+    d9 = bow_pose(32, draw=0.6, hint=d5["arm_R"]["rot"])
+    d13 = bow_pose(35, draw=1.0, hint=d9["arm_R"]["rot"])
+    clip(arm, "BowDraw", 13, {1: d1, 5: d5, 9: d9, 13: d13}, loop=False)
     clip(arm, "BowAim", 24, cyc(24, 4, lambda t: bow_pose(35, aim=(0.012 * S(t), -1, 0.04 + 0.01 * S(t, 0.3)), draw=1.0,
-                                                          sway=0.8 * S(t, 0.15))))
+                                                          sway=0.8 * S(t, 0.15), hint=d13["arm_R"]["rot"])))
     ls35, rs35 = shoulders(35)
-    rel = bow_pose(35, draw=1.0)
+    rel = bow_pose(35, draw=1.0, hint=d13["arm_R"]["rot"])
     fly = dict(rel)
-    fly["arm_R"] = {"rot": limb_euler((0.55, 0.45, 0.12), 35)}
+    fly["arm_R"] = {"rot": limb_euler((0.55, 0.45, 0.12), 35, rel["arm_R"]["rot"])}
     fly["spine"] = {"rot": (0, 37, 0)}
     back = dict(rel)
-    back["arm_R"] = {"rot": limb_euler((0.25, 0.55, -0.7), 30)}
+    back["arm_R"] = {"rot": limb_euler((0.25, 0.55, -0.7), 30, fly["arm_R"]["rot"])}
     back["spine"] = {"rot": (0, 30, 0)}
     back["arm_L"] = {"rot": limb_euler((0, -0.95, -0.15), 30)}
     back["hand_L"] = {"rot": bow_hand(limb_euler((0, -0.95, -0.15), 30))}
