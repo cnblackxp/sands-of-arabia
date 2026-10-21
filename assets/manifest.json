@@ -751,12 +751,12 @@
    ]
   },
   "terrain": {
-   "file": "level/tayma/terrain.glb",
+   "file": "level/dumat_al_jandal/terrain.glb",
    "kind": "terrain",
    "size": [
-    640.0,
-    14.771,
-    640.0
+    700.0,
+    27.364,
+    700.0
    ],
    "materials": [
     "SandVC"
@@ -765,65 +765,20 @@
    "tile_size": 120.0
   },
   "town": {
-   "file": "level/tayma/town.glb",
+   "file": "level/dumat_al_jandal/town.glb",
    "kind": "level",
    "size": [
-    577.186,
-    25.553,
-    599.496
+    463.143,
+    33.374,
+    656.555
    ],
    "materials": [
-    "Aw0a",
-    "Aw0b",
-    "Aw2a",
-    "Aw2b",
-    "Aw4a",
-    "Aw4b",
-    "Banner0",
-    "Bark",
-    "Bone",
-    "Brass",
-    "Canopy0",
-    "Canopy1",
-    "Clay",
-    "Clay2",
-    "Dates",
-    "DryBrush",
-    "DryStone0",
-    "DryStone1",
-    "DryStone2",
-    "DryStone3",
-    "Fire",
-    "Frond",
-    "GoatHair",
     "LampFlame",
-    "Leather",
-    "Lime",
-    "Mud0",
-    "Mud1",
-    "MudPlaster",
-    "Opening",
-    "RockBand0",
-    "RockBand1",
-    "RockBand2",
-    "RockBand3",
-    "Rug0",
-    "Rug1",
-    "Rug2",
-    "Rug4",
-    "Sack",
-    "Shrub0",
-    "Shrub1",
-    "Shrub2",
-    "Stone",
-    "StoneDark",
-    "StoneRed",
-    "StoneWhite",
-    "Trunk",
-    "WaterDeep",
-    "Wood"
+    "TileMatte",
+    "TileMetal",
+    "WaterDeep"
    ],
-   "chunks": 16,
+   "chunks": 11,
    "chunk_size": 120.0,
    "instance_groups": 36
   },
@@ -856,12 +811,12 @@
    "notes": "Equirectangular in three.js orientation (EquirectangularReflectionMapping, no rotation needed). HDR is linear (use RGBELoader + PMREM for scene.environment). JPG is already tone-mapped (AgX), use as scene.background."
   },
   "backdrop_ground": {
-   "file": "level/tayma/backdrop_ground.glb",
+   "file": "level/dumat_al_jandal/backdrop_ground.glb",
    "kind": "backdrop",
    "size": [
-    2080.0,
-    14.628,
-    2080.0
+    2140.0,
+    27.102,
+    2140.0
    ],
    "materials": [
     "SandVC"

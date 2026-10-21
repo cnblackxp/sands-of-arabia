@@ -165,7 +165,7 @@ def fix_coplanar(ob, step=ZF_STEP):
     return fixed
 
 
-def export(objs, rel, kind, anim=False, extra=None, vcol=False, normals=True, instances=False):
+def export(objs, rel, kind, anim=False, extra=None, vcol=False, normals=True, instances=False, bake=False):
     """Export objs (and children) to assets/rel; record it in the manifest."""
     path = os.path.join(ASSETS, rel)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -180,6 +180,12 @@ def export(objs, rel, kind, anim=False, extra=None, vcol=False, normals=True, in
                     break
         if n:
             print("ZFIGHT", rel, n, "faces lifted")
+    if bake:                                       # after the coplanar fix, which needs the original materials
+        seen = set()
+        for o in objs:
+            if o.type == "MESH" and o.data.name not in seen:
+                seen.add(o.data.name)
+                bake_flat_materials(o.data)
     vl = bpy.context.view_layer
     for o in bpy.data.objects:
         if o.name in vl.objects:
@@ -192,7 +198,7 @@ def export(objs, rel, kind, anim=False, extra=None, vcol=False, normals=True, in
         export_apply=not anim, export_yup=True, export_extras=True,
         export_animations=anim, export_animation_mode="ACTIONS",
         export_force_sampling=not anim, export_anim_slide_to_zero=True, export_def_bones=False, export_leaf_bone=False,
-        export_vertex_color="ACTIVE" if vcol else "NONE", export_all_vertex_colors=False,
+        export_vertex_color="ACTIVE" if (vcol or bake) else "NONE", export_all_vertex_colors=False,
         export_normals=normals, export_image_format="NONE", export_gpu_instances=instances,
     )
     lo, hi = bounds([o for o in objs if o.type != "MESH" or o.data.users == 1] or objs)
@@ -236,6 +242,78 @@ def vc_material(name):
     p.inputs["Roughness"].default_value = 0.95
     VC_MATS[name] = m
     return m
+
+
+# materials that keep their own slot when a tile is baked (the game animates / tints these by name)
+BAKE_KEEP = ("LampFlame", "Fire", "BonfireFlame", "Water", "WaterDeep", "Lime")
+
+
+def vc_metal_material(name="TileMetal"):
+    if name in VC_MATS:
+        return VC_MATS[name]
+    m = vc_material(name)
+    p = next(n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    p.inputs["Metallic"].default_value = 1.0
+    p.inputs["Roughness"].default_value = 0.35
+    return m
+
+
+def _flat_colour(m):
+    if m is None:
+        return (0.8, 0.8, 0.8), 0.0
+    p = next((n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None) if m.node_tree else None
+    if p is None:
+        return tuple(m.diffuse_color[:3]), 0.0
+    col = tuple(p.inputs["Base Color"].default_value[:3]) if not p.inputs["Base Color"].is_linked \
+        else tuple(m.diffuse_color[:3])
+    return col, p.inputs["Metallic"].default_value
+
+
+def bake_flat_materials(me):
+    """Collapse a mesh's flat-coloured materials into per-corner vertex colours on two shared materials,
+    TileMatte and TileMetal; BAKE_KEEP materials (flames, water, limewash) keep their own slots.
+    Idempotent: faces already on TileMatte/TileMetal keep their existing colours."""
+    matte, metal = vc_material("TileMatte"), vc_metal_material("TileMetal")
+    old = me.color_attributes.get("Col")
+    old_vals = None
+    if old is not None and old.domain == "CORNER":
+        old_vals = [0.0] * (len(me.loops) * 4)
+        old.data.foreach_get("color", old_vals)
+    mats = list(me.materials)
+    slots = [matte, metal]
+    cols = [1.0] * (len(me.loops) * 4)
+    targets = [0] * len(me.polygons)
+    for p in me.polygons:
+        m = mats[p.material_index] if p.material_index < len(mats) else None
+        base = m.name.split(".")[0] if m else ""
+        if base in ("TileMatte", "TileMetal"):
+            tgt = 0 if base == "TileMatte" else 1
+            li = p.loop_indices[0]
+            c = tuple(old_vals[li * 4: li * 4 + 3]) if old_vals else (0.8, 0.8, 0.8)
+        elif m is not None and any(base.startswith(k) for k in BAKE_KEEP):
+            if m not in slots:
+                slots.append(m)
+            tgt, c = slots.index(m), (1.0, 1.0, 1.0)
+        else:
+            c, metallic = _flat_colour(m)
+            tgt = 1 if metallic > 0.5 else 0
+        targets[p.index] = tgt
+        for li in p.loop_indices:
+            cols[li * 4: li * 4 + 4] = (c[0], c[1], c[2], 1.0)
+    me.materials.clear()                          # (this resets face indices, so assign them afterwards)
+    for m in slots:
+        me.materials.append(m)
+    me.polygons.foreach_set("material_index", targets)
+    if old is not None:
+        me.color_attributes.remove(old)
+    attr = me.color_attributes.new("Col", "BYTE_COLOR", "CORNER")
+    attr.data.foreach_set("color", cols)
+    me.color_attributes.active_color = attr
+    try:
+        me.color_attributes.render_color_index = me.color_attributes.find("Col")
+    except AttributeError:
+        pass
+    return len(slots)
 
 
 def mix(a, b, t):

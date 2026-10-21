@@ -238,7 +238,7 @@ def split_chunks(ob, size, prefix="Chunk"):
     return out
 
 
-def join_export(ex, objs, rel, kind="level", chunk=None, prefix="Chunk", extra_objs=(), instances=False):
+def join_export(ex, objs, rel, kind="level", chunk=None, prefix="Chunk", extra_objs=(), instances=False, bake=False):
     meshes = [o for o in objs if o.type == "MESH" and len(o.data.polygons)]
     vl = bpy.context.view_layer
     bpy.context.view_layer.update()
@@ -253,7 +253,7 @@ def join_export(ex, objs, rel, kind="level", chunk=None, prefix="Chunk", extra_o
     ob.name = os.path.splitext(os.path.basename(rel))[0].title()
     if chunk:
         parts = split_chunks(ob, chunk, prefix)
-        ex.export(parts + list(extra_objs), rel, kind, instances=instances,
+        ex.export(parts + list(extra_objs), rel, kind, instances=instances, bake=bake,
                   extra={"chunks": len(parts), "chunk_size": chunk,
                          **({"instance_groups": len(extra_objs)} if extra_objs else {})})
         for o in parts:
@@ -418,7 +418,7 @@ def export_map(ex, m):
     if m.tile:
         empties = _inst.group_by_tile(m.tile) if m.instanced and _inst.PLACED else []
         nchunks = join_export(ex, objs, f"{rel_dir}/town.glb", chunk=m.tile, prefix="Town", extra_objs=empties,
-                              instances=bool(empties))
+                              instances=bool(empties), bake=True)
         print("INSTANCES", m.name, len(_inst.PLACED), "placed,", len({o.data.name for o in _inst.PLACED}), "prototypes,",
               len(empties), "tile groups")
     else:

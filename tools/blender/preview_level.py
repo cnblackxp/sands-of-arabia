@@ -24,7 +24,7 @@ for key in ("terrain", "town", "backdrop", "backdrop_ground", "dressing"):
         bpy.ops.import_scene.gltf(filepath=os.path.join(A, level[key]))
 # the Blender importer ignores COLOR_0 in materials; wire it so the check looks like three.js
 for m in bpy.data.materials:
-    if m.name.startswith("SandVC") and m.node_tree:
+    if (m.name.startswith("SandVC") or m.name.startswith("TileMatte") or m.name.startswith("TileMetal") or m.name.startswith("P_")) and m.node_tree:
         nt = m.node_tree
         p = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
         ca = nt.nodes.new("ShaderNodeVertexColor")
