@@ -800,6 +800,18 @@ export class Sfx {
     if (opening) this.noiseBurst(1.8, 300, 1200, 0.6, 0.22, 'lowpass', pan, 0.5);
     else this.tone(0.3, 80, 45, 0.4, 'triangle', 0.6, pan);
   }
+  /** The race horn: two blasts on a ram's horn. */
+  raceStart(): void {
+    for (const [d, at] of [[0.35, 0], [0.7, 0.45]] as const) {
+      this.tone(d, 233, 228, 0.2, 'sawtooth', at);
+      this.tone(d, 349, 344, 0.08, 'sawtooth', at);
+    }
+  }
+  /** Passing a race marker. */
+  checkpoint(): void {
+    this.tone(0.25, 880, 880, 0.1, 'triangle');
+    this.tone(0.3, 1320, 1320, 0.06, 'sine', 0.06);
+  }
   /** Digging in sand. */
   dig(): void {
     for (let i = 0; i < 3; i++) this.noiseBurst(0.18, 1400, 400, 0.8, 0.18, 'lowpass', 0, i * 0.22);

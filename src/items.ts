@@ -153,6 +153,7 @@ export const GOLD_DROP: Record<string, [number, number]> = {
   slinger: [18, 30],
   hound: [8, 14],
   archer: [20, 32],
+  champion: [500, 600],
   rat: [1, 3],
   vulture: [10, 18],
   chief: [350, 420],

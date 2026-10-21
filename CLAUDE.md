@@ -170,6 +170,7 @@ Run `npm install` and then `npm run dev` (port 5173; `.claude/launch.json` entry
 | `settings.ts` | Player settings (camera mode, time of day, look, sound, interface size, look sensitivity) saved to localStorage; defaults and reset. |
 | `lore.ts` | Peoples of pre-Islamic Arabia (`Culture`): name pools by people, the culture of each map (level.json `culture`, then `MAP_CULTURE`, with a per-spawn override). |
 | `poetry.ts` | Real pre-Islamic verse: the Arabic text (vocalised) plus a translation written for this game, with sources, and the cultures that know each poem. |
+| `race.ts` | The Ukaz horse race: start line, checkpoints in order (the next one lit), horsemen galloping `paths.race` and leaping the hurdles, placings and prizes. |
 | `projectiles.ts` | Arrows and slingers' stones: ballistic flight, hits, stuck arrows and pickup, the aim-arc preview. |
 
 Decisions worth knowing:
@@ -267,6 +268,15 @@ Decisions worth knowing:
   - **New roles:** musician (kinnara phrases nearby), envoy and refugee.
   - **Quest objectives:** `visit` a landmark (within 7 m).
   - **Variants:** maps.json `variant_of` makes two maps one place. `QuestSystem` treats them as the same map (`setMapAliases`). The `flood_marib` quest effect sets `progress.variants.marib = marib_breach`; travel, exits and the Travel tab then lead there for good.
+- **Ukaz (the poets' fair).**
+  - **Truce:** inside `level.truce` the player cannot strike (`Player.peaceful`, with a toast).
+  - **Poets:** spawns with `name`/`name_ar` show their real names. `POET_POEMS` (poetry.ts) makes each recite his own ode first.
+  - **Ransom:** the `pay` objective pays gold to an NPC (the ransom broker).
+  - **Race:** the `race` objective is won by placing first. Racers' horses can't be mounted.
+  - **Champion:** a `boss` enemy (kind `champion`) shows a big health bar while you fight it.
+  - **Quests:** Dahis and al-Ghabra (the race), a captive of Tamim, the champion, al-Nabigha's lost ode, the hill bandits, "every poet has his jinni", and the keepers of the sacred months.
+  - **Rats:** `characters/rat.glb` is used when present.
+  - **Draw-call savings:** small instanced props and NPCs beyond 45 m skip the shadow pass.
 - **People and speech.**
   - NPC names come from their culture's pool (`lore.ts`).
   - Conversations may open and close with that people's own greeting and farewell (`speech.<culture>` in the locales, naming the gods each people worshipped).

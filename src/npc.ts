@@ -3,9 +3,10 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 import { CharacterFactory, CLIP_SPEED, PAL, pick, type Accessory, type Rig } from './characters';
 import { conversation, personName, randomName, recitation, ROLES, type NpcRole } from './dialogue';
 import { cultureOf, type Culture } from './lore';
+import { POET_POEMS } from './poetry';
 import type { HitResult, PlayerView } from './combat';
 import { Flash, type Sfx } from './fx';
-import { L, tOr } from './i18n';
+import { L, lang, tOr } from './i18n';
 import type { Spawn, Vec3 } from './level';
 import { PathFollower } from './nav';
 import type { World } from './world';
@@ -13,14 +14,14 @@ import { angleTo, dampAngle, mulberry32, turnToward } from './util';
 
 type State = 'idle' | 'walk' | 'sit' | 'talk' | 'stagger' | 'flee' | 'return' | 'chase' | 'strike' | 'dead';
 
-const NOT_NPC = new Set(['player', 'camel', 'horse', 'enemy', 'bonfire', 'pickup', 'chest', 'winged_horse', 'lore', 'sluice']);
+const NOT_NPC = new Set(['player', 'camel', 'horse', 'enemy', 'bonfire', 'pickup', 'chest', 'winged_horse', 'lore', 'sluice', 'race_start', 'race_checkpoint']);
 const WALK = 1.4;
 const RUN = 4.6;
 const RADIUS = 0.3;
 const HALF = 0.55;
 
 /** Distance bands (m) for NPC sleep: every frame / every 3rd / every 8th; hidden beyond `hide`. */
-const LOD = { near: 60, far: 120, hide: 190 };
+const LOD = { near: 60, far: 120, hide: 190, shadow: 45 };
 
 export class Npc {
   readonly pos = new THREE.Vector3();
@@ -39,6 +40,7 @@ export class Npc {
   linesRole: NpcRole | null = null;
   /** Time missed while asleep (far from the player); spent on the next update. */
   slept = 0;
+  castsShadow = true;
   /** Their people (names, greetings, which poems they know). */
   readonly culture: Culture;
   /** Recites poetry when talked to (poets; one resident poet per map). */
@@ -93,8 +95,15 @@ export class Npc {
   }
 
   get name(): string {
+    if (this.realName) return lang() === 'ar' && this.realName.ar ? this.realName.ar : this.realName.en;
     return personName(this.nameId);
   }
+  /** A named person from the level (the poets of Ukaz). */
+  realName: { en: string; ar?: string } | null = null;
+  /** This poet's own poem (poetry.ts id), recited first. */
+  ownPoem: string | null = null;
+  /** Riding in the race (the race moves the rig; no wandering). */
+  racing = false;
 
   get title(): string {
     const title = tOr(`titles.${this.titleId}`, giverTitle(this.titleId));
@@ -138,7 +147,9 @@ export class Npc {
   recite(): { lines: string[]; verse: boolean[] } | null {
     if (!this.reciter) return null;
     this.startTalk();
-    return recitation(this.culture, this.poemIdx++, this.sys.rnd);
+    // A poet of Ukaz recites their own ode first, then what else they know.
+    const own = this.ownPoem && this.poemIdx === 0 ? this.ownPoem : null;
+    return recitation(this.culture, this.poemIdx++, this.sys.rnd, own);
   }
 
   startTalk(): string[] {
@@ -485,7 +496,8 @@ export class NpcSystem {
       // Unknown roles from new maps behave as wanderers; shopkeepers as merchants;
       // quest givers stand where they were placed.
       const role = (shop ? 'merchant' : giver ? 'priest' : ROLES.includes(s.role as NpcRole) ? s.role : 'wanderer') as NpcRole;
-      const { acc, colours, female } = this.dress(role);
+      // Named people (the poets of Ukaz) are who their name says.
+      const { acc, colours, female } = this.dress(role, !!s.name);
       const rig = factory.createPerson(acc, colours);
       const at = new THREE.Vector3(...s.pos);
       at.y = world.floor(at.x, at.z, s.pos[1]);
@@ -511,6 +523,8 @@ export class NpcSystem {
                     ? 'prisoner'
                     : 'wanderer';
       }
+      if (s.name) npc.realName = { en: s.name, ar: s.name_ar };
+      if (s.id && POET_POEMS[s.id]) npc.ownPoem = POET_POEMS[s.id];
       // Named people of any role (the mukarrib, the canal wardens, the envoys) take their own title and voice.
       if (!giver && s.id && L().titles[s.id]) npc.titleId = s.id;
       if (!giver && s.id && /envoy/.test(s.id)) npc.linesRole = 'envoy';
@@ -543,10 +557,10 @@ export class NpcSystem {
     for (const n of this.npcs) if (n.shop) n.titleId = 'trader';
   }
 
-  private dress(role: NpcRole): { acc: Accessory[]; colours: Record<string, number>; female: boolean } {
+  private dress(role: NpcRole, named = false): { acc: Accessory[]; colours: Record<string, number>; female: boolean } {
     const r = this.rnd;
     const acc: Accessory[] = [];
-    const canBeFemale = role === 'wanderer' || role === 'water_carrier' || role === 'sitter' || role === 'merchant' || role === 'refugee' || role === 'musician' || role === 'poet';
+    const canBeFemale = !named && (role === 'wanderer' || role === 'water_carrier' || role === 'sitter' || role === 'merchant' || role === 'refugee' || role === 'musician' || role === 'poet');
     const female = canBeFemale && r() < (role === 'water_carrier' ? 0.6 : 0.3);
     if (female) {
       acc.push('Veil');
@@ -621,8 +635,15 @@ export class NpcSystem {
     this.tick++;
     for (let i = 0; i < this.npcs.length; i++) {
       const n = this.npcs[i];
+      if (n.racing) continue;
       const d = Math.hypot(n.pos.x - focus.x, n.pos.z - focus.z);
       n.rig.root.visible = d < LOD.hide || n.hostile;
+      // Distant people skip the shadow pass (a crowded fair halves its draw calls).
+      const shadow = d < LOD.shadow;
+      if (n.castsShadow !== shadow) {
+        n.castsShadow = shadow;
+        n.rig.root.traverse((o) => ((o as THREE.Mesh).castShadow = shadow));
+      }
       if (d < LOD.near || n.hostile || n.state === 'flee' || n.state === 'chase') {
         n.update(dt + n.slept, player, d);
         n.slept = 0;

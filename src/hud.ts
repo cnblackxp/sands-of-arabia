@@ -126,6 +126,8 @@ export class Hud {
   /** Third-person camera: "camera" prompts show the look control instead. */
   thirdPerson = false;
   private cross: HTMLDivElement;
+  private boss: HTMLDivElement;
+  private bossLag = 1;
   private ammo: HTMLDivElement;
   private shownAmmo = '';
   private hintKey = '';
@@ -147,6 +149,7 @@ export class Hud {
       <div class="dialogue hidden"><div class="dlg-name"></div><div class="dlg-text"></div><div class="dlg-more"></div></div>
       <div class="hint"></div>
       <div class="crosshair hidden"><i></i></div>
+      <div class="bossbar hidden"><div class="boss-name"></div><div class="boss-track"><div class="boss-lag"></div><div class="boss-fill"></div></div></div>
       <div class="ammo hidden"></div>
       <div class="vignette"></div>
       <div class="lowhp"></div>`;
@@ -175,6 +178,7 @@ export class Hud {
     this.trackerEl = q('.tracker');
     this.floaters = q('.floaters');
     this.cross = q('.crosshair');
+    this.boss = q('.bossbar');
     this.ammo = q('.ammo');
   }
 
@@ -185,6 +189,20 @@ export class Hud {
     this.cross.classList.toggle('aiming', aiming);
     this.cross.classList.toggle('ready', aiming && draw >= 1);
     (this.cross.firstElementChild as HTMLElement).style.transform = `translate(-50%, -50%) scale(${aiming ? 2.2 - 1.2 * draw : 1})`;
+  }
+
+  /** A boss's big health bar (null hides it); the lost chunk trails behind. */
+  setBoss(name: string | null, frac: number, dt: number): void {
+    this.boss.classList.toggle('hidden', !name);
+    if (!name) {
+      this.bossLag = 1;
+      return;
+    }
+    (this.boss.children[0] as HTMLElement).textContent = name;
+    this.bossLag = Math.max(frac, this.bossLag - dt * 0.35);
+    const track = this.boss.children[1];
+    (track.children[0] as HTMLElement).style.width = `${this.bossLag * 100}%`;
+    (track.children[1] as HTMLElement).style.width = `${Math.max(0, frac) * 100}%`;
   }
 
   /** Arrows in the quiver (null hides the counter). */

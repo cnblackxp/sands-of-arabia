@@ -48,6 +48,7 @@ export interface CommonAssets {
   rockProp: GLTF | null;
   dog: GLTF | null;
   bird: GLTF | null;
+  rat: GLTF | null;
   dogClips: Record<string, ClipMeta>;
   birdClips: Record<string, ClipMeta>;
   envHdr: THREE.DataTexture;
@@ -84,9 +85,9 @@ function counter(total: number, onProgress: Progress) {
 }
 
 export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
-  const tick = counter(14, onProgress);
+  const tick = counter(15, onProgress);
   const optional = (path: string, label: string) => tick(label, gltf.loadAsync(asset(path)).catch(() => null));
-  const [person, horse, camel, envHdr, bg, manifest, maps, wingedHorse, bonfireProp, chestProp, arrowProp, rockProp, dog, bird] = await Promise.all([
+  const [person, horse, camel, envHdr, bg, manifest, maps, wingedHorse, bonfireProp, chestProp, arrowProp, rockProp, dog, bird, rat] = await Promise.all([
     tick('people', gltf.loadAsync(asset('characters/person.glb'))),
     tick('horses', gltf.loadAsync(asset('characters/horse.glb'))),
     tick('camels', gltf.loadAsync(asset('characters/camel.glb'))),
@@ -106,6 +107,7 @@ export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
     optional('props/rock_throw.glb', 'stones'),
     optional('characters/dog.glb', 'hounds'),
     optional('characters/bird.glb', 'vultures'),
+    optional('characters/rat.glb', 'rats'),
   ]);
   bg.mapping = THREE.EquirectangularReflectionMapping;
   bg.colorSpace = THREE.SRGBColorSpace;
@@ -121,6 +123,7 @@ export async function loadCommon(onProgress: Progress): Promise<CommonAssets> {
     rockProp,
     dog,
     bird,
+    rat,
     dogClips: manifest?.assets?.dog?.clips ?? {},
     birdClips: manifest?.assets?.bird?.clips ?? {},
     envHdr,
@@ -325,6 +328,12 @@ export class World {
         if (!m.isMesh) return;
         m.castShadow = cast;
         m.receiveShadow = receive;
+        // Small instanced props (shrubs, stones, bones) skip the shadow pass: their
+        // shadows are specks, and on big maps they double the draw calls.
+        if ((m as THREE.InstancedMesh).isInstancedMesh) {
+          m.geometry.computeBoundingSphere();
+          if ((m.geometry.boundingSphere?.radius ?? 0) < 1.3) m.castShadow = false;
+        }
         m.matrixAutoUpdate = false;
         m.updateMatrix();
       });

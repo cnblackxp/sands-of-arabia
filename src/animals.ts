@@ -26,6 +26,8 @@ export class Horse {
   private flapT = 0;
   private airJumps = 0;
 
+  /** A horseman's mount in the race at Ukaz (not for the taking). */
+  racer = false;
   /** Coat colours (kept when the horse travels with its rider). */
   readonly coat: Record<string, number>;
 

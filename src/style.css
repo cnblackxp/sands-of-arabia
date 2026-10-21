@@ -813,3 +813,40 @@ html:lang(ar) .dialogue.verse .dlg-text {
   font-size: 22px;
   line-height: 2;
 }
+
+/* Boss health bar (Souls style, bottom centre). */
+.bossbar {
+  position: absolute;
+  left: 50%;
+  bottom: 86px;
+  width: min(620px, calc(100vw - 40px));
+  transform: translateX(-50%);
+  zoom: var(--ui, 1);
+}
+.boss-name {
+  font-size: 16px;
+  color: #ffe2b0;
+  text-shadow: 0 2px 4px #000;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+.boss-track {
+  position: relative;
+  height: 12px;
+  background: rgba(20, 10, 5, 0.7);
+  border: 1px solid rgba(227, 164, 67, 0.6);
+  overflow: hidden;
+}
+.boss-lag,
+.boss-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+}
+.boss-lag {
+  background: #e8c070;
+}
+.boss-fill {
+  background: linear-gradient(#b0281a, #6d140c);
+}

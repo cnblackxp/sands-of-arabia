@@ -235,6 +235,17 @@ export const POEMS: Poem[] = [
   },
 ];
 
+/** The poets standing at Ukaz (level spawn ids) and their own odes. */
+export const POET_POEMS: Record<string, string> = {
+  ukaz_nabigha: 'nabigha_umayma',
+  ukaz_poet_1: 'asha_hurayra',
+  ukaz_poet_2: 'zuhayr_umm_awfa',
+  ukaz_poet_3: 'amr_hubbi',
+  ukaz_poet_4: 'tarafa_khawla',
+  ukaz_poet_5: 'imru_qifa',
+  ukaz_poet_6: 'harith_asma',
+};
+
 /** Poems a reciter of this culture would know (everyone knows a few from Ukaz). */
 export function poemsFor(culture: Culture): Poem[] {
   const own = POEMS.filter((p) => p.cultures.includes(culture));

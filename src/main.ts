@@ -17,6 +17,8 @@ import { BADGE, Minimap, type BadgeKind, type MapMarker } from './minimap';
 import { type Npc, NpcSystem } from './npc';
 import { Physics } from './physics';
 import { Player, type BowAim } from './player';
+import { Race } from './race';
+import type { Enemy } from './enemy';
 import { ARROW, Projectiles, solveBallistic, type ProjTarget } from './projectiles';
 import { Progress } from './progress';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './settings';
@@ -120,6 +122,9 @@ class Game {
   bonfires: Bonfire[] = [];
   chests: Chest[] = [];
   sluices: Sluice[] = [];
+  /** The horse race (Ukaz), when the map has a course. */
+  race: Race | null = null;
+  private truceToastT = 0;
   loreStones: LoreStone[] = [];
   /** Reading an inscription (lore spawn): its lines and the line shown. */
   private reading: { stone: LoreStone; lines: string[]; i: number } | null = null;
@@ -430,7 +435,7 @@ class Game {
     scene.add(this.player.rig.root);
 
     this.npcs = new NpcSystem(this.world, factory, scene, this.sfx);
-    this.enemies = new EnemySystem(this.world, factory, scene, this.sfx, { dog: this.common.dog, bird: this.common.bird });
+    this.enemies = new EnemySystem(this.world, factory, scene, this.sfx, { dog: this.common.dog, bird: this.common.bird, rat: this.common.rat });
     this.enemies.ear = (q) => {
       const d = Math.hypot(q.x - this.player.pos.x, q.z - this.player.pos.z);
       return { pan: this.pan(q.x, q.z), gain: Math.max(0, 1 - d / 32) };
@@ -451,6 +456,7 @@ class Game {
       const h = this.addHorse({ role: 'horse', pos: [pos.x, pos.y, pos.z], yaw: this.player.yaw }, riding.winged, rnd, riding.coat);
       this.player.mount(h);
     }
+    this.setupRace(level);
     this.enemies.setTellFx((follow) => this.glints.spawn(follow));
     this.enemies.setKillHook((e) => this.onEnemyKilled(e));
     const tmp = new THREE.Vector3();
@@ -905,6 +911,8 @@ class Game {
     this.bonfires = [];
     this.chests = [];
     this.sluices = [];
+    this.race?.dispose();
+    this.race = null;
     this.loreStones = [];
     this.reading = null;
     this.pickups = [];
@@ -944,6 +952,12 @@ class Game {
         this.projectiles.fire('arrow', aim.from, aim.vel, this.player.weapon.dmg, 'player');
         this.sfx.bowRelease();
         this.cam.addTrauma(0.06);
+      },
+      truce: () => {
+        if (this.truceToastT > 0) return;
+        this.truceToastT = 3;
+        this.sfx.denied();
+        this.hud.showToast(t('truce.toast'), 3);
       },
       noArrows: () => {
         this.sfx.noArrows();
@@ -1617,6 +1631,64 @@ class Game {
     this.hud.hideDialogue();
   }
 
+  /** The Ukaz horse race: start marker, checkpoints in order, horsemen on their horses. */
+  private setupRace(level: import('./level').LevelData): void {
+    const start = level.spawns.find((s) => (s.role as string) === 'race_start');
+    const path = level.paths.race;
+    if (!start || !path?.length) return;
+    const v = (p: Vec3) => new THREE.Vector3(p[0], this.world.ground(p[0], p[2]), p[2]);
+    const cps = level.spawns
+      .filter((s) => (s.role as string) === 'race_checkpoint')
+      .sort((a, b) => (a.id ?? '').localeCompare(b.id ?? '', undefined, { numeric: true }))
+      .map((s) => v(s.pos));
+    const riders: { npc: Npc; horse: Horse }[] = [];
+    for (const hs of level.spawns.filter((s) => s.role === 'horse' && s.racer)) {
+      const horse = this.horses.find((h) => Math.hypot(h.pos.x - hs.pos[0], h.pos.z - hs.pos[2]) < 1);
+      const npc = this.npcs.npcs.find((n) => n.refId === hs.racer);
+      if (horse && npc) {
+        horse.racer = true;
+        riders.push({ npc, horse });
+      }
+    }
+    const hurdles = level.colliders.filter((c) => c.tag === 'hurdle').map((c) => v(c.pos));
+    this.race = new Race(this.world.scene, { start: v(start.pos), checkpoints: cps, path: path.map(v), hurdles, riders, groundAt: (x, z) => this.world.ground(x, z) }, {
+      tick: (n) => {
+        this.sfx.ui(false);
+        this.hud.showToast(t('race.tick', { n }), 0.9);
+      },
+      go: () => {
+        this.sfx.raceStart();
+        this.hud.showToast(t('race.go'), 1.2);
+      },
+      checkpoint: (i, of) => {
+        this.sfx.checkpoint();
+        this.hud.showToast(t('race.checkpoint', { i, of }), 1.2);
+      },
+      finish: (place, of) => {
+        const gold = [300, 120, 60][place - 1] ?? 0;
+        if (gold) this.progress.addGold(gold);
+        if (place === 1) {
+          this.sfx.questComplete();
+          this.quests.raceWon(this.mapName);
+          this.hud.showToast(t('race.won', { gold }), 4);
+        } else if (gold) {
+          this.sfx.coin();
+          this.hud.showToast(t('race.placed', { place, of, gold }), 4);
+        } else {
+          this.sfx.denied();
+          this.hud.showToast(t('race.lost'), 4);
+        }
+        setTimeout(() => this.race?.reset(), 4000);
+      },
+    });
+  }
+
+  /** Inside the truce circle (Ukaz): no one may strike. */
+  private inTruce(p: THREE.Vector3): boolean {
+    const tr = this.world.level.truce;
+    return !!tr && Math.hypot(p.x - tr.center[0], p.z - tr.center[2]) < tr.radius;
+  }
+
   /** Night for night-only foes: after dusk, before dawn. */
   private isNight(): boolean {
     const h = this.day.hours;
@@ -1789,12 +1861,15 @@ class Game {
     const p = this.player;
     if (!paused) {
       p.inCombat = this.inCombat();
+      p.peaceful = this.inTruce(p.pos);
+      this.truceToastT -= dt;
       p.update(dt, f, this.cam);
       this.npcs.update(dt, p, p.pos);
       this.enemies.update(dt, p, this.isNight());
       this.projectiles.update(dt, p.dead ? null : p.pos);
+      this.race?.update(dt, p.pos, !!p.horse);
       for (const h of this.horses) {
-        if (h === p.horse) continue;
+        if (h === p.horse || (h.racer && this.race?.running)) continue;
         h.idle(dt);
         h.update(dt);
       }
@@ -1854,7 +1929,11 @@ class Game {
 
     this.hud.setVitals(p.hp, p.maxHp, p.stamina, p.maxStamina, p.isExhausted, realDt);
     this.hud.setPurse(this.progress.data.gold, this.progress.data.flasks, this.progress.maxFlasks);
-    this.hud.setTracker(paused ? null : this.quests.trackerText());
+    const race = this.race?.state === 'running' ? this.race : null;
+    this.hud.setTracker(paused ? null : race ? t('race.tracker', { i: Math.min(race.checkpoint + 1, race.of), of: race.of, place: race.standing(p.pos) }) : this.quests.trackerText());
+    // A boss's health bar while fighting it.
+    const boss = paused ? null : (this.enemies.humans.find((e) => (e as Enemy).boss && !e.dead && e.engaged && Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z) < 45) ?? null);
+    this.hud.setBoss(boss ? boss.title : null, boss ? boss.hp / boss.maxHp : 1, realDt);
     this.updateEnemyBars(paused);
     this.updateHints();
     if (this.frameNo % 2 === 0) this.drawMinimap();
@@ -2175,7 +2254,8 @@ class Game {
     const sluice = p.horse || npc || pickup || lore ? null : this.near(this.sluices, USE_RANGE + 0.4);
     const fire = p.horse || npc || pickup || lore || sluice ? null : this.near(this.bonfires, USE_RANGE);
     const chest = p.horse || npc || pickup || fire ? null : this.near(this.chests.filter((c) => !c.opened), USE_RANGE);
-    const exit = npc || pickup || lore || sluice || fire || chest ? null : this.nearestExit();
+    const atLine = !npc && !pickup && this.race && this.race.state === 'idle' && Math.hypot(this.race.startPos.x - p.pos.x, this.race.startPos.z - p.pos.z) < 9;
+    const exit = npc || pickup || lore || sluice || fire || chest || atLine ? null : this.nearestExit();
     let prompt: string | null = null;
     if (npc) {
       const icon = this.quests.iconFor(this.npcRef(npc));
@@ -2186,6 +2266,7 @@ class Game {
     else if (sluice) prompt = `${k('talk')} ${t(sluice.open ? 'sluice.close' : 'sluice.open')}`;
     else if (fire) prompt = `${k('talk')} ${t(fire.lit ? 'prompt.rest' : 'prompt.kindle')}`;
     else if (chest) prompt = `${k('talk')} ${t(chest.buried ? 'dig.prompt' : 'prompt.chest')}`;
+    else if (atLine) prompt = p.horse ? `${k('talk')} ${t('race.prompt')}` : t('race.needHorse');
     else if (exit) prompt = `${k('talk')} ${this.exitLabel(exit)}`;
     else if (p.horse) prompt = `${k('mount')} ${t('prompt.dismount')}`;
     else if (horse) prompt = `${k('mount')} ${t(horse.winged ? 'prompt.mountWinged' : 'prompt.mountHorse')}`;
@@ -2218,6 +2299,8 @@ class Game {
         this.useSluice(sluice);
       } else if (chest) {
         this.openChest(chest);
+      } else if (atLine && p.horse) {
+        this.race!.start();
       } else if (exit) {
         void this.travel(exit.to);
       } else if (p.horse) {
@@ -2326,6 +2409,7 @@ class Game {
     let best: Horse | null = null;
     let bd = MOUNT_RANGE;
     for (const h of this.horses) {
+      if (h.racer) continue;
       const d = Math.hypot(h.pos.x - this.player.pos.x, h.pos.z - this.player.pos.z);
       if (d < bd) {
         bd = d;

@@ -100,6 +100,8 @@ export interface PlayerEvents {
   bowRelax(): void;
   shoot(aim: BowAim): void;
   noArrows(): void;
+  /** Tried to attack inside the truce. */
+  truce(): void;
   /** Resolve a weapon blow against everything in the arc. */
   strike(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number): HitResult[];
   hit(results: HitResult[]): void;
@@ -168,6 +170,8 @@ export class Player implements PlayerView {
   aim: BowAim | null = null;
   /** Gamepad + overhead camera: the stick turns the aim instead of walking. */
   aimLocksMove = false;
+  /** Inside a truce (Ukaz): attacks are refused. */
+  peaceful = false;
   /** Arrow model shown on the string while drawn (set by the game). */
   nockModel: THREE.Object3D | null = null;
   private nock: THREE.Object3D | null = null;
@@ -462,6 +466,11 @@ export class Player implements PlayerView {
   }
 
   update(dt: number, f: Frame, cam: FollowCamera): void {
+    // Inside the truce of the sacred months no one strikes a blow.
+    if (this.peaceful && f.attack) {
+      f.attack = false;
+      this.ev.truce();
+    }
     this.invulnT -= dt;
     this.sinceHurt += dt;
     this.flash.update(dt);

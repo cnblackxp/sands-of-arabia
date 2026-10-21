@@ -389,10 +389,12 @@ export class Beast implements Foe {
     private ear: Ear,
     model: GLTF | null,
     seed: number,
+    /** The model is already the right size (rat.glb): no scaling, no coat change. */
+    nativeModel = false,
   ) {
     this.variant = kind === 'hound' && spawn.variant && VARIANTS[spawn.variant] ? spawn.variant : null;
     this.def = this.variant ? VARIANTS[this.variant] : DEFS[kind];
-    this.size = this.def.size ?? 1;
+    this.size = nativeModel ? 1 : this.def.size ?? 1;
     this.nightOnly = !!spawn.night_only;
     this.hp = this.def.hp;
     this.rnd = mulberry32(seed);
@@ -409,7 +411,7 @@ export class Beast implements Foe {
     const coats = [0xc9a56b, 0xd9c09a, 0x8a5a33, 0xe8dcc8];
     const coat = this.def.coat ?? coats[Math.floor(this.rnd() * coats.length)];
     const fourLegged = kind !== 'vulture';
-    this.model = model ? new GlbBeast(model, !fourLegged, fourLegged ? coat : undefined) : fourLegged ? new ProcHound(coat) : new ProcVulture();
+    this.model = model ? new GlbBeast(model, !fourLegged, fourLegged && !nativeModel ? coat : undefined) : fourLegged ? new ProcHound(coat) : new ProcVulture();
     if (this.size !== 1) this.model.root.scale.setScalar(this.size);
     this.model.pose(kind === 'vulture' ? 'glide' : 'idle', 0);
     this.sync();
@@ -922,6 +924,8 @@ export class Beast implements Foe {
 }
 
 /** Build the beast for a spawn of kind hound / vulture. */
-export function createBeast(kind: BeastKind, s: Spawn, world: World, sfx: Sfx, ear: Ear, models: { dog: GLTF | null; bird: GLTF | null }, seed: number): Beast {
-  return new Beast(kind, s, s.camp ?? '', world, sfx, ear, kind === 'vulture' ? models.bird : models.dog, seed);
+export function createBeast(kind: BeastKind, s: Spawn, world: World, sfx: Sfx, ear: Ear, models: { dog: GLTF | null; bird: GLTF | null; rat?: GLTF | null }, seed: number): Beast {
+  // Rats have their own model now; without it, a shrunken hound stands in.
+  const own = kind === 'rat' && models.rat ? models.rat : null;
+  return new Beast(kind, s, s.camp ?? '', world, sfx, ear, kind === 'vulture' ? models.bird : own ?? models.dog, seed, !!own);
 }

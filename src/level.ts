@@ -46,6 +46,15 @@ export interface Spawn {
   night_only?: boolean;
   /** Enemy look/kind variant (hound: jackal | hyena; raider: himyar). */
   variant?: string;
+  /** A named person (the poets of Ukaz), in English and Arabic. */
+  name?: string;
+  name_ar?: string;
+  tribe?: string;
+  /** A horse ridden by this horseman in the race. */
+  racer?: string;
+  /** A boss: a big health bar while fighting it. */
+  boss?: boolean;
+  people?: string;
   /** Flying enemies (vultures): `pos` is already at flight height. */
   airborne?: boolean;
 }
@@ -74,6 +83,8 @@ export interface LevelData {
   culture?: string;
   /** This map is another state of `variant_of` (Marib after the flood). */
   variant_of?: string;
+  /** Ukaz: inside this circle no one draws a weapon (the truce of the sacred months). */
+  truce?: { center: Vec3; radius: number };
   bounds: { x: [number, number]; z: [number, number] };
   heights: { file: string; cols: number; rows: number; step: number; x0: number; z0: number };
   sun: { direction_to_sun: Vec3; color: string; elevation_deg: number };

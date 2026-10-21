@@ -84,6 +84,18 @@ export const en = {
     prisoner: 'Prisoner',
     trader: 'Trader',
     poet: 'Poet',
+    racer: 'Horseman',
+    ukaz_nabigha: 'Judge of the poets',
+    ukaz_kahin: 'Soothsayer of Ukaz',
+    ukaz_elder_thaqif: 'Elder of Thaqif',
+    ukaz_elder_hawazin: 'Elder of Hawazin',
+    ukaz_elder_kinana: 'Elder of Kinana',
+    ukaz_elder_tamim: 'Elder of Tamim',
+    ukaz_elder_dhubyan: 'Elder of Dhubyan',
+    ukaz_elder_taghlib: 'Elder of Taghlib',
+    ukaz_ransom_broker: 'Ransom broker',
+    ukaz_ransom_prisoner: 'Captive of Tamim',
+    ukaz_trader: 'Merchant of the fair',
     kahin: 'Soothsayer (kahin)',
     elder: 'Elder of the tribe',
     feast_master: 'Master of the feast',
@@ -132,6 +144,20 @@ export const en = {
     } as Record<string, string>,
   },
   dig: { prompt: 'Dig in the disturbed sand', found: 'Something is buried here.' },
+  truce: {
+    toast: 'Weapons stay sheathed at Ukaz: the truce of the sacred months holds here.',
+  },
+  race: {
+    prompt: 'Line up for the horse race',
+    needHorse: 'Bring a horse to the starting line to race',
+    tick: '{n}…',
+    go: 'Go!',
+    checkpoint: 'Marker {i} of {of}',
+    tracker: 'Race: marker {i} of {of} · place {place}',
+    won: 'You win the race at Ukaz! {gold} gold.',
+    placed: 'You finish {place} of {of}. {gold} gold.',
+    lost: 'You finish last. The horsemen are kind about it.',
+  },
   flood: {
     toast: 'Years pass. One night the Great Dam of Marib gives way: the flood of al-\'Arim.',
     after: 'Marib after the flood',
@@ -208,6 +234,10 @@ export const en = {
       'My father learned this from his father, and I will not lose a word of it.',
     ],
     after: 'That was {poet} — {title}.',
+    own: [
+      'My own ode, as I recited it under the red tent. Listen.',
+      'Since you ask: the verses that made my name at this fair.',
+    ],
   },
 
   lines: {
@@ -242,6 +272,11 @@ export const en = {
       'Frankincense from Dhofar, myrrh from Qataban, and three months of road between them.',
       'We pay a toll at every well. The kings of the road grow fat on our thirst.',
       'A good camel knows the way to water better than any guide. A bad guide knows only the way to your purse.',
+    ],
+    racer: [
+      'My mare was foaled in the year of the long drought. She runs as if the rain were waiting at the finish.',
+      'Dahis against al-Ghabra: forty years of war over one race. Today we race for silver, not for blood.',
+      'Mind the hurdles on the far side. The brushwood bites.',
     ],
     musician: [
       'The kinnara has seven strings, one for each night the moon takes to grow.',
@@ -327,6 +362,87 @@ export const en = {
   // --- quests ------------------------------------------------------------------------
   /** Quest text by quest id; `objectives` follow the order in quests.ts. */
   quests: {
+    ukaz_race: {
+      title: 'Dahis and al-Ghabra',
+      offer: [
+        'You know the story: Dahis, the stallion of Abs, against al-Ghabra, the mare of Dhubyan. One race, a cheat in the ravine, and forty years of war.',
+        'This year Dhubyan races again, for silver and not for blood. Ride for us. Bring a horse to the line, take the eight markers in order, and come back first.',
+      ],
+      waiting: 'Bring a horse to the starting line east of the fair and win the race.',
+      turnIn: ['First! And not a drop of blood spilt over it. My grandfather would not believe it. Take this, rider of Dhubyan.'],
+      objectives: [{ text: 'Win the horse race (ride to the starting line east of the fair)' }],
+    },
+    ukaz_ransom: {
+      title: 'A Captive of Tamim',
+      offer: [
+        'One of ours was taken in a raid last spring. He is penned with the captives on the ransom ground, south-west of the fair.',
+        'The broker wants a hundred and fifty in gold. The tribe will repay you, and more. A man of Tamim does not stay in a pen while his kin have silver.',
+      ],
+      waiting: 'Pay the ransom broker on the ransom ground, south-west of the fair.',
+      turnIn: ['He is home, eating as if the pen had no dates. The tribe repays its debts. Here, with interest.'],
+      objectives: [
+        {
+          text: 'Pay the ransom broker 150 gold for the captive',
+          lines: ['A hundred and fifty, counted? Good. The Tamimi walks free; I write him off my tally.', 'A pleasure doing business under the truce.'],
+        },
+      ],
+    },
+    ukaz_champion: {
+      title: 'The Champion of Ukaz',
+      offer: [
+        'Outside the truce, on the duelling ground, a champion waits in a ring of stones. He has beaten every man of Taghlib who answered him.',
+        'Amr ibn Kulthum is our poet; you could be our sword. Go out past the truce and face him.',
+      ],
+      waiting: 'The champion waits on the duelling ground, outside the truce.',
+      turnIn: ['Beaten! Amr will put it in a poem, and it will be longer than the fight. Taghlib thanks you.'],
+      objectives: [{ text: 'Defeat the champion on the duelling ground' }],
+    },
+    ukaz_lost_ode: {
+      title: 'The Lost Ode',
+      offer: [
+        'A young poet climbed the granite tor in the north-west hills to compose where the wind is clean. He came down without his ode.',
+        'The scroll is up there, on the top of the tor. Bring it to me, and I will judge it. Who knows: it may deserve the tent.',
+      ],
+      waiting: 'The lost ode is on top of the granite tor in the north-west hills.',
+      turnIn: ['Hm. The rhyme stumbles in the fifth verse, but the camel in the eighth... that camel is alive. Thank you, climber of tors.'],
+      objectives: [{ text: 'Climb the granite tor in the north-west hills and bring back the ode' }],
+    },
+    ukaz_bandits: {
+      title: 'Bandits in the Hills',
+      offer: ['The truce keeps the fair, but the hills are another matter. Bandits wait for the pilgrims who leave early.', 'Clear them out, and the roads home will be safe.'],
+      waiting: 'The bandits hide in the hills outside the truce.',
+      turnIn: ['The roads are clear. Hawazin will not forget it.'],
+      objectives: [{ text: 'Defeat the hill bandits outside the truce' }],
+    },
+    ukaz_jinn: {
+      title: 'Every Poet Has His Jinni',
+      offer: [
+        'Every poet has a jinni who whispers the verses to him. Ask them; they will tell you, if you ask in the right voice.',
+        'Speak to Imru\' al-Qais, to Tarafa and to Zuhayr. Bring me what they say of their jinn.',
+      ],
+      waiting: 'Ask Imru\' al-Qais, Tarafa and Zuhayr about the jinn who give them verse.',
+      turnIn: ['A wanderer, a youth and an old man, and each a jinni to match. It is as I said: the verse comes from outside.'],
+      objectives: [
+        { text: 'Ask Imru\' al-Qais about his jinni', lines: ['My jinni? He finds me on the road, never in a palace. He gives me the ruins first and the woman after.'] },
+        { text: 'Ask Tarafa about his jinni', lines: ['Mine is young and quarrelsome, like me. He gives me the best line and then dares me to say it to a king.'] },
+        { text: 'Ask Zuhayr about his jinni', lines: ['A jinni? I work on each ode for a whole year. If a jinni helps me, he is a slow one.'] },
+      ],
+    },
+    ukaz_months: {
+      title: 'The Keepers of the Months',
+      offer: [
+        'Kinana keeps the calendar. We say when the sacred months begin, and while they last no blood is shed and the fair can be held.',
+        'Tell the elder of Thaqif the months are proclaimed. He will want to hear it from someone who is not of Kinana.',
+      ],
+      waiting: 'Tell the elder of Thaqif that the sacred months are proclaimed.',
+      turnIn: ['He heard it, then? Good. While the months last, Ukaz is safe.'],
+      objectives: [
+        {
+          text: 'Bring word to the elder of Thaqif',
+          lines: ['The months are proclaimed? Then Thaqif lays down its spears until they end.', 'Tell Kinana we heard it from a stranger, as is proper.'],
+        },
+      ],
+    },
     ithlib_banquet: {
       title: 'The Banquet of the Brotherhood',
       offer: [
@@ -609,6 +725,7 @@ export const en = {
   },
   quest: {
     accepted: '— Quest accepted: {title}',
+    cannotPay: 'The price is {gold} gold, and your purse is lighter than that. Come back when it is not.',
     toastNew: 'New quest: {title}',
     toastReturn: '{title}: return to the {giver}',
     toastStep: '{title}: {objective}',
@@ -629,6 +746,7 @@ export const en = {
     anointing_oil: 'flask of anointing oil',
     rota_tablet: 'rota tablet of the canals',
     frankincense: 'bundle of frankincense',
+    lost_ode: 'the lost ode (a leather scroll)',
     caravan_letter: 'Sealed letter',
     tomb_tablet: 'tomb tablet',
     painted_jar: 'painted jar',

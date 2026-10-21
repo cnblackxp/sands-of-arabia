@@ -1,6 +1,6 @@
 import { fill, L, lang, tOr } from './i18n';
 import { NAMES, type Culture } from './lore';
-import { poemsFor } from './poetry';
+import { POEMS, poemsFor } from './poetry';
 
 // Flavour lines for strangers in the oasis town (text in locales/). Each conversation picks a few.
 
@@ -21,9 +21,10 @@ export type NpcRole =
   | 'caravaneer'
   | 'musician'
   | 'envoy'
-  | 'refugee';
+  | 'refugee'
+  | 'racer';
 
-export const ROLES: readonly NpcRole[] = ['wanderer', 'merchant', 'sitter', 'water_carrier', 'guard', 'priest', 'farmer', 'prisoner', 'poet', 'kahin', 'elder', 'feast_master', 'official', 'caravaneer', 'musician', 'envoy', 'refugee'];
+export const ROLES: readonly NpcRole[] = ['wanderer', 'merchant', 'sitter', 'water_carrier', 'guard', 'priest', 'farmer', 'prisoner', 'poet', 'kahin', 'elder', 'feast_master', 'official', 'caravaneer', 'musician', 'envoy', 'refugee', 'racer'];
 
 const MALE = ['Amr', 'Harith', 'Qays', 'Zayd', "Imru' al-Qays", 'Aws', 'Kalb', 'Malik', 'Hani', 'Thalaba', 'Uday', 'Shanfara', 'Tarafa', 'Labid', 'Antara', 'Nabigh', 'Hatim', 'Duraid'];
 const FEMALE = ['Hind', 'Salma', 'Laila', 'Rabab', 'Khawla', 'Asma', 'Mawiya', 'Zaynab', 'Su\'ad', 'Umayma'];
@@ -62,11 +63,11 @@ export function conversation(role: NpcRole, rnd: () => number = Math.random, cul
  * the attribution. Arabic shows the original, vocalised; English the translation.
  * `index` walks through the poems this people knows, one per conversation.
  */
-export function recitation(culture: Culture, index: number, rnd: () => number = Math.random): { lines: string[]; verse: boolean[] } {
+export function recitation(culture: Culture, index: number, rnd: () => number = Math.random, own: string | null = null): { lines: string[]; verse: boolean[] } {
   const poems = poemsFor(culture);
-  const poem = poems[index % poems.length];
+  const poem = (own && POEMS.find((p) => p.id === own)) || poems[index % poems.length];
   const ar = lang() === 'ar';
-  const lines = [pick(L().poetry.intro, rnd)];
+  const lines = [pick(own ? L().poetry.own : L().poetry.intro, rnd)];
   const verse = [false];
   for (const v of poem.verses) {
     const [a, b] = ar ? v.ar : v.en;

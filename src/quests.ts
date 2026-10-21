@@ -26,7 +26,11 @@ export type Objective =
   /** Work something in the world (`target`: a `sluice` spawn id), in this order. */
   | { kind: 'use'; map: string; target: string }
   /** Go and see a place (`landmark` key in level.json). */
-  | { kind: 'visit'; map: string; landmark: string };
+  | { kind: 'visit'; map: string; landmark: string }
+  /** Hand `gold` to someone (a ransom); talking to them pays if you have it. */
+  | { kind: 'pay'; npc: NpcRef; gold: number }
+  /** Win the horse race in this map. */
+  | { kind: 'race'; map: string };
 
 /**
  * Maps that are other states of one place (Marib and Marib after the flood):
@@ -55,10 +59,58 @@ export interface QuestDef {
 }
 
 const ITHLIB = 'jabal_ithlib';
+const UKAZ = 'ukaz';
 const MARIB = 'marib';
 const BREACH = 'marib_breach';
 
 export const QUESTS: QuestDef[] = [
+  // --- Ukaz: the fair of the poets -----------------------------------------------------------
+  {
+    id: 'ukaz_race',
+    giver: { map: UKAZ, id: 'ukaz_elder_dhubyan' },
+    objectives: [{ kind: 'race', map: UKAZ }],
+    reward: { gold: 400, upgrade: 'endurance' },
+  },
+  {
+    id: 'ukaz_ransom',
+    giver: { map: UKAZ, id: 'ukaz_elder_tamim' },
+    objectives: [{ kind: 'pay', npc: { map: UKAZ, id: 'ukaz_ransom_broker' }, gold: 150 }],
+    reward: { gold: 260, upgrade: 'flask' },
+  },
+  {
+    id: 'ukaz_champion',
+    giver: { map: UKAZ, id: 'ukaz_elder_taghlib' },
+    objectives: [{ kind: 'kill_camp', map: UKAZ, camp: 'duel' }],
+    reward: { gold: 800, upgrade: 'vitality' },
+  },
+  {
+    id: 'ukaz_lost_ode',
+    giver: { map: UKAZ, id: 'ukaz_nabigha' },
+    objectives: [{ kind: 'fetch', map: UKAZ, pickup: 'lost_ode', item: 'lost_ode' }],
+    reward: { gold: 400, upgrade: 'endurance' },
+  },
+  {
+    id: 'ukaz_bandits',
+    giver: { map: UKAZ, id: 'ukaz_elder_hawazin' },
+    objectives: [{ kind: 'kill_camp', map: UKAZ, camp: 'hill_bandits' }],
+    reward: { gold: 320 },
+  },
+  {
+    id: 'ukaz_jinn',
+    giver: { map: UKAZ, id: 'ukaz_kahin' },
+    objectives: [
+      { kind: 'talk', npc: { map: UKAZ, id: 'ukaz_poet_5' } },
+      { kind: 'talk', npc: { map: UKAZ, id: 'ukaz_poet_4' } },
+      { kind: 'talk', npc: { map: UKAZ, id: 'ukaz_poet_2' } },
+    ],
+    reward: { gold: 260 },
+  },
+  {
+    id: 'ukaz_months',
+    giver: { map: UKAZ, id: 'ukaz_elder_kinana' },
+    objectives: [{ kind: 'talk', npc: { map: UKAZ, id: 'ukaz_elder_thaqif' } }],
+    reward: { gold: 150 },
+  },
   // --- Jabal Ithlib: the Nabataean sanctuary above Hegra ------------------------------
   {
     id: 'ithlib_banquet',
@@ -335,7 +387,7 @@ export class QuestSystem {
         if (this.available(q)) return 'quest';
       }
       const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
-      if (obj?.kind === 'talk' && sameRef(obj.npc, ref)) return 'objective';
+      if ((obj?.kind === 'talk' || obj?.kind === 'pay') && sameRef(obj.npc, ref)) return 'objective';
     }
     return null;
   }
@@ -360,6 +412,22 @@ export class QuestSystem {
           lines: questText(q.id).objectives[st!.step]?.lines ?? [],
           onDone: () => {
             if (q.gives) this.takeItem(q.gives);
+            this.advance(q);
+          },
+        };
+      }
+    }
+    // A payment (ransom): only if the purse can bear it.
+    for (const q of QUESTS) {
+      const st = this.state(q.id);
+      const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
+      if (obj?.kind === 'pay' && sameRef(obj.npc, ref)) {
+        if (this.progress.data.gold < obj.gold) return { lines: [t('quest.cannotPay', { gold: obj.gold })], onDone: () => {} };
+        return {
+          lines: questText(q.id).objectives[st!.step]?.lines ?? [],
+          onDone: () => {
+            this.progress.data.gold -= obj.gold;
+            this.ev.sound('step');
             this.advance(q);
           },
         };
@@ -433,6 +501,15 @@ export class QuestSystem {
       if (st?.state === 'active' && q.objectives[st.step] === next) this.advance(q);
     }
     return 'ok';
+  }
+
+  /** Won the horse race in this map. */
+  raceWon(map: string): void {
+    for (const q of QUESTS) {
+      const st = this.state(q.id);
+      const obj = st?.state === 'active' ? q.objectives[st.step] : undefined;
+      if (obj?.kind === 'race' && sameMap(obj.map, map)) this.advance(q);
+    }
   }
 
   /** Visit objectives in this map whose place the player has reached. */
@@ -517,7 +594,7 @@ export class QuestSystem {
 }
 
 export function objMap(o: Objective): string {
-  const m = o.kind === 'talk' ? o.npc.map : o.map;
+  const m = o.kind === 'talk' || o.kind === 'pay' ? o.npc.map : o.map;
   return MAP_ALIAS[m] ?? m;
 }
 

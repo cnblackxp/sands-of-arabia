@@ -17,7 +17,7 @@ import type { World } from './world';
  * recovery is the opening. Poise decides whether a hit makes them flinch.
  */
 
-export type EnemyKind = 'raider' | 'skirmisher' | 'brute' | 'chief' | 'slinger' | 'clubman' | 'archer';
+export type EnemyKind = 'raider' | 'skirmisher' | 'brute' | 'chief' | 'slinger' | 'clubman' | 'archer' | 'champion';
 
 interface KindDef {
   title: string;
@@ -182,6 +182,31 @@ const KINDS: Record<EnemyKind, KindDef> = {
     backstep: 0.5,
     ranged: { min: 6, max: 21, cooldown: [2.0, 3.4], dmg: 12 },
   },
+  champion: {
+    title: 'Champion of Ukaz',
+    hp: 760,
+    poise: 5,
+    walk: 1.6,
+    run: 3.8,
+    scale: 1.3,
+    dmg: 36,
+    knock: 3.6,
+    range: 2.6,
+    windup: 0.8,
+    comboWindup: 0.4,
+    strikeSpeed: 1.45,
+    recover: 0.95,
+    maxCombo: 3,
+    comboChance: 0.6,
+    sight: 16,
+    turn: 2.6,
+    lunge: 3.2,
+    acc: ['Helmet', 'BeardLong', 'Lamellar', 'Cloak', 'Sword', 'Shield'],
+    colours: { P_Robe: 0x6d1a14, P_Sash: 0xd6a531, P_Wrap: 0x2b2622, P_Pants: 0x2a1d17, P_Skin: 0x9a6440, P_Cloak: 0x2c3e73, P_Armor: 0x8a7a5a },
+    swings: [2, 0, 1, 3],
+    block: 0.35,
+    backstep: 0.25,
+  },
   archer: {
     title: 'Archer',
     hp: 60,
@@ -333,6 +358,7 @@ export class Enemy implements Foe {
   ) {
     this.def = KINDS[kind] ?? KINDS.raider;
     this.nightOnly = !!spawn.night_only;
+    this.boss = !!spawn.boss;
     this.hp = this.def.hp;
     this.pos.set(...spawn.pos);
     this.pos.y = world.floor(this.pos.x, this.pos.z, spawn.pos[1]);
@@ -352,6 +378,8 @@ export class Enemy implements Foe {
   }
   /** Night-only foes are away by day (not drawn, not fighting, not counted). */
   readonly nightOnly: boolean;
+  /** A boss: the HUD shows its big health bar while fighting it. */
+  readonly boss: boolean;
   dormant = false;
   setDormant(on: boolean): void {
     if (on === this.dormant) return;
@@ -949,7 +977,7 @@ export class EnemySystem {
     private factory: CharacterFactory,
     private scene: THREE.Scene,
     private sfx: Sfx,
-    private models: { dog: GLTF | null; bird: GLTF | null },
+    private models: { dog: GLTF | null; bird: GLTF | null; rat?: GLTF | null },
   ) {
     for (const s of world.level.spawns) {
       if (s.role !== 'enemy') continue;
