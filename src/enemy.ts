@@ -419,8 +419,12 @@ export class Enemy implements Foe {
     this.collider.setEnabled(!on && this.state !== 'dead');
   }
   get maxHp(): number {
-    return this.def.hp;
+    return this.def.hp * this.hpScale;
   }
+  /** A training dummy (?playtest): stands still and never fights back. */
+  passive = false;
+  /** Health multiplier (the dummy takes long combos). */
+  hpScale = 1;
   get moving(): boolean {
     return !this.dead && (this.state === 'approach' || this.state === 'reposition' || this.state === 'return' || (this.state === 'idle' && this.rig.anim.base === 'Walk'));
   }
@@ -444,7 +448,7 @@ export class Enemy implements Foe {
     return this.damage(dmg, from);
   }
   get title(): string {
-    return tOr(`enemies.${this.kind}`, this.def.title);
+    return this.passive ? tOr('enemies.dummy', 'Training dummy') : tOr(`enemies.${this.kind}`, this.def.title);
   }
   get homePos(): THREE.Vector3 {
     return this.home;
@@ -475,7 +479,7 @@ export class Enemy implements Foe {
   }
 
   reset(): void {
-    this.hp = this.def.hp;
+    this.hp = this.maxHp;
     this.pos.copy(this.home);
     this.yaw = this.homeYaw;
     this.state = 'idle';
@@ -524,14 +528,14 @@ export class Enemy implements Foe {
   }
 
   /** A sword blow from the player. */
-  damage(dmg: number, from: THREE.Vector3): HitResult {
+  damage(dmg: number, from: THREE.Vector3, poise = 1): HitResult {
     const res: HitResult = { pos: this.pos.clone().setY(this.pos.y + 1.2 * this.def.scale), killed: false, staggered: false };
     if (this.dead) return res;
     const away = this.pos.clone().sub(from).setY(0).normalize();
     // Shield up and facing the blow: no damage, but the guard wears down.
     if (this.state === 'block' && Math.cos(wrapAngle(Math.atan2(-away.x, -away.z) - this.yaw)) > 0.3) {
       res.blocked = true;
-      this.guardHits++;
+      this.guardHits += poise;
       this.knock.copy(away).multiplyScalar(1.2);
       this.sfx.clang();
       if (this.guardHits >= 2) {
@@ -564,7 +568,7 @@ export class Enemy implements Foe {
       return res;
     }
     // Poise: brutes shrug off single blows, especially mid-swing (hyper armour).
-    this.poiseHits++;
+    this.poiseHits += poise;
     this.poiseTimer = 2.5;
     const armoured = this.def.poise > 1 && (this.state === 'windup' || this.state === 'strike');
     if (this.poiseHits >= this.def.poise && !armoured) {
@@ -605,7 +609,7 @@ export class Enemy implements Foe {
     // Shield reaction: when the player starts a swing in reach, maybe raise the guard.
     if (player.attacking && !this.sawPlayerAttack) {
       this.sawPlayerAttack = true;
-      const canBlock = this.state === 'approach' || this.state === 'reposition' || this.state === 'recover';
+      const canBlock = !this.passive && (this.state === 'approach' || this.state === 'reposition' || this.state === 'recover');
       if (canBlock && d.block > 0 && dist < d.range + 1.6 && this.rnd() < d.block) {
         this.rig.anim.playOverlay('Block', { loop: true, fade: 0.06 });
         this.timer = 0.8 + this.rnd() * 0.5;
@@ -656,7 +660,7 @@ export class Enemy implements Foe {
             this.rig.anim.setBase('Walk', d.walk / CLIP_SPEED.personWalk, 0.25);
           }
         }
-        if (!player.dead && dist < d.sight && playerHere) {
+        if (!player.dead && dist < d.sight && playerHere && !this.passive) {
           this.wanderTarget = null;
           this.alert();
         }
@@ -669,6 +673,10 @@ export class Enemy implements Foe {
         break;
       }
       case 'approach': {
+        if (this.passive) {
+          this.enter('idle');
+          break;
+        }
         if (player.dead || !playerHere || fromHome > LEASH) {
           this.goHome();
           break;
@@ -1067,6 +1075,7 @@ export class EnemySystem {
       this.list.push(b);
       return b;
     }
+    const dummy = kindName === 'dummy';
     const kind = (KINDS[kindName as EnemyKind] ? kindName : 'raider') as EnemyKind;
     const def = KINDS[kind];
     // Himyarite raiders wear the king's indigo and gold.
@@ -1076,14 +1085,23 @@ export class EnemySystem {
       palmyrene: { P_Robe: 0x8a2a1a, P_Sash: 0xc9902e, P_Wrap: 0xe5dcc8, P_Vest: 0x6b4426, P_Pants: 0x3d3128 },
       camel: { P_Robe: 0x9a8a70, P_Sash: 0x3b3530, P_Wrap: 0x6b5a48, P_Vest: 0x4a3a2c },
     };
-    const colours = s.variant && look[s.variant] ? { ...def.colours, ...look[s.variant] } : def.colours;
-    const rig = this.factory.createPerson(def.acc, colours, def.scale);
+    const colours = dummy
+      ? { P_Robe: 0xc9a86a, P_Sash: 0x7b5a32, P_Wrap: 0xc9a86a, P_Pants: 0xa8884f, P_Skin: 0xb89a6a, P_Vest: 0x8a6a40 }
+      : s.variant && look[s.variant]
+        ? { ...def.colours, ...look[s.variant] }
+        : def.colours;
+    const rig = this.factory.createPerson(dummy ? ['Vest'] : def.acc, colours, def.scale);
     if (def.club && !this.factory.hasPart('Club')) rig.bones.get('hand_R')?.add(buildClub());
     if (def.blink) addEmberEyes(rig, def.scale);
     const at = new THREE.Vector3(...s.pos);
     at.y = this.world.floor(at.x, at.z, s.pos[1]);
     const col = this.world.physics.addActor(RADIUS * def.scale, 0.55 * def.scale, at);
     const e = new Enemy(kind, rig, s, s.camp ?? '', col, this.world, this.sfx, this.seed++);
+    if (dummy) {
+      e.passive = true;
+      e.hpScale = 5;
+      e.hp = e.maxHp;
+    }
     e.onThrow = (en, from, dmg) => this.onThrow(en, from, dmg);
     e.onTell = this.tellFx ? this.tellFor(e) : () => {};
     e.onBlink = (_, a, b) => this.onBlink(a, b);
@@ -1236,7 +1254,7 @@ export class EnemySystem {
     for (const e of live) e.sync();
   }
 
-  hitArc(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number): HitResult[] {
+  hitArc(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number, poise = 1): HitResult[] {
     const out: HitResult[] = [];
     const cosMax = Math.cos(halfAngle);
     const fx = Math.sin(yaw);
@@ -1251,7 +1269,7 @@ export class EnemySystem {
       const dy = e.flying ? e.pos.y - (origin.y + 1.2) : e.pos.y - origin.y;
       if (d > range + r || Math.abs(dy) > (e.flying ? 1.3 : 2.5)) continue;
       if (d > 0.4 && (dx * fx + dz * fz) / d < cosMax) continue;
-      out.push(e.damage(dmg, origin));
+      out.push(e.damage(dmg, origin, poise));
     }
     return out;
   }

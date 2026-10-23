@@ -21,6 +21,24 @@ const COST = { roll: 24, jump: 10, sprintPerSec: 13 };
 const REGEN = { rate: 42, delay: 0.75, delayEmpty: 1.4 };
 
 const ROLL = { duration: 0.62, distance: 4.2, iStart: 0.06, iEnd: 0.42 };
+/** Backstep: roll with no direction held. A short hop back, brief i-frames, cheaper. */
+const BACKSTEP = { duration: 0.42, distance: 1.7, iStart: 0.03, iEnd: 0.22, cost: 14 };
+/**
+ * Attack flavours: how far the body steps into the blow (m), damage, stamina and
+ * poise damage, as multiples of the weapon's. Out of a sprint it's a running
+ * attack; just after a roll, a rolling attack; holding the button, a heavy blow.
+ */
+const ATTACK = {
+  light: { lunge: 0.55, dmg: 1, stamina: 1, poise: 1 },
+  heavy: { lunge: 1.0, dmg: 1.75, stamina: 1.6, poise: 2 },
+  running: { lunge: 2.4, dmg: 1.2, stamina: 1.1, poise: 1 },
+  rolling: { lunge: 1.4, dmg: 1.1, stamina: 1, poise: 1 },
+};
+type AttackKind = keyof typeof ATTACK;
+/** Holding attack this long into a light blow turns it into a heavy one. */
+const HEAVY_HOLD = 0.22;
+/** After the blow lands and this long has passed, moving cancels the rest of the recovery. */
+const RECOVER_FREE = 0.2;
 /** Leaping off a moving horse: above walking pace it's a leap, above a canter it ends in a roll. */
 const LEAP = { minSpeed: 3, rollSpeed: 7, saddle: 1.2, side: 1.1, vy: 6.5, carry: 0.6, maxCarry: 7.5 };
 /**
@@ -73,6 +91,8 @@ interface Swing {
   hit: number;
   chain: number;
   end: number;
+  /** Clip playback speed. */
+  timeScale: number;
 }
 
 /** Hooks the game uses for feedback and world queries. */
@@ -106,8 +126,12 @@ export interface PlayerEvents {
   noArrows(): void;
   /** Tried to attack inside the truce. */
   truce(): void;
-  /** Resolve a weapon blow against everything in the arc. */
-  strike(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number): HitResult[];
+  /** Resolve a weapon blow against everything in the arc (`poise`: how hard it rocks them). */
+  strike(origin: THREE.Vector3, yaw: number, range: number, halfAngle: number, dmg: number, poise: number): HitResult[];
+  /** Held attack: the blow turns heavy. */
+  heavy(): void;
+  /** Backstep out of reach. */
+  backstep(): void;
   hit(results: HitResult[]): void;
   /** Aim assist target in front of the player, if any. */
   aim(origin: THREE.Vector3, yaw: number): THREE.Vector3 | null;
@@ -135,6 +159,15 @@ export class Player implements PlayerView {
   readonly flash = new Flash();
   private wpn: WeaponDef;
   private swings: Swing[] = [];
+  /** The weapon's heavy blow (HeavyAttack), and the swing playing now. */
+  private heavySwing: Swing | null = null;
+  private cur: Swing = { clip: '', hit: 0, chain: 0, end: 0, timeScale: 1 };
+  private attackKind: AttackKind = 'light';
+  /** Rolled (or backstepped), and how long ago a roll ended (a rolling attack follows within 0.35 s). */
+  private backstep = false;
+  private sinceRoll = 9;
+  /** Locked-on foe's chest (set by the game each frame): face it, strafe around it, swing at it. */
+  lockTarget: THREE.Vector3 | null = null;
   private attackIdx = 0;
   private attackT = -1;
   private attackQueued = 0;
@@ -204,13 +237,17 @@ export class Player implements PlayerView {
 
   private buildSwings(): void {
     const s = this.wpn.speed;
-    this.swings = this.wpn.clips.map((clip) => {
+    const swing = (clip: string, speed: number): Swing => {
       const m = this.clips[clip];
-      const hit = (m?.hit_time ?? 0.375) / s;
-      const dur = (m?.duration ?? 0.75) / s;
-      return { clip, hit, chain: hit + 0.12, end: dur * 0.92 };
-    });
+      const hit = (m?.hit_time ?? 0.375) / speed;
+      const dur = (m?.duration ?? 0.75) / speed;
+      return { clip, hit, chain: hit + 0.12, end: dur * 0.92, timeScale: speed };
+    };
+    this.swings = this.wpn.clips.map((clip) => swing(clip, s));
+    // Heavy blow: the authored HeavyAttack, a little quicker than authored.
+    this.heavySwing = this.wpn.kind === 'bow' || !this.clips.HeavyAttack ? null : swing('HeavyAttack', this.wpn.heavy ? s : s * 1.2);
     this.attackIdx = this.swings.length - 1;
+    if (this.swings.length) this.cur = this.swings[0];
   }
 
   private gear(look: Look): Accessory[] {
@@ -306,7 +343,8 @@ export class Player implements PlayerView {
     return this.attackT >= 0 || this.rollT >= 0 || this.airborne || this.staggerT > 0 || this.healT >= 0;
   }
   get invulnerable(): boolean {
-    return this.god || this.invulnT > 0 || this.downT > 0 || (this.rollT >= ROLL.iStart && this.rollT <= ROLL.iEnd);
+    const r = this.backstep ? BACKSTEP : ROLL;
+    return this.god || this.invulnT > 0 || this.downT > 0 || (this.rollT >= r.iStart && this.rollT <= r.iEnd);
   }
   get isExhausted(): boolean {
     return this.exhausted;
@@ -518,6 +556,7 @@ export class Player implements PlayerView {
   }
 
   update(dt: number, f: Frame, cam: FollowCamera): void {
+    this.sinceRoll += dt;
     // Inside the truce of the sacred months no one strikes a blow.
     if (this.peaceful && f.attack) {
       f.attack = false;
@@ -644,36 +683,45 @@ export class Player implements PlayerView {
       this.knock.multiplyScalar(Math.max(0, 1 - dt * 8));
     } else if (this.rollT >= 0) {
       this.rollT += dt;
-      const u = this.rollT / ROLL.duration;
-      const v = (ROLL.distance / ROLL.duration) * (u < 0.7 ? 1.25 : Math.max(0, 1.25 * (1 - (u - 0.7) / 0.3)));
+      const R = this.backstep ? BACKSTEP : ROLL;
+      const u = this.rollT / R.duration;
+      const v = (R.distance / R.duration) * (u < 0.7 ? 1.25 : Math.max(0, 1.25 * (1 - (u - 0.7) / 0.3)));
       const r = this.mover.move(this.rollDir.x * v * dt, this.rollDir.z * v * dt);
       step = r;
       if (r.falling) this.beginFall();
-      if (this.rollT >= ROLL.duration) {
+      if (this.rollT >= R.duration) {
         this.rollT = -1;
+        this.sinceRoll = 0;
         this.rig.anim.setBase(mag > 0.01 ? 'Walk' : 'Idle', 1, 0.12);
       }
     } else {
-      const cur = this.swings[this.attackIdx];
-      const canRoll = this.attackT < 0 || this.attackT >= cur.hit + 0.12;
+      const canRoll = this.attackT < 0 || this.attackT >= this.cur.hit + 0.12;
       const canJump = this.attackT < 0 && this.healT < 0;
       if (this.jumpQueued > 0 && canJump && this.spend(this.inCombat ? COST.jump : 0)) {
         this.jumpQueued = 0;
         this.fallFrom = feet.y;
         this.startJump(dir, mag, false);
-      } else if (this.rollQueued > 0 && canRoll && this.healT < 0 && this.spend(COST.roll)) {
+      } else if (this.rollQueued > 0 && canRoll && this.healT < 0 && this.spend(mag < 0.15 ? BACKSTEP.cost : COST.roll)) {
         this.rollQueued = 0;
         this.attackT = -1;
         this.attackQueued = 0;
         this.blocking = false;
         this.rollT = 0;
         this.cancelBow();
-        this.rollDir.copy(mag > 0.01 ? dir : this.moveDir);
-        this.moveDir.copy(this.rollDir);
-        this.yaw = this.yawTarget = Math.atan2(this.rollDir.x, this.rollDir.z);
         this.rig.anim.stopOverlay(0.05);
-        this.rig.anim.setBase('Roll', 1, 0.05, true);
-        this.ev.roll();
+        // No direction held: a backstep, still facing the front. Otherwise roll where the stick points.
+        this.backstep = mag < 0.15;
+        if (this.backstep) {
+          this.rollDir.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+          this.rig.anim.setBase('Backstep', 1, 0.05, true);
+          this.ev.backstep();
+        } else {
+          this.rollDir.copy(dir);
+          this.moveDir.copy(this.rollDir);
+          this.yaw = this.yawTarget = Math.atan2(this.rollDir.x, this.rollDir.z);
+          this.rig.anim.setBase('Roll', 1, 0.05, true);
+          this.ev.roll();
+        }
       } else {
         if (this.rollQueued > 0 && canRoll) this.rollQueued = 0;
         // Healing draught.
@@ -710,10 +758,23 @@ export class Player implements PlayerView {
         }
         if (this.hasBow) this.updateBow(dt, f, this.healT >= 0);
         else if (this.healT < 0) this.updateAttack(dt, f);
-        const a = this.swings[this.attackIdx];
-        const committed = !this.hasBow && this.attackT >= 0 && this.attackT < a.hit + 0.1;
+        const a = this.cur;
+        const committed = !this.hasBow && this.attackT >= 0 && this.attackT < a.hit + RECOVER_FREE;
+        // Past the blow's recovery, moving lets go of the rest of the swing.
+        if (!this.hasBow && this.attackT >= a.hit + RECOVER_FREE && mag > 0.3) {
+          this.attackT = -1;
+          this.rig.anim.stopOverlay(0.15);
+        }
         if (committed) {
-          const lunge = this.attackT > a.hit - 0.18 && this.attackT < a.hit ? 3.2 : 0.4;
+          // The first moments of a swing can still be steered (unless locked on: then it turns to the foe).
+          if (this.attackT < 0.12 && mag > 0.1 && !this.lockTarget) {
+            this.moveDir.copy(dir);
+            this.yaw = this.yawTarget = Math.atan2(dir.x, dir.z);
+          }
+          // Step into the blow over the end of the windup; a running attack carries through all of it.
+          const reach = ATTACK[this.attackKind].lunge;
+          const win = this.attackKind === 'running' ? a.hit : Math.min(0.22, a.hit);
+          const lunge = this.attackT > a.hit - win && this.attackT < a.hit ? reach / win : 0;
           this.speed = 0;
           const r = this.mover.move(this.moveDir.x * lunge * dt, this.moveDir.z * lunge * dt);
           step = r;
@@ -735,6 +796,10 @@ export class Player implements PlayerView {
             // Drawn: strafe while facing the shot.
             if (mag > 0.001 && !this.aimLocksMove) this.moveDir.copy(dir);
             this.yawTarget = this.aim.yaw;
+          } else if (this.lockTarget && !sprinting) {
+            // Locked on: strafe around the foe, always facing it (a sprint breaks into running where you point).
+            if (mag > 0.001) this.moveDir.copy(dir);
+            this.yawTarget = Math.atan2(this.lockTarget.x - this.pos.x, this.lockTarget.z - this.pos.z);
           } else if (mag > 0.001) {
             // Movement and facing share one direction: the input vector itself.
             this.moveDir.copy(dir);
@@ -768,10 +833,12 @@ export class Player implements PlayerView {
     if (this.rollT < 0 && !this.airborne && this.downT <= 0 && this.landT <= 0) {
       const a = this.rig.anim;
       const s = this.animSpeed;
+      // Locked on and moving away from the foe: the legs walk backwards.
+      const back = this.lockTarget && !sprinting && Math.cos(Math.atan2(this.moveDir.x, this.moveDir.z) - this.yaw) < -0.35 ? -1 : 1;
       if (s < 0.15) a.setBase('Idle', 1, 0.2);
       // Walk up to a brisk pace; the normal 3 m/s pace is a jog on the Run clip.
-      else if (s < 2.4) a.setBase('Walk', Math.max(0.35, s / CLIP_SPEED.personWalk), 0.18);
-      else a.setBase('Run', s / CLIP_SPEED.personRun, 0.15);
+      else if (s < 2.4) a.setBase('Walk', back * Math.max(0.35, s / CLIP_SPEED.personWalk), 0.18);
+      else a.setBase('Run', back * (s / CLIP_SPEED.personRun), 0.15);
     }
     this.rig.anim.update(dt);
     this.poseBow(dt);
@@ -934,37 +1001,58 @@ export class Player implements PlayerView {
     if (!this.swings.length) return;
     if (this.attackT >= 0) this.attackT += dt;
     if (this.horse && f.attack && !this.talking) this.attackQueued = 0.35;
-    const cur = this.swings[this.attackIdx];
-    const canStart = this.attackT < 0 || this.attackT >= cur.chain;
+    const canStart = this.attackT < 0 || this.attackT >= this.cur.chain;
     if (this.attackQueued > 0 && canStart && !this.talking && !this.blocking) {
       this.attackQueued = 0;
-      if (this.spend(this.wpn.stamina)) {
+      // Out of a sprint or a roll, the blow has its own flavour.
+      const kind: AttackKind = this.horse || this.airborne ? 'light' : this.attackT < 0 && this.speed > WALK_SPEED * 1.25 ? 'running' : this.sinceRoll < 0.35 ? 'rolling' : 'light';
+      if (this.spend(this.wpn.stamina * ATTACK[kind].stamina)) {
         this.attackIdx = (this.attackIdx + 1) % this.swings.length;
-        this.attackT = 0;
-        this.hitDone = false;
-        if (!this.horse && !this.airborne) {
-          // Aim assist: snap toward an enemy in front so the lunge connects.
-          const target = this.ev.aim(this.pos, this.yaw);
-          if (target) {
-            const a = Math.atan2(target.x - this.pos.x, target.z - this.pos.z);
-            this.yaw = this.yawTarget = a;
-            this.moveDir.set(Math.sin(a), 0, Math.cos(a));
-          }
-        }
-        this.rig.anim.playOverlay(this.swings[this.attackIdx].clip, { fade: 0.06, timeScale: this.wpn.speed });
-        this.ev.swing();
+        this.startSwing(this.swings[this.attackIdx], kind);
       }
     }
-    const a = this.swings[this.attackIdx];
+    // Still holding the button into a light blow: it becomes a heavy one.
+    if (
+      this.attackKind === 'light' &&
+      this.heavySwing &&
+      !this.horse &&
+      f.attackHeld &&
+      this.attackT >= HEAVY_HOLD &&
+      this.attackT < this.cur.hit &&
+      this.spend(this.wpn.stamina * (ATTACK.heavy.stamina - 1))
+    ) {
+      this.startSwing(this.heavySwing, 'heavy');
+      this.ev.heavy();
+    }
+    const a = this.cur;
     if (this.attackT >= 0 && !this.hitDone && this.attackT >= a.hit) {
       this.hitDone = true;
       const w = this.wpn;
+      const k = ATTACK[this.attackKind];
       const range = this.horse ? Math.max(2.7, w.range) : w.range;
       const arc = this.horse ? Math.max(80, w.arc) : w.arc;
-      const hits = this.ev.strike(this.pos, this.yaw, range, THREE.MathUtils.degToRad(arc), w.dmg);
+      const hits = this.ev.strike(this.pos, this.yaw, range, THREE.MathUtils.degToRad(arc), w.dmg * k.dmg, k.poise);
       if (hits.length) this.ev.hit(hits);
     }
     if (this.attackT > a.end) this.attackT = -1;
+  }
+
+  /** Begin a blow: face the locked foe (or one just ahead), play the swing. */
+  private startSwing(s: Swing, kind: AttackKind): void {
+    this.cur = s;
+    this.attackKind = kind;
+    this.attackT = 0;
+    this.hitDone = false;
+    if (!this.horse && !this.airborne) {
+      const target = this.lockTarget ?? this.ev.aim(this.pos, this.yaw);
+      if (target) {
+        const a = Math.atan2(target.x - this.pos.x, target.z - this.pos.z);
+        this.yaw = this.yawTarget = a;
+        this.moveDir.set(Math.sin(a), 0, Math.cos(a));
+      }
+    }
+    this.rig.anim.playOverlay(s.clip, { fade: 0.06, timeScale: s.timeScale });
+    this.ev.swing();
   }
 
   private syncRoot(): void {

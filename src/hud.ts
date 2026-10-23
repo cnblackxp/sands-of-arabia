@@ -18,6 +18,8 @@ export type Action =
   | 'confirm'
   | 'back'
   | 'adjust'
+  | 'lockOn'
+  | 'heavy'
   | 'block'
   | 'heal'
   | 'inventory'
@@ -43,6 +45,8 @@ const GLYPH: Record<Device, Record<Action, string>> = {
     back: '<kbd>Esc</kbd>',
     adjust: '<kbd>A</kbd><kbd>D</kbd>',
     block: '<kbd>RMB</kbd>',
+    lockOn: '<kbd>Q</kbd> <kbd>MMB</kbd>',
+    heavy: '<kbd>LMB</kbd><small>hold</small>',
     heal: '<kbd>R</kbd>',
     inventory: '<kbd>Tab</kbd>',
     look: '<kbd>Mouse</kbd>',
@@ -65,6 +69,8 @@ const GLYPH: Record<Device, Record<Action, string>> = {
     back: '<span class="pad b">B</span>',
     adjust: '<span class="pad dpad">◀▶</span>',
     block: '<span class="pad bumper">LT</span>',
+    lockOn: '<span class="pad stick">R3</span>',
+    heavy: '<span class="pad bumper">RT</span><small>hold</small>',
     heal: '<span class="pad x">X</span>',
     inventory: '<span class="pad menu">☰</span>',
     look: '<span class="pad stick">R</span>',
@@ -128,6 +134,8 @@ export class Hud {
   private boss: HTMLDivElement;
   private bossLag = 1;
   private ammo: HTMLDivElement;
+  private playtest: HTMLDivElement;
+  private playtestOn = false;
   private shownAmmo = '';
   private hintKey = '';
   private promptKey = '';
@@ -149,6 +157,7 @@ export class Hud {
       <div class="hint"></div>
       <div class="bossbar hidden"><div class="boss-name"></div><div class="boss-track"><div class="boss-lag"></div><div class="boss-fill"></div></div></div>
       <div class="ammo hidden"></div>
+      <div class="playtest hidden"></div>
       <div class="vignette"></div>
       <div class="lowhp"></div>`;
     const q = <T extends HTMLElement>(s: string) => root.querySelector(s) as T;
@@ -177,6 +186,7 @@ export class Hud {
     this.floaters = q('.floaters');
     this.boss = q('.bossbar');
     this.ammo = q('.ammo');
+    this.playtest = q('.playtest');
   }
 
   /** A boss's big health bar (null hides it); the lost chunk trails behind. */
@@ -203,6 +213,16 @@ export class Hud {
     this.ammo.classList.toggle('empty', n === 0);
   }
 
+  /** ?playtest: the panel of summoning keys (re-rendered when the language or device changes). */
+  setPlaytest(on: boolean): void {
+    this.playtestOn = on;
+    this.playtest.classList.toggle('hidden', !on);
+    if (!on) return;
+    const L2 = t('playtest.title');
+    const lines = this.device === 'gamepad' ? [t('playtest.pad')] : [t('playtest.keys'), t('playtest.keys2')];
+    this.playtest.innerHTML = `<b>${L2}</b>` + lines.map((l) => `<div>${l}</div>`).join('');
+  }
+
   /** HTML glyph for an action on the current device. */
   key(a: Action): string {
     const glyph = a === 'camera' && this.thirdPerson ? GLYPH[this.device].look : GLYPH[this.device][a];
@@ -211,7 +231,9 @@ export class Hud {
   }
 
   setDevice(d: Device): void {
+    const changed = d !== this.device;
     this.device = d;
+    if (changed && this.playtestOn) this.setPlaytest(true);
   }
 
   /** Bottom help bar: a list of [action, label] for the current context. */

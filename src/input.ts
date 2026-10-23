@@ -23,6 +23,12 @@ export interface Frame {
   moveY: number;
   run: boolean;
   attack: boolean;
+  /** Attack button still held (holding turns a light attack into a heavy one). */
+  attackHeld: boolean;
+  /** Lock on to a foe, or let go (Q, middle click, R3). */
+  lockOn: boolean;
+  /** While locked on: switch to the next foe to the left (-1) or right (+1). */
+  lockSwitch: number;
   dodge: boolean;
   jump: boolean;
   /** Jump button still held (variable jump height). */
@@ -66,6 +72,12 @@ export class Input {
   private mouseBlock = false;
   /** Middle mouse held: horizontal drag rotates the camera. */
   private mmbDrag = false;
+  /** Left button held, and how far a middle press has dragged (a click without a drag locks on). */
+  private mouseHeld = false;
+  private mmbMoved = 0;
+  private mmbClick = false;
+  /** Right stick flicked sideways (target switch) until it comes back near the centre. */
+  private rFlick = false;
   private dragX = 0;
   private padPrev: boolean[] = [];
   private runToggle = false;
@@ -125,22 +137,33 @@ export class Input {
           setTimeout(() => this.releaseClick(), 250);
         }
       } else if (e.button === 0) this.mouseAttack = true;
+      if (e.button === 0) this.mouseHeld = true;
       if (e.button === 2) this.mouseBlock = true;
       if (e.button === 1) {
         this.mmbDrag = true;
+        this.mmbMoved = 0;
         e.preventDefault(); // no browser auto-scroll
       }
       this.device = 'keyboard';
     });
     window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) this.mouseHeld = false;
       if (e.button === 2) this.mouseBlock = false;
-      if (e.button === 1) this.mmbDrag = false;
+      if (e.button === 1) {
+        // A middle click (not a drag to turn the camera) locks on.
+        if (this.mmbDrag && this.mmbMoved < 8) this.mmbClick = true;
+        this.mmbDrag = false;
+      }
     });
     window.addEventListener('mousemove', (e) => {
       // `buttons` is the truth: drop a held button whose mouseup went missing.
       if (this.mouseBlock && !(e.buttons & 2)) this.mouseBlock = false;
       if (this.mmbDrag && !(e.buttons & 4)) this.mmbDrag = false;
-      if (this.mmbDrag) this.dragX += e.movementX;
+      if (this.mouseHeld && !(e.buttons & 1)) this.mouseHeld = false;
+      if (this.mmbDrag) {
+        this.dragX += e.movementX;
+        this.mmbMoved += Math.abs(e.movementX) + Math.abs(e.movementY);
+      }
       if (this.thirdPerson) {
         this.lookDX += e.movementX;
         this.lookDY += e.movementY;
@@ -170,6 +193,7 @@ export class Input {
     if (keepMouse) return;
     this.mouseBlock = false;
     this.mmbDrag = false;
+    this.mouseHeld = false;
   }
 
   /** The held-back click counts after all (no pointer lock came of it). */
@@ -205,6 +229,9 @@ export class Input {
       moveY: my,
       run: k.has('ShiftLeft') || k.has('ShiftRight'),
       attack: this.mouseAttack || p.has('KeyJ'),
+      attackHeld: this.mouseHeld || k.has('KeyJ'),
+      lockOn: p.has('KeyQ') || this.mmbClick,
+      lockSwitch: (p.has('KeyC') ? 1 : 0) - (p.has('KeyZ') ? 1 : 0),
       dodge: p.has('Space'),
       jump: p.has('KeyF'),
       jumpHeld: k.has('KeyF'),
@@ -233,6 +260,7 @@ export class Input {
     this.lookDX = 0;
     this.lookDY = 0;
     this.mouseAttack = false;
+    this.mmbClick = false;
 
     this.readPad(f, dt);
     f.device = this.device;
@@ -287,6 +315,14 @@ export class Input {
 
     // Triggers: RT attacks (looses an arrow), LT blocks (draws and aims a bow). The bumpers do the same.
     if (edge(7) || edge(5)) f.attack = true;
+    if (b(7) || b(5)) f.attackHeld = true;
+    // R3 locks on; a sideways flick of the right stick switches target while locked.
+    if (edge(11)) f.lockOn = true;
+    const flick = ax(2);
+    if (!this.rFlick && Math.abs(flick) > 0.75) {
+      this.rFlick = true;
+      f.lockSwitch = Math.sign(flick);
+    } else if (this.rFlick && Math.abs(flick) < 0.3) this.rFlick = false;
     if (edge(2)) f.heal = true;
     if (b(4) || b(6) || (gp.buttons[6]?.value ?? 0) > 0.3) f.block = true;
     if (edge(4)) f.tab -= 1;

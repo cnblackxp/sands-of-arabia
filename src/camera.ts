@@ -44,6 +44,8 @@ export class FollowCamera {
   private tpAimK = 0;
   /** Over-the-shoulder aim (bow drawn): closer and offset to the right. */
   aiming = false;
+  /** Lock-on: the camera swings round to keep the player between itself and this point. */
+  lockOn: THREE.Vector3 | null = null;
   /** Riding: the camera rises to the rider and stands further back, so the horse doesn't fill the view. */
   mounted = false;
   private tpMountK = 0;
@@ -188,6 +190,15 @@ export class FollowCamera {
     this.tpDist += (this.tpDistTarget - this.tpDist) * (1 - Math.exp(-dt * 10));
     this.tpAimK += ((this.aiming ? 1 : 0) - this.tpAimK) * (1 - Math.exp(-dt * 12));
     this.tpMountK += ((this.mounted ? 1 : 0) - this.tpMountK) * (1 - Math.exp(-dt * 5));
+    if (this.lockOn) {
+      // Behind the player, looking at the foe, slightly from above.
+      const t = this.lockOn;
+      const wantYaw = Math.atan2(follow.x - t.x, follow.z - t.z);
+      this.tpYaw += Math.atan2(Math.sin(wantYaw - this.tpYaw), Math.cos(wantYaw - this.tpYaw)) * (1 - Math.exp(-dt * 7));
+      const flat = Math.hypot(t.x - follow.x, t.z - follow.z);
+      const wantPitch = THREE.MathUtils.clamp(0.24 + Math.atan2(follow.y + 1.2 - t.y, Math.max(2, flat)) * 0.6, 0.05, 0.6);
+      this.tpPitch += (wantPitch - this.tpPitch) * (1 - Math.exp(-dt * 5));
+    }
     const m = this.tpMountK;
     // Pivot: the player's upper chest (the rider's, on a horse), followed tightly (no lag on turns).
     const pv = this.tpPivot.copy(follow).add(this.shake);

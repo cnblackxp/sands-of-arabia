@@ -26,6 +26,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './s
 import { escortIn, FREE_PICKUPS, objMap, QUESTS, QuestSystem, questText, sameMap, setMapAliases, type QuestDef } from './quests';
 import { DayCycle, timeLabel } from './sky';
 import { mulberry32, wrapAngle } from './util';
+import { PLAYTEST, PLAYTEST_FOES, PLAYTEST_MAP, playtestEntry } from './playtest';
 import { cutout, isNewLand, loadCommon, loadMap, mapRequested, World, type CommonAssets, type MapEntry } from './world';
 
 const TALK_RANGE = 2.4;
@@ -178,6 +179,114 @@ class Game {
   loreStones: LoreStone[] = [];
   /** Reading an inscription (lore spawn): its lines and the line shown. */
   private reading: { stone: LoreStone; lines: string[]; i: number } | null = null;
+  /** Lock-on (Q, middle click, R3): the foe, a marker on it, and the look input that would switch targets. */
+  private lock: Foe | null = null;
+  private lockMark: THREE.Mesh | null = null;
+  private lockFlick = 0;
+
+  /** Where the lock marker and the player's blows aim on a foe: its chest. */
+  private lockPoint(e: Foe): THREE.Vector3 {
+    return e.pos.clone().setY(e.pos.y + (e.flying ? 0 : e.hitHi * 0.62));
+  }
+
+  /** The best foe to lock on to: near the centre of the view and close, within 22 m (`side`: only those to the left / right of the current one). */
+  private pickLock(side = 0): Foe | null {
+    const p = this.player.pos;
+    const cam = this.cam.camera;
+    const fwd = new THREE.Vector3();
+    cam.getWorldDirection(fwd);
+    fwd.y = 0;
+    fwd.normalize();
+    const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+    const cur = this.lock;
+    let best: Foe | null = null;
+    let score = Infinity;
+    for (const e of this.enemies.list) {
+      if (e.dead || e === cur) continue;
+      const dx = e.pos.x - p.x;
+      const dz = e.pos.z - p.z;
+      const d = Math.hypot(dx, dz);
+      if (d > 22 || d < 0.3) continue;
+      const along = (dx * fwd.x + dz * fwd.z) / d;
+      const across = (dx * right.x + dz * right.z) / d;
+      if (side === 0 && along < -0.2) continue;
+      if (side !== 0 && cur) {
+        // Switching: only foes on that side of the current one on screen, nearest in angle first.
+        const cx = cur.pos.x - p.x;
+        const cz = cur.pos.z - p.z;
+        const ca = Math.atan2(cx * right.x + cz * right.z, cx * fwd.x + cz * fwd.z);
+        const da = wrapAngle(Math.atan2(across, along) - ca);
+        if (Math.sign(da) !== side) continue;
+        const s = Math.abs(da) + d * 0.01;
+        if (s < score) {
+          score = s;
+          best = e;
+        }
+        continue;
+      }
+      const s = Math.acos(THREE.MathUtils.clamp(along, -1, 1)) * 2 + d * 0.08 + Math.abs(across) * 0.2;
+      if (s < score) {
+        score = s;
+        best = e;
+      }
+    }
+    return best;
+  }
+
+  /** Lock on / let go, switch targets, keep the lock alive, and point the camera and the player at it. */
+  private updateLock(f: Frame): void {
+    const p = this.player;
+    if (f.lockOn && !p.horse) {
+      if (this.lock) this.setLock(null);
+      else {
+        const e = this.pickLock();
+        if (e) this.setLock(e);
+        // Nothing to lock on to: swing the camera round behind the player instead.
+        else if (this.cam.thirdPerson) this.cam.tpYaw = p.yaw + Math.PI;
+      }
+    }
+    if (this.lock) {
+      const e = this.lock;
+      const d = Math.hypot(e.pos.x - p.pos.x, e.pos.z - p.pos.z);
+      // The foe fell or got away: the next one nearby takes over, else the lock lets go.
+      if (e.dead || d > 28 || p.horse || p.dead) {
+        const next = p.horse || p.dead ? null : this.pickLock();
+        this.setLock(next, !!next);
+      }
+    }
+    if (this.lock) {
+      // Switching: Z / C, a sideways flick of the right stick, or a quick mouse swipe.
+      this.lockFlick = this.lockFlick * 0.85 + f.lookYaw;
+      let side = f.lockSwitch;
+      if (!side && Math.abs(this.lockFlick) > 0.09) side = this.lockFlick > 0 ? -1 : 1;
+      if (side) {
+        this.lockFlick = 0;
+        const e = this.pickLock(side);
+        if (e) this.setLock(e, true);
+      }
+    }
+    const tgt = this.lock ? this.lockPoint(this.lock) : null;
+    p.lockTarget = tgt;
+    this.cam.lockOn = tgt;
+    if (tgt && this.lockMark) {
+      this.lockMark.visible = true;
+      this.lockMark.position.copy(tgt);
+      this.lockMark.rotation.y += 0.05;
+    } else if (this.lockMark) this.lockMark.visible = false;
+  }
+
+  private setLock(e: Foe | null, quiet = false): void {
+    if (e === this.lock) return;
+    this.lock = e;
+    if (!quiet || e) this.sfx.lockOn(!!e);
+    if (e && !this.lockMark) {
+      // A small white diamond on the foe's chest, drawn over everything.
+      this.lockMark = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), new THREE.MeshBasicMaterial({ color: 0xfff4dc, depthTest: false, fog: false, transparent: true, opacity: 0.95 }));
+      this.lockMark.renderOrder = 30;
+    }
+    if (this.lockMark && this.lockMark.parent !== this.world.scene) this.world.scene.add(this.lockMark);
+  }
+
   /** Aim assist applies: a controller, the third-person camera, the bow drawn, and the option on. */
   private assisting(): boolean {
     return this.settings.aimAssist && this.cam.thirdPerson && this.lastFrame?.device === 'gamepad' && this.player.aiming;
@@ -412,10 +521,17 @@ class Game {
       if (e.code === 'Backquote' && this.debugObj) this.debugObj.visible = !this.debugObj.visible;
     });
 
-    // Resume at the last bonfire if there is one.
-    const bf = this.progress.data.bonfire;
-    if (bf && c.maps.maps.some((m) => m.name === bf.map)) await this.enterMap(bf.map, null, { pos: bf.pos, yaw: bf.yaw });
-    else await this.enterMap(c.maps.start, null);
+    if (PLAYTEST) {
+      // ?playtest: the empty combat plain, with foes on hotkeys.
+      c.maps.maps.push(playtestEntry);
+      await this.enterMap(PLAYTEST_MAP, null);
+      this.setupPlaytest();
+    } else {
+      // Resume at the last bonfire if there is one.
+      const bf = this.progress.data.bonfire;
+      if (bf && c.maps.maps.some((m) => m.name === bf.map)) await this.enterMap(bf.map, null, { pos: bf.pos, yaw: bf.yaw });
+      else await this.enterMap(c.maps.start, null);
+    }
     // The true third-person camera is the default; the overhead views stay a setting away.
     this.setThirdPerson(this.settings.thirdPerson);
     this.resize();
@@ -440,6 +556,7 @@ class Game {
   /** Re-render whatever shows text after the language changes. */
   private onLangChange(): void {
     this.hud.refreshText();
+    if (PLAYTEST) this.hud.setPlaytest(true);
     // The language is picked in the pause menu's Settings tab; relabel it in place.
     if (this.menu.isOpen) this.menu.relabel(t('menu.paused'), this.mapTitle(this.mapName), this.mainTabs());
   }
@@ -1053,6 +1170,8 @@ class Game {
     this.race?.dispose();
     this.convoy = null;
     this.siege = null;
+    this.lock = null;
+    this.lockMark = null;
     this.race = null;
     this.loreStones = [];
     this.reading = null;
@@ -1137,10 +1256,19 @@ class Game {
         this.hud.staminaDenied();
         this.sfx.exhausted();
       },
-      strike: (o: THREE.Vector3, yaw: number, range: number, half: number, dmg: number) => [
+      strike: (o: THREE.Vector3, yaw: number, range: number, half: number, dmg: number, poise: number) => [
         ...this.npcs.hitArc(o, yaw, range, half, dmg),
-        ...this.enemies.hitArc(o, yaw, range, half, dmg),
+        ...this.enemies.hitArc(o, yaw, range, half, dmg, poise),
       ],
+      heavy: () => {
+        this.sfx.heavyCharge();
+        this.sfx.grunt(110);
+      },
+      backstep: () => {
+        this.sfx.backstep();
+        const p = this.player.pos;
+        this.particles.burst(new THREE.Vector3(p.x, p.y + 0.05, p.z), 6, { color: 0xd9b58a, speed: 1.2, up: 0.8, size: 0.1, life: 0.45, gravity: 2 });
+      },
       hit: (r: HitResult[]) => this.onPlayerHit(r),
       aim: (o: THREE.Vector3, yaw: number) => this.enemies.aimTarget(o, yaw, Math.max(3.4, this.player.weapon.range + 1), THREE.MathUtils.degToRad(55))?.pos ?? null,
     };
@@ -1577,6 +1705,17 @@ class Game {
           { label: t('debug.vultures'), kind: 'button', sub: () => t('debug.vulturesSub'), activate: () => this.debugSpawnFoes('vulture', 2, 16) },
           { label: t('debug.slinger'), kind: 'button', sub: () => t('debug.slingerSub'), activate: () => this.debugSpawnFoes('slinger', 1, 15) },
           { label: t('debug.clubman'), kind: 'button', sub: () => t('debug.clubmanSub'), activate: () => this.debugSpawnFoes('clubman', 1, 9) },
+          ...(PLAYTEST
+            ? [
+                { label: t('playtest.title'), kind: 'header' as const },
+                ...(['raider', 'skirmisher', 'brute', 'chief', 'dummy'] as const).map((k) => {
+                  const f = PLAYTEST_FOES.find((x) => x.kind === k)!;
+                  return { label: t(`playtest.${k}`), kind: 'button' as const, activate: () => this.debugSpawnFoes(f.kind, f.n, f.dist) };
+                }),
+                { label: t('playtest.clear'), kind: 'button' as const, activate: () => this.playtestClear() },
+                { label: t('playtest.refill'), kind: 'button' as const, activate: () => this.playtestRefill() },
+              ]
+            : []),
           { label: t('debug.world'), kind: 'header' },
           {
             label: t('debug.perf'),
@@ -1622,7 +1761,7 @@ class Game {
   }
 
   private controlRows(): MenuRow[] {
-    const list: Action[] = ['move', 'run', 'attack', 'block', 'dodge', 'jump', 'heal', 'talk', 'camera', 'zoom', 'inventory', 'map'];
+    const list: Action[] = ['move', 'run', 'attack', 'heavy', 'block', 'dodge', 'lockOn', 'jump', 'heal', 'talk', 'camera', 'zoom', 'inventory', 'map'];
     const label = (a: Action) => (a === 'camera' && this.cam.thirdPerson ? t('controls.look') : tOr(`controls.${a}`, a));
     return list.map((a) => ({ label: label(a), kind: 'info' as const, value: () => this.hud.key(a) }));
   }
@@ -1920,6 +2059,35 @@ class Game {
   private isNight(): boolean {
     const h = this.day.hours;
     return h >= 19.6 || h < 5.6;
+  }
+
+  /** ?playtest: hotkeys summon foes (1–8), 0 clears them, H restores health, stamina and draughts; a panel lists them. */
+  private setupPlaytest(): void {
+    window.addEventListener('keydown', (e) => {
+      if (this.menu.isOpen || this.dialogue || e.repeat) return;
+      const foe = PLAYTEST_FOES.find((x) => x.key === e.code);
+      if (foe) this.debugSpawnFoes(foe.kind, foe.n, foe.dist);
+      else if (e.code === 'Digit0') this.playtestClear();
+      else if (e.code === 'KeyH') this.playtestRefill();
+    });
+    this.hud.setPlaytest(true);
+  }
+
+  /** ?playtest: every foe on the plain falls. */
+  private playtestClear(): void {
+    for (const e of this.enemies.list) if (!e.dead) e.damage(99999, e.pos.clone().add(new THREE.Vector3(0, 0, 1)));
+    this.sfx.ui(false);
+  }
+
+  /** ?playtest: health, stamina, draughts and arrows back to full. */
+  private playtestRefill(): void {
+    const p = this.player;
+    p.hp = p.maxHp;
+    p.stamina = p.maxStamina;
+    this.progress.data.flasks = this.progress.maxFlasks;
+    this.progress.data.arrows = ARROW.max;
+    this.sfx.rest();
+    this.hud.showToast(t('playtest.refilled'), 1.5);
   }
 
   /** Debug: drop a group of a given enemy kind a short way ahead of the player. */
@@ -2468,8 +2636,10 @@ class Game {
   private handleInput(f: Frame): void {
     const horseStill = this.horseStillFor();
     if (f.zoom) this.cam.zoomBy(f.zoom);
-    if (f.rotate) this.cam.rotateBy(f.rotate);
-    if (this.cam.thirdPerson && (f.lookYaw || f.lookPitch)) {
+    // Locked on, the camera follows the foe (Z / C switch targets instead).
+    if (f.rotate && !this.lock) this.cam.rotateBy(f.rotate);
+    this.updateLock(f);
+    if (this.cam.thirdPerson && !this.lock && (f.lookYaw || f.lookPitch)) {
       // Aim assist slow-down: the stick turns more gently across a foe.
       const k = this.assisting() && this.foeNearView(THREE.MathUtils.degToRad(6)) ? 0.45 : 1;
       this.cam.look(f.lookYaw * k, f.lookPitch * k);
@@ -2604,7 +2774,11 @@ class Game {
       const bow = this.player.hasBow;
       items = [['move', t('hints.move')], ['run', t('hints.sprint')], ['attack', t(bow ? 'hints.loose' : 'hints.attack')], ['dodge', t('hints.roll')], ['jump', t(P.doubleJump ? 'hints.jump2' : 'hints.jump')], ['camera', t(this.cam.thirdPerson ? 'hints.look' : 'hints.camera')]];
       if (bow) items.push(['block', t('hints.aim')]);
-      else if (P.shield) items.push(['block', t('hints.block')]);
+      else {
+        items.push(['heavy', t('hints.heavy')]);
+        if (P.shield) items.push(['block', t('hints.block')]);
+      }
+      if (this.lock || this.player.inCombat) items.push(['lockOn', t(this.lock ? 'hints.unlock' : 'hints.lockOn')]);
       if (P.data.flasks > 0) items.push(['heal', t('hints.heal')]);
       items.push(['talk', t('hints.use')], ['map', t('hints.map')], ['inventory', t('hints.menu')]);
     }

@@ -194,6 +194,14 @@ Decisions worth knowing:
     - give gold, toggle god mode and unlock everything;
     - kill nearby enemies, show colliders, teleport to the next exit and start a new game.
 - **Stamina.** Attacks, rolls, jumps and sprinting cost stamina, and regen pauses briefly after each action. Rolls have i-frames from 0.06 to 0.42 s.
+- **Combat playtest** (`?playtest`, `playtest.ts`): an empty 160 m sand plain with a faint grid, built in code (no files). Progress lives in memory only (the real save is never read or written), with every weapon, the shield and five draughts.
+  - Keys 1–8 summon a raider, skirmisher, brute, chief, clubman, two hounds, an archer or a training dummy (`passive` Enemy, 5× health, never fights back); 0 clears the plain; H restores health, stamina, draughts and arrows. A panel lists them; on a controller the Debug tab has the same.
+- **Combat feel (Dark Souls style).**
+  - **Lock-on** (Q, middle click, R3; `Game.updateLock`): the nearest foe near the centre of the view within 22 m, marked with a white diamond. The third-person camera swings to keep the player between itself and the foe (`FollowCamera.lockOn`). Switch with Z / C, a sideways right-stick flick or a quick mouse swipe. If the foe dies or gets 28 m away, the next one takes over. With nothing to lock on to, the camera snaps behind the player.
+  - Locked on, the player faces the foe and strafes; moving away plays the walk or run clip backwards. This is the one exception to "face the movement direction"; a sprint breaks it and runs where you point.
+  - **Attacks are committed** (`ATTACK` in player.ts): the body steps into the blow over the end of the windup (light 0.55 m), can be steered only in its first 0.12 s, and stays planted until 0.2 s after the blow lands; then moving cancels the recovery, and a roll can cancel it earlier.
+  - **Flavours:** holding attack 0.22 s into a light blow turns it into a heavy one (HeavyAttack, 1.75× damage, double poise and guard damage, 1.6× stamina). Out of a sprint it's a running attack (2.4 m lunge); within 0.35 s of a roll, a rolling attack (1.4 m).
+  - **Backstep:** roll with no direction held (Backstep clip, 1.7 m back, i-frames 0.03–0.22 s, 14 stamina).
 - **Enemies.** Enemy spawns live in level.json as `role: "enemy"` with a `kind` and a `camp` (from `export_assets.py`). Enemy windups use the Attack and Attack2 overlays, slowed to the raise and then held. There's no separate windup clip.
 - **Clips added for the game.** The `Roll` and `Jump` clips are in `rigs.py` and play as one-shot base clips.
 - **Maps and travel.**

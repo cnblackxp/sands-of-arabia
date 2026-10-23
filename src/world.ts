@@ -4,6 +4,7 @@ import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { HeightField, Obstacles, type LevelData } from './level';
 import { NavGrid } from './nav';
 import { Physics } from './physics';
+import { PLAYTEST_MAP, playtestMap } from './playtest';
 
 /** Clip metadata from assets/manifest.json (layer drives animation layering). */
 export interface ClipMeta {
@@ -163,6 +164,8 @@ const mapCache = new Map<string, Promise<MapAssets>>();
 const mapListeners = new Map<string, Set<Progress>>();
 
 export function loadMap(entry: MapEntry, onProgress: Progress): Promise<MapAssets> {
+  // The combat playtest plain is built in code: nothing to download.
+  if (entry.name === PLAYTEST_MAP) return Promise.resolve(playtestMap());
   let listeners = mapListeners.get(entry.name);
   if (!listeners) mapListeners.set(entry.name, (listeners = new Set()));
   listeners.add(onProgress);

@@ -56,7 +56,8 @@ export interface Foe {
   readonly dormant: boolean;
   setDormant(on: boolean): void;
   onKilled: (e: Foe) => void;
-  damage(dmg: number, from: THREE.Vector3): HitResult;
+  /** `poise`: how hard the blow rocks them (a heavy blow counts double). */
+  damage(dmg: number, from: THREE.Vector3, poise?: number): HitResult;
   shot(dmg: number, from: THREE.Vector3, kind: 'arrow' | 'rock'): HitResult | null;
   reset(): void;
 }

@@ -754,6 +754,24 @@ html:lang(ar) .prompt i {
   color: #ffe2b0;
   text-shadow: 0 1px 2px #000;
 }
+/* ?playtest: the summoning keys, under the purse. */
+.playtest {
+  position: absolute;
+  left: 18px;
+  top: 124px;
+  max-width: 300px;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #ffe2b0;
+  background: rgba(30, 18, 10, 0.55);
+  border: 1px solid rgba(214, 165, 49, 0.5);
+  border-radius: 4px;
+  text-shadow: 0 1px 2px #000;
+}
+.playtest b {
+  color: #ffd25a;
+}
 .ammo small {
   opacity: 0.65;
 }

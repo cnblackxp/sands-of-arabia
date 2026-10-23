@@ -1,4 +1,5 @@
 import type { Vec3 } from './level';
+import { PLAYTEST } from './playtest';
 
 /**
  * Everything the player keeps between maps and sessions. Saved to
@@ -71,6 +72,13 @@ export class Progress {
 
   constructor() {
     this.data = freshProgress();
+    if (PLAYTEST) {
+      // The combat playtest never touches the real save: a full kit, kept in memory only.
+      this.data.weapons = ['bronze_sword', 'hunting_spear', 'iron_sword', 'brute_cleaver', 'composite_bow'];
+      this.data.upgrades = { shield: 1, flask: 3 };
+      this.data.flasks = 5;
+      return;
+    }
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) {
@@ -123,6 +131,7 @@ export class Progress {
     if (this.timer > 0) return;
     this.timer = 1;
     this.dirty = false;
+    if (PLAYTEST) return;
     try {
       localStorage.setItem(KEY, JSON.stringify(this.data));
     } catch {

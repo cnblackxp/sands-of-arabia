@@ -370,6 +370,21 @@ export class Sfx {
   roll(): void {
     this.noiseBurst(0.35, 400, 180, 0.6, 0.3, 'lowpass');
   }
+  /** A quick scuff back on the heels. */
+  backstep(): void {
+    this.noiseBurst(0.18, 700, 260, 0.8, 0.22, 'lowpass');
+    this.noiseBurst(0.08, 2200, 900, 1.2, 0.08, 'bandpass', 0, 0.12);
+  }
+  /** The held blow gathers: a breath and the blade drawn back. */
+  heavyCharge(): void {
+    this.noiseBurst(0.35, 300, 900, 0.9, 0.18, 'bandpass');
+    this.tone(0.25, 95, 120, 0.12, 'triangle');
+  }
+  /** Lock-on: a low wooden knock (on) or a softer one (off). */
+  lockOn(on: boolean): void {
+    this.tone(0.07, on ? 520 : 380, on ? 700 : 300, 0.09, 'triangle');
+    this.noiseBurst(0.05, 1800, 1200, 2, 0.06, 'bandpass');
+  }
   tell(): void {
     // Metallic glint before an enemy strike.
     this.tone(0.45, 2400, 2300, 0.18, 'sine');
