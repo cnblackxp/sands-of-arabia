@@ -13,6 +13,11 @@ export interface ClipMeta {
   layer?: 'upper' | 'full';
   hit_time?: number;
   windup_end_time?: number;
+  /** Earliest next attack, earliest move or roll out (s), forward travel (m), locomotion speed (m/s). */
+  chain_time?: number;
+  cancel_time?: number;
+  travel?: number;
+  speed?: number;
 }
 
 export interface MapEntry {

@@ -1195,7 +1195,7 @@ export const en = {
     run: 'Sprint (free out of combat)',
     attack: 'Attack (press again to chain)',
     block: 'Block with a shield / aim a bow (hold)',
-    heavy: 'Heavy attack (hold attack)',
+    heavy: 'Heavy attack: hold to gather it, let go to strike (G, K or a mouse side button)',
     lockOn: 'Lock on / let go (switch: flick the look, or Z / C)',
     dodge: 'Dodge roll',
     jump: 'Jump (hold for height)',

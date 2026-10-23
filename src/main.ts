@@ -1191,7 +1191,7 @@ class Game {
       },
       death: () => this.onPlayerDeath(),
       respawn: () => void this.respawnAtCheckpoint(),
-      swing: () => (this.player.weapon.clips.includes('Thrust') ? this.sfx.thrust() : this.sfx.swing(this.player.weapon.heavy)),
+      swing: () => (this.player.weapon.clips.includes('Thrust') ? this.sfx.thrust() : this.sfx.swing(this.player.weapon.heavy || this.player.heavyBlow)),
       knockdown: () => this.sfx.knockdown(),
       getUp: () => this.sfx.getUp(),
       shieldUp: () => this.sfx.shieldUp(),

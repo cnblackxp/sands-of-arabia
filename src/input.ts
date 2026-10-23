@@ -23,8 +23,11 @@ export interface Frame {
   moveY: number;
   run: boolean;
   attack: boolean;
-  /** Attack button still held (holding turns a light attack into a heavy one). */
+  /** Attack button still held. */
   attackHeld: boolean;
+  /** Heavy attack (G / K, a mouse side button, RB), and whether it's still held (gathering the blow). */
+  heavy: boolean;
+  heavyHeld: boolean;
   /** Lock on to a foe, or let go (Q, middle click, R3). */
   lockOn: boolean;
   /** While locked on: switch to the next foe to the left (-1) or right (+1). */
@@ -74,6 +77,9 @@ export class Input {
   private mmbDrag = false;
   /** Left button held, and how far a middle press has dragged (a click without a drag locks on). */
   private mouseHeld = false;
+  /** Mouse side button: pressed this frame, still held. */
+  private mouseHeavy = false;
+  private mouseHeavyHeld = false;
   private mmbMoved = 0;
   private mmbClick = false;
   /** Right stick flicked sideways (target switch) until it comes back near the centre. */
@@ -139,6 +145,11 @@ export class Input {
       } else if (e.button === 0) this.mouseAttack = true;
       if (e.button === 0) this.mouseHeld = true;
       if (e.button === 2) this.mouseBlock = true;
+      if (e.button === 3 || e.button === 4) {
+        // Side buttons: the heavy blow (not the browser's back / forward).
+        this.mouseHeavy = this.mouseHeavyHeld = true;
+        e.preventDefault();
+      }
       if (e.button === 1) {
         this.mmbDrag = true;
         this.mmbMoved = 0;
@@ -147,6 +158,10 @@ export class Input {
       this.device = 'keyboard';
     });
     window.addEventListener('mouseup', (e) => {
+      if (e.button === 3 || e.button === 4) {
+        this.mouseHeavyHeld = false;
+        if (document.pointerLockElement === canvas || this.thirdPerson) e.preventDefault();
+      }
       if (e.button === 0) this.mouseHeld = false;
       if (e.button === 2) this.mouseBlock = false;
       if (e.button === 1) {
@@ -194,6 +209,7 @@ export class Input {
     this.mouseBlock = false;
     this.mmbDrag = false;
     this.mouseHeld = false;
+    this.mouseHeavyHeld = false;
   }
 
   /** The held-back click counts after all (no pointer lock came of it). */
@@ -211,6 +227,7 @@ export class Input {
     this.bHeld = -2;
     this.pressed.clear();
     this.mouseAttack = false;
+    this.mouseHeavy = false;
     this.pendingClick = 0;
   }
 
@@ -230,6 +247,8 @@ export class Input {
       run: k.has('ShiftLeft') || k.has('ShiftRight'),
       attack: this.mouseAttack || p.has('KeyJ'),
       attackHeld: this.mouseHeld || k.has('KeyJ'),
+      heavy: this.mouseHeavy || p.has('KeyG') || p.has('KeyK'),
+      heavyHeld: this.mouseHeavyHeld || k.has('KeyG') || k.has('KeyK'),
       lockOn: p.has('KeyQ') || this.mmbClick,
       lockSwitch: (p.has('KeyC') ? 1 : 0) - (p.has('KeyZ') ? 1 : 0),
       dodge: p.has('Space'),
@@ -260,6 +279,7 @@ export class Input {
     this.lookDX = 0;
     this.lookDY = 0;
     this.mouseAttack = false;
+    this.mouseHeavy = false;
     this.mmbClick = false;
 
     this.readPad(f, dt);
@@ -313,9 +333,11 @@ export class Input {
     // L3: held, it sprints like Shift; clicked, sprint stays on until the stick lets go.
     if (this.runToggle || b(10)) f.run = true;
 
-    // Triggers: RT attacks (looses an arrow), LT blocks (draws and aims a bow). The bumpers do the same.
-    if (edge(7) || edge(5)) f.attack = true;
-    if (b(7) || b(5)) f.attackHeld = true;
+    // Triggers: RT attacks (looses an arrow), LT blocks (draws and aims a bow). RB is the heavy blow (held, it gathers).
+    if (edge(7)) f.attack = true;
+    if (b(7)) f.attackHeld = true;
+    if (edge(5)) f.heavy = true;
+    if (b(5)) f.heavyHeld = true;
     // R3 locks on; a sideways flick of the right stick switches target while locked.
     if (edge(11)) f.lockOn = true;
     const flick = ax(2);

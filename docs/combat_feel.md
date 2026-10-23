@@ -84,6 +84,8 @@ Written 2026-10-23 for the combat playtest (`?playtest`). The goal is combat tha
 
 ## 7. Art brief (sent to the Blender session)
 
+**Delivered** in `4de3be9` and wired up: the combo, running and rolling attacks, the charged heavy (on its own button, since the new light blows land at 0.21 s, before any hold could be told from a tap), strafes, Sprint, HitFront/HitBack, BowAimWalk and Land. BowShoot is not used yet. The chain and cancel windows are the art session's first guesses; tune them in play.
+
 Clips that would make this feel authored instead of patched in code. Each should carry its timings in the manifest: `hit_time`, `chain_time` (the earliest next attack), `cancel_time` (the earliest move or roll out) and `travel` (the forward metres the feet cover). All are short anticipation, a clear active frame and a follow-through that can be cut.
 
 1. **Light combo of three:**
