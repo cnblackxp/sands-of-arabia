@@ -13,10 +13,11 @@ import { GOLD_DROP, itemName, UPGRADES, upgradePrice, upgradeText, WEAPONS, weap
 import type { Exit, Spawn, Vec3 } from './level';
 import { beam, Bonfire, Chest, GoldPile, Icon, LoreStone, Pickup, Sluice, type IconKind } from './markers';
 import { Menu, type MenuRow, type MenuTab } from './menu';
+import { VirtualCursor } from './vcursor';
 import { BADGE, Minimap, type BadgeKind, type MapMarker } from './minimap';
 import { type Npc, NpcSystem } from './npc';
 import { Physics } from './physics';
-import { Player, type BowAim } from './player';
+import { Player, saveTune, TUNE, type BowAim } from './player';
 import { Race } from './race';
 import { Convoy } from './convoy';
 import type { Enemy } from './enemy';
@@ -160,6 +161,8 @@ class Game {
   private perfN = 0;
   private npcTargets = new Map<Npc, ProjTarget>();
   private hadPointerLock = false;
+  /** The menus' own cursor while the mouse stays captured. */
+  private vcursor = new VirtualCursor();
   particles!: Particles;
   glints!: Glints;
   minimap!: Minimap;
@@ -389,6 +392,7 @@ class Game {
     // Third person: losing the pointer lock (Esc) pauses, like most games.
     document.addEventListener('pointerlockchange', () => {
       const locked = document.pointerLockElement === this.canvas;
+      if (!locked) this.vcursor.hide();
       if (!locked && this.hadPointerLock && this.cam.thirdPerson && this.menu && !this.menu.isOpen && this.world) this.openMainMenu('settings');
       this.hadPointerLock = locked;
     });
@@ -473,6 +477,21 @@ class Game {
     this.hud.uiScale = this.uiScale;
   }
 
+  /** Fullscreen, holding on to Esc where the browser allows it (Keyboard Lock). */
+  private toggleFullscreen(): void {
+    const kb = (navigator as Navigator & { keyboard?: { lock?: (keys: string[]) => Promise<void>; unlock?: () => void } }).keyboard;
+    if (document.fullscreenElement) {
+      kb?.unlock?.();
+      void document.exitFullscreen().catch(() => {});
+      return;
+    }
+    void document.documentElement
+      .requestFullscreen()
+      .then(() => kb?.lock?.(['Escape']))
+      .then(() => this.menu.refresh())
+      .catch(() => this.hud.showToast(t('settings.fullscreenNo'), 3));
+  }
+
   /** Switch the debug true third-person camera (mouse / right-stick look). */
   private setThirdPerson(on: boolean): void {
     this.cam.setThirdPerson(on);
@@ -493,12 +512,14 @@ class Game {
     // Variants of one place (Marib after the flood) share quests and people.
     setMapAliases(Object.fromEntries(c.maps.maps.filter((m) => m.variant_of).map((m) => [m.name, m.variant_of!])));
     void this.music.load();
+    void this.sfx.loadSamples(import.meta.env.BASE_URL);
     this.factory = new CharacterFactory(c.person, c.horse, c.camel, c.personClips);
     this.factory.setWingedHorse(c.wingedHorse);
 
     const hudRoot = document.getElementById('hud')!;
     this.menu = new Menu(hudRoot, this.hud, (confirm) => this.sfx.ui(confirm));
     this.menu.onClose = () => {
+      this.vcursor.hide();
       // Back to the game: third person takes the mouse straight back (the browser
       // allows it while the click or key that closed the menu is fresh).
       if (this.cam.thirdPerson && document.pointerLockElement !== this.canvas) {
@@ -1236,7 +1257,7 @@ class Game {
       ],
       heavy: () => {
         this.sfx.heavyCharge();
-        this.sfx.grunt(110);
+        this.sfx.effort();
       },
       backstep: () => {
         this.sfx.backstep();
@@ -1364,9 +1385,8 @@ class Game {
   // --- menus -----------------------------------------------------------------------
 
   private openMainMenu(tab: string): void {
-    if (document.pointerLockElement) document.exitPointerLock();
-    // The menu wants the mouse: free it (and show the game's cursor).
-    if (document.pointerLockElement) document.exitPointerLock();
+    // The mouse stays captured (no click needed to come back): the menu gets its own cursor.
+    if (document.pointerLockElement === this.canvas) this.vcursor.show();
     this.menu.open(t('menu.paused'), this.mapTitle(this.mapName), this.mainTabs(), tab);
     this.cam.focus = true;
     this.minimap.setVisible(false);
@@ -1566,6 +1586,15 @@ class Game {
             activate: () => (this.settings.aimAssist = !this.settings.aimAssist),
           },
           {
+            // Fullscreen with the keyboard lock: Esc reaches the game instead of freeing the mouse (Chromium).
+            label: t('settings.fullscreen'),
+            kind: 'choice',
+            value: () => t(document.fullscreenElement ? 'menu.on' : 'menu.off'),
+            sub: () => t('settings.fullscreenSub'),
+            adjust: () => this.toggleFullscreen(),
+            activate: () => this.toggleFullscreen(),
+          },
+          {
             label: t('settings.uiScale'),
             kind: 'slider',
             value: () => `${Math.round(this.uiScale * 100)}%`,
@@ -1628,7 +1657,9 @@ class Game {
           { label: t('settings.reset'), kind: 'button', sub: () => t('settings.resetSub'), activate: () => this.resetSettings() },
           { label: t('settings.controls'), kind: 'header' },
           ...this.controlRows(),
-          ...(this.music.credits.length ? [{ label: t('settings.credits'), kind: 'header' as const }, ...this.music.credits.map((c) => ({ label: c, kind: 'info' as const }))] : []),
+          ...(this.music.credits.length || this.sfx.credits.length
+            ? [{ label: t('settings.credits'), kind: 'header' as const }, ...[...this.music.credits, ...this.sfx.credits].map((c) => ({ label: c, kind: 'info' as const }))]
+            : []),
         ],
       },
       {
@@ -1692,6 +1723,32 @@ class Game {
                 { label: t('playtest.refill'), kind: 'button' as const, activate: () => this.playtestRefill() },
               ]
             : []),
+          { label: t('debug.tuning'), kind: 'header' },
+          ...(
+            [
+              ['walk', 'debug.walkSpeed', 2, 9, 0.1],
+              ['sprint', 'debug.sprintSpeed', 4, 16, 0.1],
+              ['roll', 'debug.rollDistance', 2, 8, 0.1],
+            ] as const
+          ).map(([k, label, min, max, step]) => ({
+            label: t(label),
+            kind: 'slider' as const,
+            value: () => `${TUNE[k].toFixed(1)} ${k === 'roll' ? 'm' : 'm/s'}`,
+            adjust: (d: number) => {
+              TUNE[k] = Math.round(THREE.MathUtils.clamp(TUNE[k] + d * step, min, max) * 10) / 10;
+              saveTune();
+            },
+            slider: {
+              min,
+              max,
+              step,
+              get: () => TUNE[k],
+              set: (v: number) => {
+                TUNE[k] = Math.round(v * 10) / 10;
+                saveTune();
+              },
+            },
+          })),
           { label: t('debug.world'), kind: 'header' },
           {
             label: t('debug.perf'),
@@ -1799,7 +1856,6 @@ class Game {
   }
 
   private openShop(npc: Npc): void {
-    if (document.pointerLockElement) document.exitPointerLock();
     const d = this.progress.data;
     const P = this.progress;
     const buy = (price: number, fn: () => void) => {
@@ -1866,7 +1922,7 @@ class Game {
         ],
       },
     ];
-    if (document.pointerLockElement) document.exitPointerLock();
+    if (document.pointerLockElement === this.canvas) this.vcursor.show();
     this.menu.open(t('shop.title', { name: npc.name, title: npc.title }), t('shop.sub'), tabs, 'weapons');
     this.cam.focus = false;
     this.minimap.setVisible(false);
@@ -2162,7 +2218,7 @@ class Game {
       this.particles.burst(r.pos, r.killed ? 16 : 9, { color: 0x7a1a12, speed: 3.2, up: 2.6, size: 0.08, life: 0.55 });
       this.particles.burst(r.pos.clone().setY(r.pos.y - 1.0), 6, { color: 0xd9b58a, speed: 1.8, up: 1, size: 0.12, life: 0.5, gravity: 3 });
     }
-    const heavy = !!this.player.weapon.heavy;
+    const heavy = !!this.player.weapon.heavy || this.player.heavyBlow;
     this.sfx.hit(killed || heavy);
     this.time.hitstop(killed ? 0.13 : heavy ? 0.11 : 0.075);
     this.cam.addTrauma(killed ? 0.45 : heavy ? 0.4 : 0.28);

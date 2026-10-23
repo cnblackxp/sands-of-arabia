@@ -1351,6 +1351,9 @@ export const ar: Dict = {
     here: 'هنا',
   },
   settings: {
+    fullscreen: 'ملء الشاشة',
+    fullscreenSub: 'يبقى زر Esc في اللعبة فلا يفلت الفأرة (كروم وإيدج). أمسك Esc للخروج.',
+    fullscreenNo: 'أبى المتصفح ملء الشاشة. اختره بنقرة أو بزر Enter.',
     time: 'الوقت',
     timePasses: 'مرور الوقت',
     sunStays: 'تبقى الشمس حيث هي.',
@@ -1422,6 +1425,10 @@ export const ar: Dict = {
   },
   keys: { drag: 'اسحب', hold: 'مطولا' },
   debug: {
+    tuning: 'الضبط (الحركة)',
+    walkSpeed: 'سرعة المشي',
+    sprintSpeed: 'سرعة الركض',
+    rollDistance: 'مسافة التدحرج',
     camera: 'الكاميرا',
     thirdPerson: 'منظور الشخص الثالث (تجربة)',
     thirdPersonPad: 'العصا اليمنى للنظر، وأعلى الأسهم وأسفلها للتقريب',

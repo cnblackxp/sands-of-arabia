@@ -153,6 +153,7 @@ Run `npm install` and then `npm run dev` (port 5173; `.claude/launch.json` entry
 | `enemy.ts` | Raider enemies (raider, skirmisher, brute): telegraphed windup, committed strike, recovery, poise, combos, leashing. |
 | `fx.ts` | Hitstop, slow motion, voxel particles, hit and tell flashes, telegraph glints, synthesised WebAudio sounds. |
 | `menu.ts` | Pause menu (time of day, character look, robe colour, camera, minimap, volume, controls). |
+| `vcursor.ts` | The menus' own cursor while the mouse stays captured (pointer lock). |
 | `minimap.ts` | Corner minimap rotated to the camera. |
 | `physics.ts` | Rapier world and `Mover`, a kinematic capsule. |
 | `level.ts` | level.json types, `HeightField` sampler, `Obstacles` (2D OBB checks for NPC paths). |
@@ -204,7 +205,7 @@ Decisions worth knowing:
   - **Flavours:** holding attack 0.22 s into a light blow turns it into a heavy one (HeavyAttack, 1.75× damage, double poise and guard damage, 1.6× stamina). Out of a sprint it's a running attack (2.4 m lunge); within 0.35 s of a roll, a rolling attack (1.4 m).
   - **Backstep:** roll with no direction held (Backstep clip, 1.7 m back, i-frames 0.03–0.22 s, 14 stamina).
   - **Tuning so far** (see `docs/combat_feel.md` for the research and the art brief):
-    - walk 3.4 m/s, sprint 6.9 m/s, full pace in about 0.1 s, and stick speed follows the push smoothly from 0.8 m/s;
+    - walk 4.0 m/s, sprint 8.0 m/s, roll 4.2 m (`TUNE` in player.ts; Debug → Tuning has sliders, saved under `sands-of-arabia.tune.v1`), full pace in about 0.1 s, and stick speed follows the push smoothly from 0.8 m/s;
     - a forward lean into the run (`Player.lean`);
     - stamina shows a trailing spent chunk like health, and refills up to 1.7× faster once left alone for a second;
     - a press during a swing waits for its chain point; a heavy blow needs the very press that began the swing held 0.34 s (`presses` / `swingPress`), so quick taps never turn heavy;
@@ -277,6 +278,10 @@ Decisions worth knowing:
   - Map downloads retry 3 times. A failed travel keeps you on the current map with a toast, instead of hanging on the loading screen.
   - A few seconds after arrival, the maps behind each exit are prefetched in the background, one at a time.
   - Shaders compile with `compileAsync` behind the loading screen.
+- **Recorded combat sounds** (`assets/audio/sfx/`, listed in `sfx.json` with credits; all CC0). `Sfx.loadSamples` fetches them at start and decodes them once the audio context exists; until then, or if one fails, the synthesised sound plays. `Sfx.sample` never repeats the last pick and varies the pitch ±4%.
+  - swing (heavy pitched down), hit (slash + flesh or flesh_heavy + a low synth thump), hurt (a cry + flesh_heavy), roll (cloth + a late thud), clang (sword clash), grunt (pitched by the voice), death (a cry), effort (the player's heavy charge).
+  - The voices are men's: a voice pitched 190 Hz or higher (women) keeps the synthesised grunt and only the fall on death.
+- **Menus keep the mouse.** Opening the menu or shop while the mouse is captured keeps the pointer lock and shows the game's own cursor (`vcursor.ts`): it moves on the mouse's motion, clicks, hovers, drags sliders (mirrored in Arabic) and scrolls. Closing needs no click. Esc is the browser's and always frees the mouse, except in fullscreen (Settings → Fullscreen), where the Keyboard Lock API (Chrome, Edge) passes it to the game. Tab and P also open the menu.
 - **Input safety.** Losing focus, hiding the tab or a pointer-lock change releases all held keys, and `mousemove` drops buttons whose `mouseup` was missed. A stuck key used to close dialogue at once.
 - **Sky lighting** (PMREM environment) is rebuilt at most once a second, however fast time runs.
 - **Map batches.**

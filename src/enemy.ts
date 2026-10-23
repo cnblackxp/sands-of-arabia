@@ -561,7 +561,7 @@ export class Enemy implements Foe {
       this.knock.copy(away).multiplyScalar(3);
       this.enter('dead');
       this.collider.setEnabled(false);
-      this.sfx.death();
+      this.sfx.death(this.voicePitch * 0.9);
       this.sfx.grunt(this.voicePitch * 0.75, 0, 1.2);
       res.killed = true;
       this.onKilled(this);

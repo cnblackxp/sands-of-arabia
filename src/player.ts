@@ -11,9 +11,25 @@ import type { Progress } from './progress';
 import { dampAngle, wrapAngle } from './util';
 import type { ClipMeta, World } from './world';
 
-export const WALK_SPEED = 3.4;
-export const RUN_SPEED = 6.9;
-/** A light push on the stick walks slowly (a real walk), a full push moves at WALK_SPEED. */
+/**
+ * Movement tuning, editable from Debug → Tuning (saved in localStorage) so the
+ * numbers can be tried in play: walking and sprinting speed (m/s), roll distance (m).
+ */
+export const TUNE = { walk: 4.0, sprint: 8.0, roll: 4.2 };
+const TUNE_KEY = 'sands-of-arabia.tune.v1';
+try {
+  Object.assign(TUNE, JSON.parse(localStorage.getItem(TUNE_KEY) ?? '{}'));
+} catch {
+  // Defaults.
+}
+export function saveTune(): void {
+  try {
+    localStorage.setItem(TUNE_KEY, JSON.stringify(TUNE));
+  } catch {
+    // Not saved this time.
+  }
+}
+/** A light push on the stick walks slowly (a real walk), a full push moves at the walking pace. */
 const SLOW_WALK = { min: 0.8, dead: 0.08 };
 
 /** Stamina costs (Dark Souls style: actions need stamina > 0; regen pauses after use). */
@@ -350,6 +366,10 @@ export class Player implements PlayerView {
   get attacking(): boolean {
     return this.attackT >= 0;
   }
+  /** The blow landing now is a heavy one (held attack). */
+  get heavyBlow(): boolean {
+    return this.attackT >= 0 && this.attackKind === 'heavy';
+  }
   get busy(): boolean {
     return this.attackT >= 0 || this.rollT >= 0 || this.airborne || this.staggerT > 0 || this.healT >= 0;
   }
@@ -643,7 +663,7 @@ export class Player implements PlayerView {
       if (mag > 0.001) {
         this.moveDir.lerp(dir, 1 - Math.exp(-dt * 6)).normalize();
         this.yawTarget = Math.atan2(this.moveDir.x, this.moveDir.z);
-        this.speed = Math.max(this.speed, mag * WALK_SPEED * 1.4);
+        this.speed = Math.max(this.speed, mag * TUNE.walk * 1.4);
       } else if (!this.leaping) {
         this.speed = Math.max(0, this.speed - JUMP.air * dt);
       }
@@ -702,7 +722,7 @@ export class Player implements PlayerView {
       this.rollT += dt;
       const R = this.backstep ? BACKSTEP : ROLL;
       const u = this.rollT / R.duration;
-      const v = (R.distance / R.duration) * (u < 0.7 ? 1.25 : Math.max(0, 1.25 * (1 - (u - 0.7) / 0.3)));
+      const v = ((this.backstep ? R.distance : TUNE.roll) / R.duration) * (u < 0.7 ? 1.25 : Math.max(0, 1.25 * (1 - (u - 0.7) / 0.3)));
       const r = this.mover.move(this.rollDir.x * v * dt, this.rollDir.z * v * dt);
       step = r;
       if (r.falling) this.beginFall();
@@ -804,7 +824,7 @@ export class Player implements PlayerView {
           const slow = this.attackT >= 0 ? 0.35 : this.blocking ? 0.5 : this.healT >= 0 ? 0.4 : aiming ? BOW.moveK : 1;
           // Stick: speed follows the push, from a slow walk to the full pace (keys always push fully).
           const k = THREE.MathUtils.clamp((mag - SLOW_WALK.dead) / (1 - SLOW_WALK.dead), 0, 1);
-          const pace = sprinting ? RUN_SPEED * Math.max(0.6, k) : SLOW_WALK.min + (WALK_SPEED - SLOW_WALK.min) * k;
+          const pace = sprinting ? TUNE.sprint * Math.max(0.6, k) : SLOW_WALK.min + (TUNE.walk - SLOW_WALK.min) * k;
           const target = (aiming && this.aimLocksMove ? 0 : mag > 0.001 ? pace : 0) * slow;
           if (aiming && this.aim) {
             // Drawn: strafe while facing the shot.
@@ -1034,7 +1054,7 @@ export class Player implements PlayerView {
     if (this.attackQueued > 0 && canStart && !this.talking && !this.blocking) {
       this.attackQueued = 0;
       // Out of a sprint or a roll, the blow has its own flavour.
-      const kind: AttackKind = this.horse || this.airborne ? 'light' : this.attackT < 0 && this.speed > WALK_SPEED * 1.25 ? 'running' : this.sinceRoll < 0.35 ? 'rolling' : 'light';
+      const kind: AttackKind = this.horse || this.airborne ? 'light' : this.attackT < 0 && this.speed > TUNE.walk * 1.25 ? 'running' : this.sinceRoll < 0.35 ? 'rolling' : 'light';
       if (this.spend(this.wpn.stamina * ATTACK[kind].stamina)) {
         this.attackIdx = (this.attackIdx + 1) % this.swings.length;
         this.startSwing(this.swings[this.attackIdx], kind);

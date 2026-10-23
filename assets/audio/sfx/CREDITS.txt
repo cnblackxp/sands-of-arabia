@@ -1,0 +1,9 @@
+Combat sound effects, trimmed, levelled and re-encoded as 64 kbps mono MP3.
+All are CC0 (public domain dedication); credit is given as thanks.
+
+swing_*        artisticdude, "Swishes Sound Pack"            https://opengameart.org/content/swishes-sound-pack
+slash_*        Kenney, "50 RPG Sound Effects"                https://opengameart.org/content/50-rpg-sound-effects
+roll_*         Kenney, "50 RPG Sound Effects" (cloth)        https://opengameart.org/content/50-rpg-sound-effects
+flesh_*, thud_* Kenney, "Impact Sounds"                      https://kenney.nl/assets/impact-sounds
+clash_*        StarNinjas, "20 Sword Sound Effects"          https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes
+grunt_*, hurt_*, death_*  HaelDB, "Male Grunt/Yelling Sounds" (CC0 / OGA-BY 3.0)  https://opengameart.org/content/male-gruntyelling-sounds

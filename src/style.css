@@ -901,3 +901,18 @@ html:lang(ar) .dialogue.verse .dlg-text {
 .boss-fill {
   background: linear-gradient(#b0281a, #6d140c);
 }
+
+/* The menus' own cursor while the mouse stays captured (vcursor.ts). */
+.vcursor {
+  position: fixed;
+  left: -3px;
+  top: -2px;
+  width: 28px;
+  height: 28px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 2 L3 22 L8.5 17 L12.5 26 L16 24.5 L12 15.8 L19.5 15.8 Z' fill='%23e8b85a' stroke='%232a1708' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M5 6 L5 17' stroke='rgba(255,255,255,0.55)' stroke-width='1.2'/%3E%3C/svg%3E") no-repeat;
+  pointer-events: none;
+  z-index: 100000;
+}
+.vcursor.hot {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 2 L3 22 L8.5 17 L12.5 26 L16 24.5 L12 15.8 L19.5 15.8 Z' fill='%23ffd98a' stroke='%232a1708' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M5 6 L5 17' stroke='rgba(255,255,255,0.55)' stroke-width='1.2'/%3E%3C/svg%3E");
+}

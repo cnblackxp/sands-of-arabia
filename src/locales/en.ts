@@ -1134,6 +1134,9 @@ export const en = {
     here: 'here',
   },
   settings: {
+    fullscreen: 'Fullscreen',
+    fullscreenSub: 'Esc stays in the game and no longer frees the mouse (Chrome, Edge). Hold Esc to leave.',
+    fullscreenNo: 'The browser refused fullscreen. Choose it with a click or Enter.',
     time: 'Time of day',
     timePasses: 'Time passes',
     sunStays: 'The sun stays where it is.',
@@ -1207,6 +1210,10 @@ export const en = {
   /** Small words inside key glyphs ("MMB drag", "B hold"). */
   keys: { drag: 'drag', hold: 'hold' },
   debug: {
+    tuning: 'Tuning (movement)',
+    walkSpeed: 'Walking speed',
+    sprintSpeed: 'Sprinting speed',
+    rollDistance: 'Roll distance',
     camera: 'Camera',
     thirdPerson: 'True third person (test)',
     thirdPersonPad: 'Right stick looks, D-pad up/down zooms',

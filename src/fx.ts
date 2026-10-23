@@ -256,6 +256,72 @@ export class Sfx {
   readonly muted = new URLSearchParams(location.search).has('mute');
   /** Called once the context exists (music and ambience start then). */
   onReady: (ctx: AudioContext) => void = () => {};
+  /**
+   * Recorded combat sounds (assets/audio/sfx, listed in sfx.json), fetched at
+   * start and decoded once the context exists. Until then, or if they fail, the
+   * synthesised versions play instead.
+   */
+  private raw = new Map<string, ArrayBuffer[]>();
+  private samples = new Map<string, AudioBuffer[]>();
+  private lastPick = new Map<string, number>();
+  credits: string[] = [];
+
+  async loadSamples(base: string): Promise<void> {
+    try {
+      const r = await fetch(base + 'audio/sfx/sfx.json');
+      if (!r.ok) return;
+      const j = (await r.json()) as { groups: Record<string, string[]>; credits?: string[] };
+      this.credits = j.credits ?? [];
+      await Promise.all(
+        Object.entries(j.groups).map(async ([name, list]) => {
+          const bufs = await Promise.all(list.map((f) => fetch(base + 'audio/sfx/' + f).then((x) => (x.ok ? x.arrayBuffer() : null))));
+          this.raw.set(name, bufs.filter((b): b is ArrayBuffer => !!b));
+        }),
+      );
+      if (this.ctx) this.decodeSamples();
+    } catch {
+      // No recordings: the synthesised sounds stand in.
+    }
+  }
+
+  private decodeSamples(): void {
+    const c = this.ctx;
+    if (!c) return;
+    for (const [name, list] of this.raw) {
+      this.raw.delete(name);
+      void Promise.all(list.map((b) => c.decodeAudioData(b.slice(0)).catch(() => null))).then((out) => {
+        const ok = out.filter((x): x is AudioBuffer => !!x);
+        if (ok.length) this.samples.set(name, ok);
+      });
+    }
+  }
+
+  /**
+   * Play one recording from a group (never the same one twice running, a touch
+   * of pitch variety). Returns false when the group isn't loaded, so the caller
+   * can synthesise instead.
+   */
+  private sample(name: string, opts: { gain?: number; rate?: number; pan?: number; delay?: number } = {}): boolean {
+    const list = this.samples.get(name);
+    const c = this.ctx;
+    if (!list?.length || !c) return false;
+    const gain = opts.gain ?? 1;
+    const rate = (opts.rate ?? 1) * (0.96 + Math.random() * 0.08);
+    if (!(gain >= 0.002) || !Number.isFinite(rate)) return true;
+    const out = this.out(opts.pan ?? 0);
+    if (!out) return false;
+    let i = Math.floor(Math.random() * list.length);
+    if (list.length > 1 && i === this.lastPick.get(name)) i = (i + 1) % list.length;
+    this.lastPick.set(name, i);
+    const src = c.createBufferSource();
+    src.buffer = list[i];
+    src.playbackRate.value = Math.max(0.5, Math.min(2, rate));
+    const g = c.createGain();
+    g.gain.value = gain;
+    src.connect(g).connect(out);
+    src.start(c.currentTime + Math.max(0, opts.delay ?? 0));
+    return true;
+  }
 
   get context(): AudioContext | null {
     return this.ctx;
@@ -289,6 +355,7 @@ export class Sfx {
       this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
       const d = this.noise.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      this.decodeSamples();
       this.onReady(this.ctx);
     }
     if (this.ctx.state === 'suspended') void this.ctx.resume();
@@ -356,19 +423,35 @@ export class Sfx {
   }
 
   // --- combat -------------------------------------------------------------
+  /** A blade through the air (a heavy blow lower and fuller). */
   swing(heavy = false): void {
+    if (this.sample('swing', { gain: heavy ? 1 : 0.75, rate: heavy ? 0.78 : 1.05 })) return;
     this.noiseBurst(heavy ? 0.32 : 0.22, heavy ? 500 : 900, heavy ? 2200 : 3800, 1.4, heavy ? 0.35 : 0.25);
   }
+  /** A blow landing on a body: the cut, the thump, and a low weight under both. */
   hit(heavy = false): void {
-    this.tone(heavy ? 0.25 : 0.16, heavy ? 110 : 160, 45, 0.8, 'triangle');
-    this.noiseBurst(0.09, 2500, 600, 0.8, 0.45, 'lowpass');
+    const cut = this.sample('slash', { gain: heavy ? 0.75 : 0.6, rate: heavy ? 0.85 : 1 });
+    const body = this.sample(heavy ? 'flesh_heavy' : 'flesh', { gain: heavy ? 0.95 : 0.8 });
+    this.tone(heavy ? 0.25 : 0.16, heavy ? 110 : 160, 45, cut || body ? 0.35 : 0.8, 'triangle');
+    if (!cut && !body) this.noiseBurst(0.09, 2500, 600, 0.8, 0.45, 'lowpass');
   }
+  /** The player struck: a cry and a blow to the body. */
   hurt(): void {
+    const cry = this.sample('hurt', { gain: 0.8 });
+    this.sample('flesh_heavy', { gain: 0.6, rate: 0.9 });
+    if (cry) return;
     this.tone(0.3, 140, 50, 0.9, 'square');
     this.noiseBurst(0.15, 1200, 300, 0.7, 0.4, 'lowpass');
   }
+  /** The player's effort (a heavy blow gathering). */
+  effort(): void {
+    if (!this.sample('hurt', { gain: 0.4, rate: 1.12 })) this.grunt(110);
+  }
+  /** Cloth and sand as the body tumbles, then the thud of landing. */
   roll(): void {
-    this.noiseBurst(0.35, 400, 180, 0.6, 0.3, 'lowpass');
+    const ok = this.sample('roll', { gain: 0.85 });
+    this.sample('thud', { gain: 0.35, delay: 0.2, rate: 1.1 });
+    if (!ok) this.noiseBurst(0.35, 400, 180, 0.6, 0.3, 'lowpass');
   }
   /** A quick scuff back on the heels. */
   backstep(): void {
@@ -390,11 +473,14 @@ export class Sfx {
     this.tone(0.45, 2400, 2300, 0.18, 'sine');
     this.tone(0.35, 3600, 3500, 0.08, 'sine', 0.01);
   }
-  death(): void {
+  /** A dying cry in the speaker's voice (the recordings are men's; a high voice keeps only the fall). */
+  death(pitch = 125): void {
+    if (pitch < 190) this.sample('death', { gain: 0.85, rate: Math.max(0.72, Math.min(1.2, pitch / 130)) });
     this.tone(0.6, 90, 35, 0.9, 'triangle');
     this.noiseBurst(0.4, 800, 120, 0.6, 0.35, 'lowpass');
   }
   clang(): void {
+    if (this.sample('clash', { gain: 0.65, rate: 1.1 })) return;
     this.tone(0.35, 1700, 1500, 0.22, 'square');
     this.tone(0.5, 2900, 2700, 0.1, 'sine', 0.005);
     this.noiseBurst(0.08, 5000, 2000, 1.2, 0.3, 'highpass');
@@ -523,6 +609,9 @@ export class Sfx {
   }
   /** Someone hurt: a gruff grunt (raiders) — pitch in Hz. */
   grunt(pitch = 130, pan = 0, gain = 1): void {
+    // Recorded voices, pitched by the speaker (brutes deep, skirmishers light); a dying cry (gain > 1) is left to death().
+    if (gain > 1.1 && this.samples.has('death')) return;
+    if (pitch < 190 && this.sample('grunt', { gain: 0.85 * gain, rate: Math.max(0.72, Math.min(1.3, pitch / 130)), pan })) return;
     this.tone(0.18, pitch * 1.15, pitch * 0.8, 0.22 * gain, 'sawtooth', 0, pan);
     this.noiseBurst(0.14, 700, 400, 3, 0.18 * gain, 'bandpass', pan);
   }

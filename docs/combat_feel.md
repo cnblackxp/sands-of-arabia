@@ -53,7 +53,7 @@ Written 2026-10-23 for the combat playtest (`?playtest`). The goal is combat tha
 - Root motion is good for authored moves (lunges, rolls), and many games mix the two.
 
 **Ours.** Movement is in-place and code-driven, and attacks and rolls move the body in code.
-- **Speeds:** walk 3.4 m/s, sprint 6.9 m/s.
+- **Speeds:** walk 4.0 m/s, sprint 8.0 m/s, roll 4.2 m, all tunable in Debug → Tuning.
 - **Acceleration:** full pace in about 0.1 s.
 - **Stick:** speed follows the push smoothly, from 0.8 m/s.
 - **Lunges:** light 0.9 m, heavy 1.3 m, running 2.6 m, rolling 1.6 m.

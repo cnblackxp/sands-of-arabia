@@ -1,0 +1,74 @@
+{
+  "groups": {
+    "clash": [
+      "clash_0.mp3",
+      "clash_1.mp3",
+      "clash_2.mp3",
+      "clash_3.mp3"
+    ],
+    "death": [
+      "death_0.mp3",
+      "death_1.mp3",
+      "death_2.mp3",
+      "death_3.mp3"
+    ],
+    "flesh": [
+      "flesh_0.mp3",
+      "flesh_1.mp3",
+      "flesh_2.mp3",
+      "flesh_3.mp3",
+      "flesh_4.mp3"
+    ],
+    "flesh_heavy": [
+      "flesh_heavy_0.mp3",
+      "flesh_heavy_1.mp3",
+      "flesh_heavy_2.mp3",
+      "flesh_heavy_3.mp3",
+      "flesh_heavy_4.mp3"
+    ],
+    "grunt": [
+      "grunt_0.mp3",
+      "grunt_1.mp3",
+      "grunt_2.mp3",
+      "grunt_3.mp3",
+      "grunt_4.mp3",
+      "grunt_5.mp3",
+      "grunt_6.mp3",
+      "grunt_7.mp3"
+    ],
+    "hurt": [
+      "hurt_0.mp3",
+      "hurt_1.mp3",
+      "hurt_2.mp3",
+      "hurt_3.mp3",
+      "hurt_4.mp3"
+    ],
+    "roll": [
+      "roll_0.mp3",
+      "roll_1.mp3",
+      "roll_2.mp3",
+      "roll_3.mp3"
+    ],
+    "slash": [
+      "slash_0.mp3",
+      "slash_1.mp3",
+      "slash_2.mp3"
+    ],
+    "swing": [
+      "swing_0.mp3",
+      "swing_1.mp3",
+      "swing_2.mp3",
+      "swing_3.mp3",
+      "swing_4.mp3",
+      "swing_5.mp3"
+    ],
+    "thud": [
+      "thud_0.mp3",
+      "thud_1.mp3",
+      "thud_2.mp3"
+    ]
+  },
+  "credits": [
+    "Sound effects (CC0): StarNinjas, \"20 Sword Sound Effects\" (opengameart.org/users/starninjas); artisticdude, \"Swishes Sound Pack\"; Kenney (kenney.nl), \"50 RPG Sound Effects\" and \"Impact Sounds\"; HaelDB, \"Male Grunt/Yelling Sounds\"."
+  ]
+}
