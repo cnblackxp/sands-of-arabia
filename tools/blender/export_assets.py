@@ -437,6 +437,12 @@ def clip_info():
             d["windup_end_time"] = round((a["windup_end"] - 1) / fps, 3)
         if "release" in a:
             d["release_time"] = round((a["release"] - 1) / fps, 3)
+        for k in ("chain", "cancel"):                       # earliest next attack / earliest move or roll out
+            if k in a:
+                d[k + "_time"] = round((a[k] - 1) / fps, 3)
+        for k in ("travel", "speed"):                       # metres the feet cover / ground speed m/s
+            if k in a:
+                d[k] = a[k]
         out[a.name] = d
     return out
 

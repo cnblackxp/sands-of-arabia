@@ -140,6 +140,7 @@ def _bake_linear(act):
     first = min(fc.keyframe_points[0].co.x for fc in fcs)
     last = max(fc.keyframe_points[-1].co.x for fc in fcs)
     frames = list(range(int(round(first)), int(math.ceil(last - 1e-6)) + 1))
+    shift = 1.0                                    # authored frame 1 -> frame 0, so every track starts at t = 0
     vals = {fc: [fc.evaluate(f) for f in frames] for fc in fcs}
     quats = {}
     for fc in fcs:
@@ -160,13 +161,13 @@ def _bake_linear(act):
         kp = fc.keyframe_points
         kp.clear()
         kp.add(len(frames))
-        kp.foreach_set("co", [x for f, v in zip(frames, vals[fc]) for x in (f, v)])
+        kp.foreach_set("co", [x for f, v in zip(frames, vals[fc]) for x in (f - shift, v)])
         for k in kp:
             k.interpolation = "LINEAR"
         fc.update()
 
 
-def clip(arm, name, length, keys, loop=True):
+def clip(arm, name, length, keys, loop=True, split=True):
     """keys: {frame: {bone: {"rot": (x,y,z) deg, "loc": (x,y,z)}}}.
 
     Every bone mentioned anywhere in the clip is keyed on every key frame (missing
@@ -180,7 +181,8 @@ def clip(arm, name, length, keys, loop=True):
     arm.animation_data_create()
     arm.animation_data.action = act
     bones = sorted({b for fr in keys.values() for b in fr})
-    keys = _split_wide(arm, keys, bones)
+    if split:                                      # off for per-frame keys built from quaternions (sword_clip)
+        keys = _split_wide(arm, keys, bones)
     prev = {}
     for f in sorted(keys):
         for b in bones:
@@ -202,7 +204,7 @@ def clip(arm, name, length, keys, loop=True):
     act["frames"] = length
     try:
         act.use_frame_range = True
-        act.frame_range = (1, length + 1)
+        act.frame_range = (0, length)
     except (AttributeError, TypeError):
         pass
     # park it on an NLA track so the exporter sees every clip
@@ -775,7 +777,271 @@ def person_clips(arm):
         "arm_R": {"rot": (-35, 0, -10)},
         "spine": {"rot": (4 + 1.5 * S(t), 0, 0)},
     }))
+    combat_clips(arm, bow_pose, d13["arm_R"]["rot"])
 
+
+def V(right, fwd, up):
+    """Direction in the character's frame (right, forward, up) -> Blender (the character faces -Y)."""
+    return Vector((right, -fwd, up)).normalized()
+
+
+def _slerp_dir(a, b, t):
+    a, b = a.normalized(), b.normalized()
+    ang = a.angle(b) if a.dot(b) < 0.99999 else 0.0
+    if ang < 1e-5:
+        return a.lerp(b, t).normalized()
+    return ((math.sin((1 - t) * ang) * a + math.sin(t * ang) * b) / math.sin(ang)).normalized()
+
+
+def sword_clip(arm, name, length, keys, loop=False):
+    """A sword clip authored as where arm_R points and where the blade points (both relative to the
+    torso), keyed on every frame. Between the authored keys both directions sweep along great circles
+    (eased in and out) and the other bones blend; each frame swings on from the previous one by the
+    smallest rotation, so neither the arm nor the wrist rolls about itself. The roll that such a loop
+    still gathers is unwound over the clip (about the arm / blade axis, so no direction changes) so it
+    ends exactly at rest. keys: {frame: (arm_dir, blade_dir, {bone: (x, y, z)}) or None for rest};
+    arm_dir / blade_dir as (right, forward, up); "hips" in the bone dict is a location."""
+    from mathutils import Quaternion
+    blade0 = Vector((0, -math.cos(R(30)), -math.sin(R(30))))       # the Sword rests forward-down 30 deg
+    loc = lambda v: Vector((v.x, v.z, -v.y))                      # world axes -> bone-local (Y up, Z back)
+    eul = lambda q: tuple(round(math.degrees(a), 2) for a in q.to_euler("ZYX"))
+    spec = {f: ((V(0, 0, -1), blade0, {}) if k is None else (V(*k[0]), V(*k[1]), k[2])) for f, k in keys.items()}
+    frames = sorted(spec)
+    bones = sorted({b for _, _, d in spec.values() for b in d})
+    a, h = Quaternion(), Quaternion()
+    swing, out, quats = 0.0, {}, []
+    for f in range(frames[0], frames[-1] + 1):
+        f0 = max(k for k in frames if k <= f)
+        f1 = min((k for k in frames if k > f), default=f0)
+        t = 0.0 if f1 == f0 else (f - f0) / (f1 - f0)
+        t = t * t * (3 - 2 * t)                                     # ease in and out of every key
+        (ad0, bd0, d0), (ad1, bd1, d1) = spec[f0], spec[f1]
+        ad, bd = _slerp_dir(ad0, ad1, t), _slerp_dir(bd0, bd1, t)
+        a0, h0 = a.copy(), h.copy()
+        a = (a @ Vector((0, -1, 0))).rotation_difference(loc(ad)) @ a
+        h = a.inverted() @ (a @ h @ loc(blade0)).rotation_difference(loc(bd)) @ a @ h
+        swing += a0.rotation_difference(a).angle + h0.rotation_difference(h).angle
+        quats.append((f, a.copy(), h.copy(), swing))
+        pose = {}
+        for b in bones:
+            v0, v1 = d0.get(b, (0, 0, 0)), d1.get(b, (0, 0, 0))
+            v = tuple(x + (y - x) * t for x, y in zip(v0, v1))
+            pose[b] = {"loc": v} if b == "hips" else {"rot": v}
+        out[f] = pose
+    down, bl = Vector((0, -1, 0)), loc(blade0)
+    _, a_end, h_end, total = quats[-1]
+    ax, ang = a_end.to_axis_angle()
+    wrap = lambda x: (x + math.pi) % math.tau - math.pi
+    ra = wrap(ang if ax.dot(down) > 0 else -ang)                    # leftover roll of the arm about itself
+    hh = Quaternion(down, ra) @ h_end
+    ax, ang = hh.to_axis_angle()
+    rh = wrap(ang if ax.dot(bl) > 0 else -ang)                      # and of the wrist about the blade
+    for f, qa, qh, sw in quats:
+        w = sw / total if total else 1.0
+        fa = Quaternion(down, -ra * w)
+        out[f]["arm_R"] = {"rot": eul(qa @ fa)}
+        out[f]["hand_R"] = {"rot": eul(fa.inverted() @ qh @ Quaternion(bl, -rh * w))}
+    return clip(arm, name, length, out, loop=loop, split=False)
+
+
+def _meta(name, **kw):
+    """Combat timings on the action (frames, exported as *_time) and travel / speed (metres, m/s)."""
+    a = bpy.data.actions[name]
+    for k, v in kw.items():
+        a[k] = v
+
+
+def combat_clips(arm, bow_pose, drawn):
+    """Dark Souls-style player set: three-hit combo, running and rolling attacks, charged heavy, lock-on
+    strafes, sprint, directional flinches, quick bow shot, walking aim and landing. Combo1-3, RunAttack,
+    RollAttack and HeavyRelease are full body (the legs step; the game moves the root by `travel`).
+    Attack / Attack2 stay as they were for enemies and mounted riders."""
+    rest = {}
+
+    def pose(arm_dir, blade_dir, **bones):
+        return (arm_dir, blade_dir, bones)
+
+    # Combo1: horizontal slash right-to-left with a half step onto the left foot
+    sword_clip(arm, "Combo1", 16, {
+        1: None,
+        4: pose((0.8, -0.35, 0.45), (0.3, -0.95, 0.15), spine=(-4, 30, 0), head=(-4, -24, 0),
+                arm_L=(-25, 0, -10), hips=(0, -0.03, 0), leg_R=(10, 0, 0)),
+        6: pose((0.35, 0.9, 0.1), (-0.1, 1, 0), spine=(4, 0, 0), head=(2, 0, 0), arm_L=(10, 0, -12),
+                hips=(0, -0.07, 0), leg_L=(-22, 0, 0), leg_R=(16, 0, 0)),
+        8: pose((-0.6, 0.75, -0.1), (-0.95, -0.2, -0.1), spine=(8, -28, 0), head=(4, 22, 0),
+                arm_L=(20, 0, -14), hips=(0, -0.08, 0), leg_L=(-24, 0, 0), leg_R=(18, 0, 0)),
+        11: pose((-0.5, 0.65, -0.35), (-0.8, 0.1, -0.5), spine=(6, -22, 0), head=(3, 16, 0),
+                 arm_L=(14, 0, -10), hips=(0, -0.06, 0), leg_L=(-20, 0, 0), leg_R=(14, 0, 0)),
+        17: None,
+    })
+    _meta("Combo1", hit=6, chain=9, cancel=10, travel=0.35)
+    # Combo2: backhand slash left-to-right, half step onto the right foot
+    sword_clip(arm, "Combo2", 17, {
+        1: None,
+        4: pose((-0.65, 0.6, 0.35), (-0.85, -0.45, 0.25), spine=(-4, -30, 0), head=(-4, 24, 0),
+                arm_L=(-10, 0, -20), hips=(0, -0.03, 0), leg_L=(10, 0, 0)),
+        7: pose((0.2, 0.95, 0.1), (0.1, 1, 0), spine=(4, 0, 0), head=(2, 0, 0), arm_L=(12, 0, -14),
+                hips=(0, -0.07, 0), leg_R=(-22, 0, 0), leg_L=(16, 0, 0)),
+        9: pose((0.85, 0.4, -0.1), (0.95, -0.25, -0.1), spine=(8, 28, 0), head=(4, -22, 0),
+                arm_L=(18, 0, -12), hips=(0, -0.08, 0), leg_R=(-24, 0, 0), leg_L=(18, 0, 0)),
+        12: pose((0.7, 0.4, -0.3), (0.8, -0.1, -0.5), spine=(6, 22, 0), head=(3, -16, 0),
+                 arm_L=(14, 0, -10), hips=(0, -0.06, 0), leg_R=(-20, 0, 0), leg_L=(14, 0, 0)),
+        18: None,
+    })
+    _meta("Combo2", hit=7, chain=10, cancel=11, travel=0.35)
+    # Combo3: finisher, overhead chop with a long lunge
+    sword_clip(arm, "Combo3", 23, {
+        1: None,
+        5: pose((0.15, -0.35, 0.92), (0.05, -0.9, -0.4), spine=(-14, 10, 0), head=(-8, -8, 0),
+                arm_L=(-80, 0, -20), hips=(0, -0.04, 0), leg_R=(12, 0, 0), leg_L=(-6, 0, 0)),
+        7: pose((0.1, 0.7, 0.6), (0.05, 0.2, 0.98), spine=(6, 2, 0), head=(0, -2, 0),
+                arm_L=(-20, 0, -16), hips=(0, -0.08, 0), leg_L=(-26, 0, 0), leg_R=(18, 0, 0)),
+        9: pose((0.05, 0.85, -0.5), (0, 0.75, -0.65), spine=(24, -6, 0), head=(10, 4, 0),
+                arm_L=(25, 0, -14), hips=(0, -0.13, 0), leg_L=(-40, 0, 0), leg_R=(26, 0, 0)),
+        12: pose((0.05, 0.6, -0.8), (0, 0.4, -0.92), spine=(28, -5, 0), head=(12, 4, 0),
+                 arm_L=(22, 0, -14), hips=(0, -0.14, 0), leg_L=(-40, 0, 0), leg_R=(26, 0, 0)),
+        16: pose((0.1, 0.5, -0.85), (0.05, 0.5, -0.85), spine=(20, -4, 0), head=(8, 3, 0),
+                 arm_L=(16, 0, -12), hips=(0, -0.1, 0), leg_L=(-30, 0, 0), leg_R=(18, 0, 0)),
+        24: None,
+    })
+    _meta("Combo3", hit=9, windup_end=5, chain=14, cancel=15, travel=0.9)
+    # RunAttack: leaping diagonal slash out of a sprint, high right to low left
+    sword_clip(arm, "RunAttack", 20, {
+        1: pose((0.6, -0.4, 0.7), (0.2, -0.9, 0.3), spine=(16, 20, 0), head=(-6, -16, 0),
+                arm_L=(-30, 0, -14), hips=(0, -0.1, 0), leg_L=(-40, 0, 0), leg_R=(30, 0, 0)),
+        5: pose((0.5, -0.2, 0.85), (0.1, -0.7, 0.7), spine=(-6, 26, 0), head=(-6, -22, 0),
+                arm_L=(-60, 0, -20), hips=(0, 0.12, 0), leg_L=(-60, 0, -4), leg_R=(-20, 0, 4)),
+        7: pose((0.35, 0.55, 0.75), (0.3, 0.3, 0.9), spine=(8, 6, 0), head=(0, -6, 0),
+                arm_L=(-20, 0, -18), hips=(0, 0.06, 0), leg_L=(-56, 0, -4), leg_R=(4, 0, 4)),
+        9: pose((-0.3, 0.85, -0.4), (-0.5, 0.6, -0.6), spine=(28, -22, 0), head=(10, 18, 0),
+                arm_L=(25, 0, -16), hips=(0, -0.16, 0), leg_L=(-50, 0, 0), leg_R=(35, 0, 0)),
+        13: pose((-0.45, 0.65, -0.6), (-0.6, 0.3, -0.75), spine=(24, -20, 0), head=(8, 16, 0),
+                 arm_L=(20, 0, -14), hips=(0, -0.14, 0), leg_L=(-44, 0, 0), leg_R=(30, 0, 0)),
+        21: None,
+    })
+    _meta("RunAttack", hit=9, chain=14, cancel=15, travel=2.5)
+    # RollAttack: rising slash out of the roll's crouch
+    sword_clip(arm, "RollAttack", 18, {
+        1: pose((0.5, -0.5, -0.6), (0.3, -0.6, -0.7), spine=(30, 0, 0), head=(-10, 0, 0),
+                arm_L=(-30, 0, -16), hips=(0, -0.3, 0), leg_L=(-75, 0, -6), leg_R=(-40, 0, 6)),
+        3: pose((0.3, 0.8, -0.3), (0.15, 0.95, -0.25), spine=(18, -4, 0), head=(-4, 4, 0),
+                arm_L=(-6, 0, -18), hips=(0, -0.22, 0), leg_L=(-55, 0, -5), leg_R=(-25, 0, 5)),
+        5: pose((-0.1, 0.8, 0.55), (-0.1, 0.4, 0.9), spine=(0, -10, 0), head=(0, 8, 0),
+                arm_L=(20, 0, -20), hips=(0, -0.1, 0), leg_L=(-30, 0, -4), leg_R=(-6, 0, 4)),
+        8: pose((-0.2, 0.25, 0.95), (-0.1, -0.4, 0.9), spine=(-6, -14, 0), head=(-6, 10, 0),
+                arm_L=(16, 0, -18), hips=(0, -0.02, 0), leg_L=(-14, 0, 0), leg_R=(4, 0, 0)),
+        12: pose((-0.15, 0.35, 0.9), (-0.1, -0.2, 0.95), spine=(-4, -10, 0), head=(-4, 8, 0),
+                 arm_L=(10, 0, -14), hips=(0, 0, 0), leg_L=(-8, 0, 0), leg_R=(2, 0, 0)),
+        19: None,
+    })
+    _meta("RollAttack", hit=5, chain=10, cancel=11, travel=1.0)
+
+    # Charged heavy: HeavyCharge loops while the button is held (arms high, trembling). HeavyRelease
+    # starts from that pose, so it can fire at any point of the charge.
+    def charge(t):
+        tr = 1.2 * S(t * 3)
+        return {"arm_R": {"rot": (-172 + 2 * S(t) + tr, 0, -28)}, "arm_L": {"rot": (-172 + 2 * S(t) + tr, 0, 28)},
+                "spine": {"rot": (-16 - 1.5 * S(t), 8, 0)}, "head": {"rot": (-12, 0, 0)},
+                "hips": {"loc": (0, -0.08 - 0.01 * S(t * 2), 0)},
+                "leg_L": {"rot": (-18, 0, 0)}, "leg_R": {"rot": (16, 0, 0)}}
+    clip(arm, "HeavyCharge", 24, cyc(24, 2, charge))
+    stance = {"leg_L": {"rot": (-18, 0, 0)}, "leg_R": {"rot": (16, 0, 0)}}
+    clip(arm, "HeavyRelease", 21, {
+        1: charge(0),
+        3: {"arm_R": {"rot": (-178, 0, -28)}, "arm_L": {"rot": (-178, 0, 28)}, "spine": {"rot": (-19, 8, 0)},
+            "head": {"rot": (-13, 0, 0)}, "hips": {"loc": (0, -0.09, 0)}, **stance},
+        6: {"arm_R": {"rot": (-24, 0, -22)}, "arm_L": {"rot": (-24, 0, 22)}, "spine": {"rot": (30, -6, 0)},
+            "head": {"rot": (12, 0, 0)}, "hips": {"loc": (0, -0.16, 0)},
+            "leg_L": {"rot": (-42, 0, 0)}, "leg_R": {"rot": (26, 0, 0)}},
+        10: {"arm_R": {"rot": (-20, 0, -20)}, "arm_L": {"rot": (-20, 0, 20)}, "spine": {"rot": (27, -5, 0)},
+             "head": {"rot": (10, 0, 0)}, "hips": {"loc": (0, -0.15, 0)},
+             "leg_L": {"rot": (-40, 0, 0)}, "leg_R": {"rot": (24, 0, 0)}},
+        22: rest,
+    }, loop=False)
+    _meta("HeavyRelease", hit=6, chain=14, cancel=12, travel=0.8)
+
+    # Lock-on strafes: weapon up in guard, chest square to the target. Sideways is a shuffle (legs open
+    # and close); the leading foot lifts while they open, the trailing foot while they close.
+    guard = {"arm_R": {"rot": (-28, 0, 10)}, "arm_L": {"rot": (-24, 0, -10)}, "head": {"rot": (-3, 0, 0)}}
+
+    def strafe(sgn, amp, bob, lean):
+        def f(t):
+            s, c = S(t), S(t, 0.25)
+            lead, trail = 12 * max(0.0, c), 12 * max(0.0, -c)
+            spread = amp * (1 + s) / 2
+            lift_l, lift_r = (lead, trail) if sgn < 0 else (trail, lead)
+            return {**guard, "hips": {"loc": (0, bob * abs(c), 0)}, "spine": {"rot": (lean, 0, 0)},
+                    "leg_L": {"rot": (-lift_l, 0, -spread)}, "leg_R": {"rot": (-lift_r, 0, spread)}}
+        return f
+
+    def backpedal(amp, bob):
+        def f(t):
+            s = S(t)
+            return {**guard, "hips": {"loc": (0, bob * abs(math.cos(math.tau * t)), 0)},
+                    "spine": {"rot": (-3, 3 * s, 0)},
+                    "leg_L": {"rot": (amp * s, 0, 0)}, "leg_R": {"rot": (-amp * s, 0, 0)}}
+        return f
+    clip(arm, "WalkLeft", 24, cyc(24, 2, strafe(-1, 16, 0.02, 5)))
+    clip(arm, "WalkRight", 24, cyc(24, 2, strafe(1, 16, 0.02, 5)))
+    clip(arm, "WalkBack", 24, cyc(24, 2, backpedal(20, 0.025)))
+    clip(arm, "RunLeft", 16, cyc(16, 1, strafe(-1, 26, 0.04, 8)))
+    clip(arm, "RunRight", 16, cyc(16, 1, strafe(1, 26, 0.04, 8)))
+    clip(arm, "RunBack", 16, cyc(16, 1, backpedal(34, 0.05)))
+    for n, v in (("Walk", 1.5), ("Run", 4.8), ("WalkLeft", 1.4), ("WalkRight", 1.4), ("WalkBack", 1.2),
+                 ("RunLeft", 3.6), ("RunRight", 3.6), ("RunBack", 3.0)):
+        _meta(n, speed=v)
+
+    # Sprint: longer, faster stride and a hard forward lean (6.9 m/s)
+    def sprint(t):
+        s = S(t)
+        return {"hips": {"loc": (0, 0.08 * abs(math.cos(math.tau * t)), 0)},
+                "leg_L": {"rot": (-64 * s, 0, 0)}, "leg_R": {"rot": (64 * s, 0, 0)},
+                "arm_L": {"rot": (58 * s, 0, -6)}, "arm_R": {"rot": (-58 * s, 0, 6)},
+                "spine": {"rot": (22, 10 * s, 0)}, "head": {"rot": (-14, -5 * s, 0)}}
+    clip(arm, "Sprint", 14, cyc(14, 1, sprint))
+    _meta("Sprint", speed=6.9)
+
+    # Light flinches by direction: upper body only, so they overlay any locomotion
+    clip(arm, "HitFront", 8, {
+        1: rest,
+        3: {"spine": {"rot": (-14, 4, 0)}, "head": {"rot": (-14, 0, 0)},
+            "arm_L": {"rot": (-24, 0, -22)}, "arm_R": {"rot": (-24, 0, 22)}},
+        9: rest,
+    }, loop=False)
+    clip(arm, "HitBack", 8, {
+        1: rest,
+        3: {"spine": {"rot": (14, -4, 0)}, "head": {"rot": (12, 0, 0)},
+            "arm_L": {"rot": (14, 0, -16)}, "arm_R": {"rot": (14, 0, 16)}},
+        9: rest,
+    }, loop=False)
+
+    # BowShoot: quick draw-and-loose from the raised bow, ending where it starts so shots repeat
+    ready = bow_pose(35, draw=0.3, hint=drawn)               # drawn: the string arm at full draw (BowAim)
+    full = bow_pose(35, draw=1.0, hint=ready["arm_R"]["rot"])
+    loose = dict(full)
+    loose["arm_R"] = {"rot": limb_euler((0.5, 0.5, 0.15), 35, full["arm_R"]["rot"])}
+    loose["spine"] = {"rot": (0, 36, 0)}
+    back = bow_pose(35, draw=0.3, hint=loose["arm_R"]["rot"])
+    clip(arm, "BowShoot", 8, {1: ready, 4: full, 5: loose, 9: back}, loop=False)
+    _meta("BowShoot", release=5, chain=8, cancel=6)
+    # BowAimWalk: steady full draw over a short, flat walk (no hip bob, no sway)
+    aim = bow_pose(35, draw=1.0, hint=full["arm_R"]["rot"])
+    clip(arm, "BowAimWalk", 24, cyc(24, 2, lambda t: {
+        **aim, "hips": {"loc": (0, 0.006 * abs(math.cos(math.tau * t)), 0)},
+        "leg_L": {"rot": (-18 * S(t), 0, 0)}, "leg_R": {"rot": (18 * S(t), 0, 0)}}))
+    _meta("BowAimWalk", speed=1.2)
+
+    # Land: short crouch on touchdown
+    clip(arm, "Land", 9, {
+        1: {"hips": {"loc": (0, -0.16, 0)}, "spine": {"rot": (16, 0, 0)}, "head": {"rot": (-6, 0, 0)},
+            "leg_L": {"rot": (-36, 0, -4)}, "leg_R": {"rot": (-30, 0, 4)},
+            "arm_L": {"rot": (-26, 0, -18)}, "arm_R": {"rot": (-26, 0, 18)}},
+        3: {"hips": {"loc": (0, -0.2, 0)}, "spine": {"rot": (20, 0, 0)}, "head": {"rot": (-8, 0, 0)},
+            "leg_L": {"rot": (-44, 0, -4)}, "leg_R": {"rot": (-38, 0, 4)},
+            "arm_L": {"rot": (-20, 0, -16)}, "arm_R": {"rot": (-20, 0, 16)}},
+        10: rest,
+    }, loop=False)
+    _meta("Land", cancel=4)
 
 # ------------------------------------------------------------------ quadrupeds
 def build_horse(col, winged=False):

@@ -118,6 +118,13 @@
      "duration": 1.0,
      "layer": "upper"
     },
+    "BowAimWalk": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full",
+     "speed": 1.2
+    },
     "BowDraw": {
      "frames": 13,
      "loop": false,
@@ -131,6 +138,15 @@
      "layer": "upper",
      "release_time": 0.0
     },
+    "BowShoot": {
+     "frames": 8,
+     "loop": false,
+     "duration": 0.333,
+     "layer": "upper",
+     "release_time": 0.167,
+     "chain_time": 0.292,
+     "cancel_time": 0.208
+    },
     "ClubSwing": {
      "frames": 30,
      "loop": false,
@@ -139,6 +155,40 @@
      "hit_frame": 22,
      "hit_time": 0.875,
      "windup_end_time": 0.708
+    },
+    "Combo1": {
+     "frames": 16,
+     "loop": false,
+     "duration": 0.667,
+     "layer": "full",
+     "hit_frame": 6,
+     "hit_time": 0.208,
+     "chain_time": 0.333,
+     "cancel_time": 0.375,
+     "travel": 0.35
+    },
+    "Combo2": {
+     "frames": 17,
+     "loop": false,
+     "duration": 0.708,
+     "layer": "full",
+     "hit_frame": 7,
+     "hit_time": 0.25,
+     "chain_time": 0.375,
+     "cancel_time": 0.417,
+     "travel": 0.35
+    },
+    "Combo3": {
+     "frames": 23,
+     "loop": false,
+     "duration": 0.958,
+     "layer": "full",
+     "hit_frame": 9,
+     "hit_time": 0.333,
+     "windup_end_time": 0.167,
+     "chain_time": 0.542,
+     "cancel_time": 0.583,
+     "travel": 0.9
     },
     "Death": {
      "frames": 30,
@@ -161,10 +211,39 @@
      "hit_time": 1.042,
      "windup_end_time": 0.792
     },
+    "HeavyCharge": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full"
+    },
+    "HeavyRelease": {
+     "frames": 21,
+     "loop": false,
+     "duration": 0.875,
+     "layer": "full",
+     "hit_frame": 6,
+     "hit_time": 0.208,
+     "chain_time": 0.542,
+     "cancel_time": 0.458,
+     "travel": 0.8
+    },
     "Hit": {
      "frames": 12,
      "loop": false,
      "duration": 0.5,
+     "layer": "upper"
+    },
+    "HitBack": {
+     "frames": 8,
+     "loop": false,
+     "duration": 0.333,
+     "layer": "upper"
+    },
+    "HitFront": {
+     "frames": 8,
+     "loop": false,
+     "duration": 0.333,
      "layer": "upper"
     },
     "Idle": {
@@ -185,6 +264,13 @@
      "duration": 0.75,
      "layer": "full"
     },
+    "Land": {
+     "frames": 9,
+     "loop": false,
+     "duration": 0.375,
+     "layer": "full",
+     "cancel_time": 0.125
+    },
     "Ride": {
      "frames": 12,
      "loop": true,
@@ -197,17 +283,68 @@
      "duration": 0.583,
      "layer": "full"
     },
+    "RollAttack": {
+     "frames": 18,
+     "loop": false,
+     "duration": 0.75,
+     "layer": "full",
+     "hit_frame": 5,
+     "hit_time": 0.167,
+     "chain_time": 0.375,
+     "cancel_time": 0.417,
+     "travel": 1.0
+    },
     "Run": {
      "frames": 16,
      "loop": true,
      "duration": 0.667,
-     "layer": "full"
+     "layer": "full",
+     "speed": 4.8
+    },
+    "RunAttack": {
+     "frames": 20,
+     "loop": false,
+     "duration": 0.833,
+     "layer": "full",
+     "hit_frame": 9,
+     "hit_time": 0.333,
+     "chain_time": 0.542,
+     "cancel_time": 0.583,
+     "travel": 2.5
+    },
+    "RunBack": {
+     "frames": 16,
+     "loop": true,
+     "duration": 0.667,
+     "layer": "full",
+     "speed": 3.0
+    },
+    "RunLeft": {
+     "frames": 16,
+     "loop": true,
+     "duration": 0.667,
+     "layer": "full",
+     "speed": 3.6
+    },
+    "RunRight": {
+     "frames": 16,
+     "loop": true,
+     "duration": 0.667,
+     "layer": "full",
+     "speed": 3.6
     },
     "Sit": {
      "frames": 48,
      "loop": true,
      "duration": 2.0,
      "layer": "full"
+    },
+    "Sprint": {
+     "frames": 14,
+     "loop": true,
+     "duration": 0.583,
+     "layer": "full",
+     "speed": 6.9
     },
     "Stagger": {
      "frames": 20,
@@ -241,7 +378,29 @@
      "frames": 24,
      "loop": true,
      "duration": 1.0,
-     "layer": "full"
+     "layer": "full",
+     "speed": 1.5
+    },
+    "WalkBack": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full",
+     "speed": 1.2
+    },
+    "WalkLeft": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full",
+     "speed": 1.4
+    },
+    "WalkRight": {
+     "frames": 24,
+     "loop": true,
+     "duration": 1.0,
+     "layer": "full",
+     "speed": 1.4
     }
    },
    "notes": "Body + accessory SkinnedMeshes share one skeleton; toggle accessories with .visible. Recolour by cloning materials named P_*. Upper-body clips (Attack, Attack2, Talk, Hit) key only spine/arms/head so they layer over Walk/Run/Ride (see each clip's layer and hit_time). Thrust rotates hand_R so the upright Spear levels out; Shield sits on hand_L and faces forward in Block. Clip ground speeds: Walk 1.5 m/s, Run 4.8 m/s. Death ends lying down (clampWhenFinished)."
