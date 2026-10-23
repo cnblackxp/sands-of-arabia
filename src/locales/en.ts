@@ -170,7 +170,7 @@ export const en = {
   playtest: {
     title: 'Combat plain (playtest)',
     keys: '1 raider · 2 skirmisher · 3 brute · 4 chief · 5 clubman · 6 hounds · 7 archer · 8 training dummy',
-    keys2: '0 clear the plain · H full health, stamina and draughts',
+    keys2: '9 reset the arena · 0 clear the plain · H full health, stamina and draughts',
     pad: 'Controller: Start → Debug to summon foes, clear the plain or refill.',
     refilled: 'Health, stamina and draughts restored.',
     raider: 'Summon a raider',

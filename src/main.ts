@@ -2068,13 +2068,44 @@ class Game {
       const foe = PLAYTEST_FOES.find((x) => x.key === e.code);
       if (foe) this.debugSpawnFoes(foe.kind, foe.n, foe.dist);
       else if (e.code === 'Digit0') this.playtestClear();
+      else if (e.code === 'Digit9') this.playtestArena();
       else if (e.code === 'KeyH') this.playtestRefill();
     });
     this.hud.setPlaytest(true);
+    this.playtestArena();
+  }
+
+  /**
+   * ?playtest: the starting layout. Two training dummies a few metres ahead (they
+   * stand back up 3 s after falling), and a raider and a skirmisher waiting 30 m
+   * out to either side, beyond their sight.
+   */
+  private arenaGen = 0;
+  private playtestArena(): void {
+    const gen = ++this.arenaGen;
+    for (const e of this.enemies.list) if (!e.dead) e.damage(99999, e.pos.clone().add(new THREE.Vector3(0, 0, 1)));
+    const p = this.player.pos;
+    const a = this.player.yaw;
+    const at = (ang: number, dist: number): [number, number, number] => {
+      const x = p.x + Math.sin(a + ang) * dist;
+      const z = p.z + Math.cos(a + ang) * dist;
+      return [x, this.world.ground(x, z), z];
+    };
+    const dummy = (pos: [number, number, number]) => {
+      const e = this.enemies.spawn({ role: 'enemy', kind: 'dummy', camp: 'playtest', pos, yaw: a + Math.PI } as Spawn);
+      e.onKilled = () => setTimeout(() => gen === this.arenaGen && dummy(pos), 3000);
+    };
+    dummy(at(-0.35, 5));
+    dummy(at(0.35, 5));
+    for (const [kind, ang] of [['raider', -1.2], ['skirmisher', 1.2]] as const) {
+      const e = this.enemies.spawn({ role: 'enemy', kind, camp: 'playtest', pos: at(ang, 30), yaw: a + Math.PI } as Spawn);
+      e.onKilled = (f) => this.onEnemyKilled(f);
+    }
   }
 
   /** ?playtest: every foe on the plain falls. */
   private playtestClear(): void {
+    this.arenaGen++;
     for (const e of this.enemies.list) if (!e.dead) e.damage(99999, e.pos.clone().add(new THREE.Vector3(0, 0, 1)));
     this.sfx.ui(false);
   }
