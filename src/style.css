@@ -7,6 +7,16 @@
   --hp-low: #ff3b1f;
 }
 
+/* The game's own cursor (menus, the shop, dialogue choices, the overhead views): a gold arrow. */
+:root {
+  --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 2 L3 22 L8.5 17 L12.5 26 L16 24.5 L12 15.8 L19.5 15.8 Z' fill='%23e8b85a' stroke='%232a1708' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M5 6 L5 17' stroke='rgba(255,255,255,0.55)' stroke-width='1.2'/%3E%3C/svg%3E") 3 2, auto;
+  --cursor-hot: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 2 L3 22 L8.5 17 L12.5 26 L16 24.5 L12 15.8 L19.5 15.8 Z' fill='%23ffd98a' stroke='%232a1708' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M5 6 L5 17' stroke='rgba(255,255,255,0.55)' stroke-width='1.2'/%3E%3C/svg%3E") 3 2, pointer;
+}
+html,
+body,
+canvas {
+  cursor: var(--cursor);
+}
 html,
 body {
   margin: 0;
@@ -62,6 +72,7 @@ body {
 }
 .hp-fill,
 .hp-lag,
+.st-lag,
 .st-fill {
   position: absolute;
   left: 0;
@@ -76,6 +87,9 @@ body {
 }
 .st-fill {
   background: linear-gradient(#5aa357, #2f6d2d);
+}
+.st-lag {
+  background: #e8c37a;
 }
 .st-bar.exhausted .st-fill {
   background: linear-gradient(#8a8a5a, #5a5a32);
@@ -321,24 +335,26 @@ small {
   inset: 0;
   pointer-events: auto;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  padding-top: 8vh;
   justify-content: flex-start;
   padding-left: max(24px, 8vw);
   background: linear-gradient(90deg, rgba(20, 10, 5, 0.85) 0%, rgba(20, 10, 5, 0.55) 45%, rgba(20, 10, 5, 0) 75%);
 }
 .pause-panel {
   /* Divided by the interface size so a zoomed panel still fits the window. */
-  width: min(440px, calc((100vw - 48px) / var(--ui, 1)));
-  max-height: calc((100vh - 32px) / var(--ui, 1));
-  overflow-y: auto;
+  width: min(560px, calc((100vw - 48px) / var(--ui, 1)));
+  display: flex;
+  flex-direction: column;
+  max-height: calc((92vh - 16px) / var(--ui, 1));
 }
 .pause-title {
-  font-size: 34px;
+  font-size: 40px;
   color: var(--gold);
   letter-spacing: 3px;
 }
 .pause-sub {
-  font-size: 13px;
+  font-size: 15px;
   opacity: 0.6;
   margin-bottom: 18px;
 }
@@ -351,7 +367,7 @@ small {
   padding: 7px 12px;
   margin: 2px 0;
   border-left: 3px solid transparent;
-  cursor: pointer;
+  cursor: var(--cursor-hot);
   transition: background 0.1s;
 }
 .prow.focus {
@@ -359,7 +375,7 @@ small {
   border-left-color: var(--gold);
 }
 .prow-label {
-  font-size: 16px;
+  font-size: 19px;
 }
 .prow-ctl {
   display: flex;
@@ -367,9 +383,9 @@ small {
   gap: 8px;
 }
 .prow-value {
-  min-width: 150px;
+  min-width: 170px;
   text-align: center;
-  font-size: 14px;
+  font-size: 16px;
   color: #ffe2b0;
 }
 .arrow {
@@ -377,7 +393,7 @@ small {
   border: none;
   color: var(--gold);
   font-size: 13px;
-  cursor: pointer;
+  cursor: var(--cursor-hot);
   padding: 2px 4px;
 }
 .arrow:hover {
@@ -396,14 +412,14 @@ small {
 }
 .pause-foot {
   margin-top: 18px;
-  font-size: 12px;
+  font-size: 14px;
   opacity: 0.85;
   display: flex;
   gap: 14px;
   flex-wrap: wrap;
 }
 .pause-help {
-  cursor: pointer;
+  cursor: var(--cursor-hot);
 }
 .help-title {
   font-size: 16px;
@@ -535,7 +551,7 @@ small {
   background: #2f62c0;
 }
 .pause-panel.wide {
-  width: min(900px, calc((100vw - 48px) / var(--ui, 1)));
+  width: min(1000px, calc((100vw - 48px) / var(--ui, 1)));
 }
 .pause-tabs {
   display: flex;
@@ -548,10 +564,10 @@ small {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(227, 164, 67, 0.35);
   color: #f3dcc0;
-  font: 13px Georgia, Amiri, serif;
-  padding: 5px 12px;
+  font: 16px Georgia, Amiri, serif;
+  padding: 6px 14px;
   border-radius: 3px;
-  cursor: pointer;
+  cursor: var(--cursor-hot);
 }
 .tab.active {
   background: rgba(227, 164, 67, 0.3);
@@ -561,8 +577,11 @@ small {
 .tab-key {
   margin: 0 4px;
 }
-.pause-list {
-  max-height: min(62vh, 560px);
+.pause-list,
+.pause-custom {
+  /* The header (title and tabs) stays put; only the content scrolls. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 .prow-main {
@@ -570,7 +589,7 @@ small {
   flex-direction: column;
 }
 .prow-sub {
-  font-size: 12px;
+  font-size: 14px;
   opacity: 0.65;
   margin-top: 2px;
 }
@@ -579,7 +598,7 @@ small {
   text-align: right;
 }
 .prow-header {
-  cursor: default;
+  cursor: var(--cursor);
   border-left-color: transparent !important;
   background: none !important;
   padding-top: 12px;
@@ -591,7 +610,7 @@ small {
   color: var(--gold);
 }
 .prow-info {
-  cursor: default;
+  cursor: var(--cursor);
   opacity: 0.85;
 }
 .prow.disabled {
@@ -650,9 +669,11 @@ html:lang(ar) .dlg-text {
   line-height: 1.6;
 }
 html:lang(ar) .dlg-name,
-html:lang(ar) .prompt,
-html:lang(ar) .prow-label {
+html:lang(ar) .prompt {
   font-size: 18px;
+}
+html:lang(ar) .prow-label {
+  font-size: 21px;
 }
 html:lang(ar) .hint,
 html:lang(ar) .tracker,
@@ -666,7 +687,7 @@ html:lang(ar) .dlg-more {
   font-size: 14px;
 }
 html:lang(ar) .tab {
-  font-size: 15px;
+  font-size: 18px;
 }
 html:lang(ar) small {
   font-size: 12px;
@@ -678,7 +699,7 @@ html:lang(ar) .toast {
   font-size: 26px;
 }
 html:lang(ar) .prow-value {
-  font-size: 16px;
+  font-size: 18px;
 }
 /* Letter spacing breaks the joins of Arabic script. */
 html:lang(ar) .pause-title,
@@ -740,9 +761,56 @@ html:lang(ar) .prompt i {
 #hud .pause-panel,
 #hud .minimap,
 #hud .ammo,
+#hud .crosshair,
 #hud .floater,
 #hud .ebar {
   zoom: var(--ui, 1);
+}
+
+/* Third-person bow crosshair: a dot, a ring that closes in as the bow draws, red on a foe. */
+.crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.crosshair::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 240, 210, 0.95);
+  box-shadow: 0 0 2px #000;
+}
+.crosshair i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid rgba(255, 226, 176, 0.8);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.1s;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
+}
+.crosshair.aiming i {
+  opacity: 1;
+}
+.crosshair.ready i {
+  border-color: #ffd25a;
+}
+.crosshair.foe::before {
+  background: #ff4a32;
+}
+.crosshair.foe i {
+  border-color: #ff4a32;
 }
 
 /* Quiver counter, under the purse. */

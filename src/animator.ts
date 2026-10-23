@@ -9,6 +9,27 @@ import * as THREE from 'three';
  * the base clip's upper half fades out so the arms don't fight.
  */
 
+/**
+ * Exports that bake from frame 1 start every track one frame in (t = 0.042 s).
+ * Before a track's first key the mixer may leave the bone as it was, so a
+ * pose added on top in code (the bow's aim tilt) would pile up for a frame or
+ * five at every loop. A key at t = 0 holding the first pose closes the gap.
+ */
+function anchorAtZero(clip: THREE.AnimationClip): THREE.AnimationClip {
+  clip.tracks = clip.tracks.map((t) => {
+    if (t.times.length === 0 || t.times[0] <= 1e-5) return t;
+    const n = t.getValueSize();
+    const times = new Float32Array(t.times.length + 1);
+    times.set(t.times, 1);
+    const values = new Float32Array(t.values.length + n);
+    values.set(t.values.subarray(0, n), 0);
+    values.set(t.values, n);
+    const Track = t.constructor as new (name: string, times: Float32Array, values: Float32Array, interpolation?: THREE.InterpolationModes) => THREE.KeyframeTrack;
+    return new Track(t.name, times, values, t.getInterpolation());
+  });
+  return clip;
+}
+
 interface BaseClip {
   lower: THREE.AnimationClip;
   upper: THREE.AnimationClip | null;
@@ -22,6 +43,7 @@ export class ClipLibrary {
   constructor(clips: THREE.AnimationClip[], overlayNames: string[], lowerBones: string[] | null, onceNames: string[]) {
     const lower = lowerBones ? new Set(lowerBones) : null;
     for (const clip of clips) {
+      anchorAtZero(clip);
       if (overlayNames.includes(clip.name)) {
         this.overlay.set(clip.name, clip);
         continue;

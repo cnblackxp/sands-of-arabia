@@ -236,7 +236,9 @@ class Game {
   /** Lock on / let go, switch targets, keep the lock alive, and point the camera and the player at it. */
   private updateLock(f: Frame): void {
     const p = this.player;
-    if (f.lockOn && !p.horse) {
+    // Aiming the bow is free aim: drawing lets go of any lock, and none can be taken while drawn.
+    if (p.aiming && this.lock) this.setLock(null);
+    if (f.lockOn && !p.horse && !p.aiming) {
       if (this.lock) this.setLock(null);
       else {
         const e = this.pickLock();
@@ -319,21 +321,6 @@ class Game {
     return best;
   }
 
-  /** Controller aim assist: snap onto a foe when the bow comes up, then a gentle pull while it stays near the centre. */
-  private assistSnapT = 0;
-  private wasAiming = false;
-  private updateAimAssist(dt: number): void {
-    const on = this.assisting();
-    if (on && !this.wasAiming) this.assistSnapT = 0.25;
-    this.wasAiming = on;
-    if (!on) return;
-    this.assistSnapT -= dt;
-    const snap = this.assistSnapT > 0;
-    const near = this.foeNearView(THREE.MathUtils.degToRad(snap ? 14 : 7));
-    if (!near) return;
-    const k = 1 - Math.exp(-dt * (snap ? 16 : 2.5));
-    this.cam.look(near.dYaw * k, near.dPitch * k);
-  }
 
   /** Aiming in third person: the player (and their horse) fade so they don't block the view. */
   private seeK = 1;
@@ -512,6 +499,15 @@ class Game {
     const hudRoot = document.getElementById('hud')!;
     this.menu = new Menu(hudRoot, this.hud, (confirm) => this.sfx.ui(confirm));
     this.menu.onClose = () => {
+      // Back to the game: third person takes the mouse straight back (the browser
+      // allows it while the click or key that closed the menu is fresh).
+      if (this.cam.thirdPerson && document.pointerLockElement !== this.canvas) {
+        try {
+          void this.canvas.requestPointerLock?.()?.catch?.(() => {});
+        } catch {
+          // Refused (closed with Esc): the next click takes the mouse.
+        }
+      }
       this.persistSettings();
       this.input.cancelHolds();
       this.cam.focus = false;
@@ -876,8 +872,8 @@ class Game {
   private bowAim(quick: boolean): BowAim {
     const p = this.player;
     const f = this.lastFrame;
-    const speed = ARROW.speed;
-    const g = ARROW.gravity;
+    // The player's arrows fly straight, like a shot: aim at a point and they go there.
+    const speed = ARROW.playerSpeed;
     let yaw = p.yaw;
     const from = (y: number) => {
       const o = p.pos.clone();
@@ -916,16 +912,7 @@ class Game {
       target = o.addScaledVector(dir, dist);
       yaw = Math.atan2(dir.x, dir.z);
       const a = from(yaw);
-      let vel = target.clone().sub(a).normalize().multiplyScalar(speed);
-      // Controller aim assist: with a foe on or near the centre, loose on the arc that reaches it.
-      const near = this.assisting() ? this.foeNearView(THREE.MathUtils.degToRad(4)) : null;
-      if (near) {
-        const lob = solveBallistic(a, this.aimPoint(near.foe), speed, g);
-        if (lob) {
-          vel = lob;
-          yaw = Math.atan2(vel.x, vel.z);
-        }
-      }
+      const vel = target.clone().sub(a).normalize().multiplyScalar(speed);
       return { yaw, pitch: Math.asin(THREE.MathUtils.clamp(vel.y / speed, -1, 1)), from: a, vel };
     }
     if (f && f.device === 'keyboard') {
@@ -946,7 +933,7 @@ class Game {
         yaw = Math.atan2(target.x - p.pos.x, target.z - p.pos.z);
       }
     } else if (f) {
-      // Gamepad: the stick turns the aim; snap to a foe near that line.
+      // Gamepad: the stick turns the aim; the shot goes level along it, at chest height.
       if (!quick) p.aimLocksMove = true;
       const m = Math.hypot(f.moveX, f.moveY);
       if (m > 0.3) {
@@ -954,23 +941,10 @@ class Game {
         const dz = this.cam.right.z * f.moveX + this.cam.forward.z * f.moveY;
         yaw = Math.atan2(dx, dz);
       } else if (p.aim) yaw = p.aim.yaw;
-      const foe = this.enemies.aimTarget(p.pos, yaw, 45, THREE.MathUtils.degToRad(22), true);
-      if (foe) {
-        target = foe.pos.clone().setY(foe.pos.y + (foe.flying ? 0 : 1.1));
-        yaw = Math.atan2(target.x - p.pos.x, target.z - p.pos.z);
-      } else {
-        const x = p.pos.x + Math.sin(yaw) * 18;
-        const z = p.pos.z + Math.cos(yaw) * 18;
-        target = new THREE.Vector3(x, this.world.floor(x, z, p.pos.y + 1), z);
-      }
     }
     const a = from(yaw);
-    let vel: THREE.Vector3 | null = target ? solveBallistic(a, target, speed, g) : null;
-    if (!vel) {
-      // Out of range (or no target): loose at 40°, the longest flat shot.
-      const el = target ? THREE.MathUtils.degToRad(40) : 0.08;
-      vel = new THREE.Vector3(Math.sin(yaw) * Math.cos(el), Math.sin(el), Math.cos(yaw) * Math.cos(el)).multiplyScalar(speed);
-    }
+    // Straight at the point (the cursor), or level along the facing.
+    const vel = target ? target.clone().sub(a).normalize().multiplyScalar(speed) : new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(speed);
     return { yaw, pitch: Math.asin(THREE.MathUtils.clamp(vel.y / speed, -1, 1)), from: a, vel };
   }
 
@@ -1390,6 +1364,8 @@ class Game {
   // --- menus -----------------------------------------------------------------------
 
   private openMainMenu(tab: string): void {
+    if (document.pointerLockElement) document.exitPointerLock();
+    // The menu wants the mouse: free it (and show the game's cursor).
     if (document.pointerLockElement) document.exitPointerLock();
     this.menu.open(t('menu.paused'), this.mapTitle(this.mapName), this.mainTabs(), tab);
     this.cam.focus = true;
@@ -1890,6 +1866,7 @@ class Game {
         ],
       },
     ];
+    if (document.pointerLockElement) document.exitPointerLock();
     this.menu.open(t('shop.title', { name: npc.name, title: npc.title }), t('shop.sub'), tabs, 'weapons');
     this.cam.focus = false;
     this.minimap.setVisible(false);
@@ -2343,7 +2320,6 @@ class Game {
     focus.y += p.horse ? 1.6 : 1.0;
     this.cam.aiming = p.aiming && this.cam.thirdPerson;
     this.cam.mounted = !!p.horse;
-    this.updateAimAssist(realDt);
     this.updateSeeThrough(realDt);
     this.cam.occlusion = (o, d, max) => this.physics.rayStatic(o, d, max);
     this.cam.groundAt = (x, z) => this.world.ground(x, z);
@@ -2352,12 +2328,13 @@ class Game {
     const overhead = !this.cam.thirdPerson && !this.cam.override;
     this.world.setEdgeFade(overhead);
     this.day.skyVisible = !overhead;
-    // Bow: aim arc and HUD.
+    // Bow: what the shot would hit (a tick when it settles on a new foe), and the crosshair.
     const aiming = !paused && p.aiming && !!p.aim && p.drawK > 0.15;
     const aimHit = this.projectiles.preview(aiming ? p.aim!.from : null, aiming ? p.aim!.vel : null);
     const aimTarget = aimHit?.target ?? null;
     if (aimTarget && aimTarget !== this.aimTarget) this.sfx.aimLock();
     this.aimTarget = aimTarget;
+    this.hud.setCrosshair(!paused && this.cam.thirdPerson && p.hasBow && !p.horse, p.aiming ? p.drawK : -1, !!aimTarget);
     this.hud.setAmmo(this.progress.hasBow && p.hasBow ? this.progress.data.arrows : null, ARROW.max);
     this.world.update(realDt, p.pos, this.cam.zoom);
     this.world.setFogOffset(this.cam.targetDepth);

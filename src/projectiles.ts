@@ -13,7 +13,8 @@ import type { Physics } from './physics';
  * the fallen can be walked over to pick them up again.
  */
 
-export const ARROW = { speed: 40, gravity: 12, life: 6, max: 100 };
+/** `speed` is an enemy archer's arrow; the player's fly straight at `playerSpeed`. */
+export const ARROW = { speed: 40, playerSpeed: 60, gravity: 12, life: 6, max: 100 };
 export const ROCK = { speed: 17, gravity: 12 };
 
 /** Something a projectile can hit: a vertical cylinder around `pos`. */
@@ -128,12 +129,6 @@ export class Projectiles {
   private readonly arrowMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
   private readonly rockGeo = new THREE.DodecahedronGeometry(0.085, 0);
   private readonly rockMat = new THREE.MeshStandardMaterial({ color: 0x8c7a62, roughness: 0.95, flatShading: true });
-  /** Preview arc: dots along the path and a ring where it lands. */
-  private readonly dots: THREE.InstancedMesh;
-  private readonly ring: THREE.Mesh;
-  /** Over a foe: a small red arrow bobbing above it, pointing down (the ring hides). */
-  private readonly aimMark: THREE.Group;
-  private readonly tmpM = new THREE.Matrix4();
   private readonly tmpV = new THREE.Vector3();
 
   /** Everything that can be hit, per side. */
@@ -148,29 +143,6 @@ export class Projectiles {
     private arrowModel: THREE.Object3D | null,
     private rockModel: THREE.Object3D | null,
   ) {
-    const dotMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.85, depthTest: false, fog: false });
-    this.dots = new THREE.InstancedMesh(new THREE.SphereGeometry(0.045, 6, 4), dotMat, 90);
-    this.dots.count = 0;
-    this.dots.renderOrder = 20;
-    this.dots.frustumCulled = false;
-    scene.add(this.dots);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.9, depthTest: false, side: THREE.DoubleSide, fog: false });
-    this.ring = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 24), ringMat);
-    this.ring.renderOrder = 21;
-    this.ring.visible = false;
-    scene.add(this.ring);
-    const markMat = new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: 0.95, depthTest: false, fog: false });
-    this.aimMark = new THREE.Group();
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.3, 4), markMat);
-    tip.rotation.x = Math.PI;
-    const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.24, 0.08), markMat);
-    shaft.position.y = 0.22;
-    for (const m of [tip, shaft]) {
-      m.renderOrder = 22;
-      this.aimMark.add(m);
-    }
-    this.aimMark.visible = false;
-    scene.add(this.aimMark);
   }
 
   private makeMesh(kind: ShotKind): THREE.Object3D {
@@ -252,7 +224,8 @@ export class Projectiles {
     for (let i = this.shots.length - 1; i >= 0; i--) {
       const s = this.shots[i];
       s.age += dt;
-      const g = s.kind === 'arrow' ? ARROW.gravity : ROCK.gravity;
+      // The player's arrows fly straight, like a shot; enemy arrows and stones arc.
+      const g = s.kind === 'arrow' ? (s.side === 'player' ? 0 : ARROW.gravity) : ROCK.gravity;
       a.copy(s.pos);
       s.vel.y -= g * dt;
       const b = s.pos.clone().addScaledVector(s.vel, dt);
@@ -385,69 +358,25 @@ export class Projectiles {
   }
 
   /**
-   * Draw the aim arc for a shot leaving `from` with `vel`. Returns where it lands
-   * and what it would hit. Pass null to hide the preview.
+   * Trace a player's shot (arrows fly straight) or a thrown stone (with gravity)
+   * leaving `from` with `vel`: where it would land and what it would hit (the
+   * crosshair turns red on a foe). Nothing is drawn.
    */
   preview(from: THREE.Vector3 | null, vel: THREE.Vector3 | null, side: 'player' | 'enemy' = 'player'): { pos: THREE.Vector3; target: ProjTarget | null } | null {
-    if (!from || !vel) {
-      this.dots.count = 0;
-      this.ring.visible = false;
-      this.aimMark.visible = false;
-      return null;
-    }
+    if (!from || !vel) return null;
     const list = this.targets(side);
+    const g = side === 'player' ? 0 : ARROW.gravity;
     const p = from.clone();
     const v = vel.clone();
     const step = 1 / 60;
-    let travelled = 0;
-    let nextDot = 0.4;
-    let count = 0;
-    let end: { pos: THREE.Vector3; target: ProjTarget | null; surface: Surface } | null = null;
     const b = new THREE.Vector3();
-    for (let t = 0; t < 3.5 && count < 90; t += step) {
-      v.y -= ARROW.gravity * step;
+    for (let t = 0; t < ARROW.life; t += step) {
+      v.y -= g * step;
       b.copy(p).addScaledVector(v, step);
       const hit = this.sweep(p, b, list);
-      if (hit) {
-        end = { pos: p.clone().lerp(b, hit.t), target: hit.target, surface: hit.surface };
-        break;
-      }
-      travelled += p.distanceTo(b);
+      if (hit) return { pos: p.clone().lerp(b, hit.t), target: hit.target };
       p.copy(b);
-      while (travelled >= nextDot && count < 90) {
-        // Dots shrink with distance along the arc.
-        const k = Math.max(0.45, 1 - nextDot / 80);
-        this.tmpM.makeScale(k, k, k).setPosition(p);
-        this.dots.setMatrixAt(count++, this.tmpM);
-        nextDot += 0.7;
-      }
     }
-    this.dots.count = count;
-    this.dots.instanceMatrix.needsUpdate = true;
-    // On a foe the arc turns red, and the landing ring gives way to an arrow over it.
-    (this.dots.material as THREE.MeshBasicMaterial).color.setHex(end?.target ? 0xff4a32 : 0xffd27a);
-    const tg = end?.target;
-    this.aimMark.visible = !!tg;
-    if (end && tg) {
-      const t = performance.now() / 1000;
-      this.aimMark.position.set(tg.pos.x, tg.pos.y + tg.hitHi + 1.05 + Math.sin(t * 5) * 0.08, tg.pos.z);
-      this.aimMark.rotation.y = t * 1.5;
-      this.ring.visible = false;
-      return { pos: end.pos, target: tg };
-    }
-    if (end) {
-      this.ring.visible = true;
-      this.ring.position.copy(end.pos);
-      if (end.surface === 'wall') {
-        // Face back along the shot on walls.
-        this.ring.lookAt(from);
-      } else {
-        this.ring.rotation.set(-Math.PI / 2, 0, 0);
-        this.ring.position.y += 0.04;
-      }
-      return { pos: end.pos, target: end.target };
-    }
-    this.ring.visible = false;
     return null;
   }
 
@@ -459,8 +388,5 @@ export class Projectiles {
     }
     this.shots = [];
     this.lying = [];
-    this.dots.removeFromParent();
-    this.ring.removeFromParent();
-    this.aimMark.removeFromParent();
   }
 }

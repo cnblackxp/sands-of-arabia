@@ -203,6 +203,15 @@ Decisions worth knowing:
   - **Attacks are committed** (`ATTACK` in player.ts): the body steps into the blow over the end of the windup (light 0.55 m), can be steered only in its first 0.12 s, and stays planted until 0.2 s after the blow lands; then moving cancels the recovery, and a roll can cancel it earlier.
   - **Flavours:** holding attack 0.22 s into a light blow turns it into a heavy one (HeavyAttack, 1.75× damage, double poise and guard damage, 1.6× stamina). Out of a sprint it's a running attack (2.4 m lunge); within 0.35 s of a roll, a rolling attack (1.4 m).
   - **Backstep:** roll with no direction held (Backstep clip, 1.7 m back, i-frames 0.03–0.22 s, 14 stamina).
+  - **Tuning so far** (see `docs/combat_feel.md` for the research and the art brief):
+    - walk 3.4 m/s, sprint 6.9 m/s, full pace in about 0.1 s, and stick speed follows the push smoothly from 0.8 m/s;
+    - a forward lean into the run (`Player.lean`);
+    - stamina shows a trailing spent chunk like health, and refills up to 1.7× faster once left alone for a second;
+    - a press during a swing waits for its chain point; a heavy blow needs the very press that began the swing held 0.34 s (`presses` / `swingPress`), so quick taps never turn heavy;
+    - lunges are light 0.9 m, heavy 1.3 m, running 2.6 m and rolling 1.6 m.
+  - **Bow is gun-like:** the player's arrows fly straight at 60 m/s (`ARROW.playerSpeed`, no gravity) to the crosshair or cursor. There is no arc; the crosshair returns and turns red on a foe (`Hud.setCrosshair`). Drawing lets go of lock-on, and controller aim assist only slows the stick over a foe.
+  - **Clips are anchored at t = 0** (`anchorAtZero` in `animator.ts`): exports keyed from frame 1 left bones unwritten for 0.042 s, which made the aim's spine tilt pile up into a twitch.
+- **Menus:** the panel is anchored near the top (title and tabs stay put; the list scrolls), wider (560 px, 1000 px wide), with larger text. The game's own gold cursor (`--cursor` in style.css) shows wherever the mouse is free. Opening a menu frees the pointer, and closing it takes the mouse straight back in third person (refused only after Esc).
 - **Enemies.** Enemy spawns live in level.json as `role: "enemy"` with a `kind` and a `camp` (from `export_assets.py`). Enemy windups use the Attack and Attack2 overlays, slowed to the raise and then held. There's no separate windup clip.
 - **Clips added for the game.** The `Roll` and `Jump` clips are in `rigs.py` and play as one-shot base clips.
 - **Maps and travel.**
@@ -242,14 +251,12 @@ Decisions worth knowing:
 - **Bow** (`composite_bow` in `items.ts`, `kind: 'bow'`). It is two-handed, so there is no shield.
   - Block (RMB / LT) draws and aims. Attack (LMB / RT) looses the arrow once it is fully drawn; pressing early queues the shot. Attack without aiming makes a quick shot with aim assist. Every arrow needs a fresh draw (`draw` seconds).
   - Aim direction:
-    - third person: along the centre of the view (there is no crosshair; the aim arc shows where the arrow lands);
+    - third person: along the centre of the view, at the crosshair;
     - overhead camera with a mouse: at the cursor, with a ballistic solve;
-    - overhead camera with a gamepad: the left stick turns the aim (you stand still), snapping to foes in a 22° cone.
+    - overhead camera with a gamepad: the left stick turns the aim (you stand still); the shot goes level along it.
   - **Controller aim assist** (third person, bow drawn, last device a gamepad; Settings → Aim assist, `Settings.aimAssist`, on by default):
-    - drawing snaps the view onto the nearest visible foe within 14° (0.25 s);
-    - a gentle pull follows a foe within 7°, and the right stick turns at 45% within 6° of one;
-    - with a foe within 4° of the centre, the arrow is loosed on the ballistic arc that reaches its chest (`solveBallistic`).
-  - The aim arc is shown as dots plus a landing ring. When the arc would hit a foe, the dots turn red, the ring hides and a small red arrow bobs above the foe pointing down (`Projectiles.aimMark`), with a soft tick (`Sfx.aimLock`) each time it settles on a new foe.
+    - the right stick turns at 45% within 6° of a foe (no snap and no pull: aiming is free).
+  - A soft tick (`Sfx.aimLock`) plays each time the shot settles on a new foe.
 - **Prompts** sit low on screen (`.prompt`, top 74%) and fade in and out. The dismount prompt only shows after the ridden horse has stood still for 2 s (`horseStillFor`); dismounting works at any time.
   - The quiver holds 100 arrows (`progress.data.arrows`; older saves were topped up once, `quiver100`). Arrows stick in the ground, walls and bodies; walk over them to take them back (not out of a living foe). Resting at a bonfire refills the quiver.
   - Uses `BowDraw`, `BowAim` and `BowRelease` with `BowHeld` and `Quiver`. Older models fall back to a procedural pose and bow.

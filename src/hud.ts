@@ -122,6 +122,11 @@ export class Hud {
   private toastTimer = 0;
   private flash = 0;
   private hpLagValue = 1;
+  /** Stamina's trailing chunk: what was just spent lingers, then drains away. */
+  private stLag!: HTMLDivElement;
+  private stLagValue = 1;
+  private stLagHold = 0;
+  private lastSt = 1;
   private hpLagHold = 0;
   private lastHp = 1;
   device: Device = 'keyboard';
@@ -135,6 +140,7 @@ export class Hud {
   private bossLag = 1;
   private ammo: HTMLDivElement;
   private playtest: HTMLDivElement;
+  private cross!: HTMLDivElement;
   private playtestOn = false;
   private shownAmmo = '';
   private hintKey = '';
@@ -144,7 +150,7 @@ export class Hud {
     root.innerHTML = `
       <div class="bars-top">
         <div class="hp-bar"><div class="hp-lag"></div><div class="hp-fill"></div></div>
-        <div class="st-bar"><div class="st-fill"></div></div>
+        <div class="st-bar"><div class="st-lag"></div><div class="st-fill"></div></div>
         <div class="purse"><span class="coin">◉</span><span class="gold">0</span><span class="flasks"></span></div>
       </div>
       <div class="tracker hidden"></div>
@@ -158,6 +164,7 @@ export class Hud {
       <div class="bossbar hidden"><div class="boss-name"></div><div class="boss-track"><div class="boss-lag"></div><div class="boss-fill"></div></div></div>
       <div class="ammo hidden"></div>
       <div class="playtest hidden"></div>
+      <div class="crosshair hidden"><i></i></div>
       <div class="vignette"></div>
       <div class="lowhp"></div>`;
     const q = <T extends HTMLElement>(s: string) => root.querySelector(s) as T;
@@ -165,6 +172,7 @@ export class Hud {
     this.hpLag = q('.hp-lag');
     this.stFill = q('.st-fill');
     this.stBar = q('.st-bar');
+    this.stLag = q('.st-lag');
     this.prompt = q('.prompt');
     this.dlg = q('.dialogue');
     this.dlgName = q('.dlg-name');
@@ -187,6 +195,20 @@ export class Hud {
     this.boss = q('.bossbar');
     this.ammo = q('.ammo');
     this.playtest = q('.playtest');
+    this.cross = q('.crosshair');
+  }
+
+  /**
+   * Third-person bow crosshair: a dot; drawing (`draw` 0..1, -1 = not drawn), a ring
+   * closes in on it; red while the shot would hit a foe.
+   */
+  setCrosshair(show: boolean, draw: number, onFoe: boolean): void {
+    this.cross.classList.toggle('hidden', !show);
+    if (!show) return;
+    this.cross.classList.toggle('aiming', draw >= 0);
+    this.cross.classList.toggle('ready', draw >= 1);
+    this.cross.classList.toggle('foe', onFoe);
+    (this.cross.firstElementChild as HTMLElement).style.transform = `translate(-50%, -50%) scale(${draw >= 0 ? 2.2 - 1.2 * Math.min(1, draw) : 1})`;
   }
 
   /** A boss's big health bar (null hides it); the lost chunk trails behind. */
@@ -254,7 +276,14 @@ export class Hud {
     if (this.hpLagValue < f) this.hpLagValue = f;
     this.hpFill.style.width = `${f * 100}%`;
     this.hpLag.style.width = `${this.hpLagValue * 100}%`;
-    this.stFill.style.width = `${Math.max(0, st / maxSt) * 100}%`;
+    const s = Math.max(0, st / maxSt);
+    if (s < this.lastSt - 0.004) this.stLagHold = 0.45;
+    this.lastSt = s;
+    if (this.stLagHold > 0) this.stLagHold -= dt;
+    else this.stLagValue = Math.max(s, this.stLagValue - dt * 0.8);
+    if (this.stLagValue < s) this.stLagValue = s;
+    this.stFill.style.width = `${s * 100}%`;
+    this.stLag.style.width = `${this.stLagValue * 100}%`;
     this.stBar.classList.toggle('exhausted', exhausted);
     this.lowHp.style.opacity = f < 0.3 ? String(0.35 + 0.25 * Math.sin(performance.now() / 180)) : '0';
   }

@@ -1377,7 +1377,7 @@ export const ar: Dict = {
     nowPlaying: 'تعزف الآن: {title}',
     soundtrack: 'الموسيقى التصويرية',
     aimAssist: 'مساعدة التصويب (يد التحكم)',
-    aimAssistSub: 'والقوس مشدود: يلتفت إلى أقرب عدو، ويبطئ العصا فوقه، ويحسب هبوط السهم.',
+    aimAssistSub: 'والقوس مشدود: تبطئ العصا حين يمر التصويب على عدو.',
     soundtracks: { original: 'الأصلية (كيفن ماكلاود)', lmms: 'الجديدة (صنعت في LMMS)' } as Record<string, string>,
     controls: 'التحكم',
     credits: 'الحقوق',

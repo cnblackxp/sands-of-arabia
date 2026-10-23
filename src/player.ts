@@ -11,14 +11,14 @@ import type { Progress } from './progress';
 import { dampAngle, wrapAngle } from './util';
 import type { ClipMeta, World } from './world';
 
-export const WALK_SPEED = 3.0;
-export const RUN_SPEED = 6.2;
+export const WALK_SPEED = 3.4;
+export const RUN_SPEED = 6.9;
 /** A light push on the stick walks slowly (a real walk), a full push moves at WALK_SPEED. */
-const SLOW_WALK = { below: 0.6, min: 0.8, max: 1.5 };
+const SLOW_WALK = { min: 0.8, dead: 0.08 };
 
 /** Stamina costs (Dark Souls style: actions need stamina > 0; regen pauses after use). */
 const COST = { roll: 24, jump: 10, sprintPerSec: 13 };
-const REGEN = { rate: 42, delay: 0.75, delayEmpty: 1.4 };
+const REGEN = { rate: 46, delay: 0.6, delayEmpty: 1.2 };
 
 const ROLL = { duration: 0.62, distance: 4.2, iStart: 0.06, iEnd: 0.42 };
 /** Backstep: roll with no direction held. A short hop back, brief i-frames, cheaper. */
@@ -29,14 +29,14 @@ const BACKSTEP = { duration: 0.42, distance: 1.7, iStart: 0.03, iEnd: 0.22, cost
  * attack; just after a roll, a rolling attack; holding the button, a heavy blow.
  */
 const ATTACK = {
-  light: { lunge: 0.55, dmg: 1, stamina: 1, poise: 1 },
-  heavy: { lunge: 1.0, dmg: 1.75, stamina: 1.6, poise: 2 },
-  running: { lunge: 2.4, dmg: 1.2, stamina: 1.1, poise: 1 },
-  rolling: { lunge: 1.4, dmg: 1.1, stamina: 1, poise: 1 },
+  light: { lunge: 0.9, dmg: 1, stamina: 1, poise: 1 },
+  heavy: { lunge: 1.3, dmg: 1.75, stamina: 1.6, poise: 2 },
+  running: { lunge: 2.6, dmg: 1.2, stamina: 1.1, poise: 1 },
+  rolling: { lunge: 1.6, dmg: 1.1, stamina: 1, poise: 1 },
 };
 type AttackKind = keyof typeof ATTACK;
 /** Holding attack this long into a light blow turns it into a heavy one. */
-const HEAVY_HOLD = 0.22;
+const HEAVY_HOLD = 0.34;
 /** After the blow lands and this long has passed, moving cancels the rest of the recovery. */
 const RECOVER_FREE = 0.2;
 /** Leaping off a moving horse: above walking pace it's a leap, above a canter it ends in a roll. */
@@ -169,6 +169,10 @@ export class Player implements PlayerView {
   /** Locked-on foe's chest (set by the game each frame): face it, strafe around it, swing at it. */
   lockTarget: THREE.Vector3 | null = null;
   private attackIdx = 0;
+  /** Attack presses so far, the press that began this swing, and how long the button has been held. */
+  private presses = 0;
+  private swingPress = 0;
+  private holdT = 0;
   private attackT = -1;
   private attackQueued = 0;
   private hitDone = true;
@@ -187,6 +191,10 @@ export class Player implements PlayerView {
   private landT = 0;
   private readonly rollDir = new THREE.Vector3();
   private staminaDelay = 0;
+  /** Seconds stamina has been left alone (regen speeds up). */
+  private restT = 0;
+  /** Forward lean of the body (radians), into a run. */
+  private lean = 0;
   private exhausted = false;
   private staggerT = 0;
   private downT = 0;
@@ -206,6 +214,9 @@ export class Player implements PlayerView {
   /** Authored release clip playing; the next draw starts after it. */
   private releaseT = 0;
   private aimW = 0;
+  /** The spine as the clip posed it, and after the aim tilt (so the tilt never piles up). */
+  private readonly spineClip = new THREE.Quaternion();
+  private readonly spineTilted = new THREE.Quaternion(2, 0, 0, 0);
   private bowMesh: THREE.Group | null = null;
   /** Last aim from the game (used for facing and the arm pose). */
   aim: BowAim | null = null;
@@ -598,10 +609,16 @@ export class Player implements PlayerView {
     }
 
     // Buffered inputs (a short window so presses just before a recovery ends still count).
-    this.attackQueued = Math.max(0, this.attackQueued - dt);
+    // A press during a swing waits for its turn in the combo; otherwise it only counts for a moment.
+    if (this.attackT < 0) this.attackQueued = Math.max(0, this.attackQueued - dt);
     this.rollQueued = Math.max(0, this.rollQueued - dt);
     this.jumpQueued = Math.max(0, this.jumpQueued - dt);
-    if (f.attack && !this.talking) this.attackQueued = 0.35;
+    if (f.attack && !this.talking) {
+      this.attackQueued = 0.35;
+      this.presses++;
+      this.holdT = 0;
+    }
+    this.holdT = f.attackHeld ? this.holdT + dt : 0;
     if (f.dodge && !this.talking) this.rollQueued = 0.3;
     if (f.jump && !this.talking) this.jumpQueued = 0.15;
     this.coyote = Math.max(0, this.coyote - dt);
@@ -773,7 +790,7 @@ export class Player implements PlayerView {
           }
           // Step into the blow over the end of the windup; a running attack carries through all of it.
           const reach = ATTACK[this.attackKind].lunge;
-          const win = this.attackKind === 'running' ? a.hit : Math.min(0.22, a.hit);
+          const win = this.attackKind === 'running' ? a.hit : Math.min(0.3, a.hit);
           const lunge = this.attackT > a.hit - win && this.attackT < a.hit ? reach / win : 0;
           this.speed = 0;
           const r = this.mover.move(this.moveDir.x * lunge * dt, this.moveDir.z * lunge * dt);
@@ -785,12 +802,9 @@ export class Player implements PlayerView {
           const aiming = this.aiming;
           sprinting = f.run && mag > 0.5 && canSprint && this.attackT < 0 && !this.blocking && this.healT < 0 && !aiming;
           const slow = this.attackT >= 0 ? 0.35 : this.blocking ? 0.5 : this.healT >= 0 ? 0.4 : aiming ? BOW.moveK : 1;
-          // Stick: a light push is a slow walk, a full push the normal pace (keys always push fully).
-          const pace = sprinting
-            ? RUN_SPEED * mag
-            : mag < SLOW_WALK.below
-              ? SLOW_WALK.min + (SLOW_WALK.max - SLOW_WALK.min) * (mag / SLOW_WALK.below)
-              : WALK_SPEED;
+          // Stick: speed follows the push, from a slow walk to the full pace (keys always push fully).
+          const k = THREE.MathUtils.clamp((mag - SLOW_WALK.dead) / (1 - SLOW_WALK.dead), 0, 1);
+          const pace = sprinting ? RUN_SPEED * Math.max(0.6, k) : SLOW_WALK.min + (WALK_SPEED - SLOW_WALK.min) * k;
           const target = (aiming && this.aimLocksMove ? 0 : mag > 0.001 ? pace : 0) * slow;
           if (aiming && this.aim) {
             // Drawn: strafe while facing the shot.
@@ -805,7 +819,8 @@ export class Player implements PlayerView {
             this.moveDir.copy(dir);
             this.yawTarget = Math.atan2(dir.x, dir.z);
           }
-          const accel = target > this.speed ? 28 : 22;
+          // Quick to answer the stick: full pace in about a tenth of a second.
+          const accel = target > this.speed ? 40 : 34;
           this.speed = target > this.speed ? Math.min(target, this.speed + accel * dt) : Math.max(target, this.speed - accel * dt);
           const r = this.mover.move(this.moveDir.x * this.speed * dt, this.moveDir.z * this.speed * dt);
           step = r;
@@ -840,6 +855,9 @@ export class Player implements PlayerView {
       else if (s < 2.4) a.setBase('Walk', back * Math.max(0.35, s / CLIP_SPEED.personWalk), 0.18);
       else a.setBase('Run', back * (s / CLIP_SPEED.personRun), 0.15);
     }
+    // Lean into the run: a little at a jog, more at a sprint, a touch more while speeding up.
+    const leanTo = this.rollT >= 0 || this.airborne || this.lockTarget ? 0 : sprinting ? 0.17 : this.animSpeed > 2.6 ? 0.08 : 0;
+    this.lean += (leanTo - this.lean) * (1 - Math.exp(-dt * 8));
     this.rig.anim.update(dt);
     this.poseBow(dt);
     this.syncRoot();
@@ -952,8 +970,15 @@ export class Player implements PlayerView {
     const e = new THREE.Euler();
     if (this.bowClips) {
       // Authored clips aim level; lean the upper body into the shot's elevation.
+      // Tilt from the clip's pose each frame: if the mixer didn't write the spine
+      // this frame, start from last frame's clip pose, never from last frame's tilt.
       const sp = bones.get('spine');
-      if (sp) sp.quaternion.premultiply(q.setFromEuler(e.set(-pitch * 0.85 * w, 0, 0)));
+      if (sp) {
+        if (this.spineTilted.equals(sp.quaternion)) sp.quaternion.copy(this.spineClip);
+        this.spineClip.copy(sp.quaternion);
+        sp.quaternion.premultiply(q.setFromEuler(e.set(-pitch * 0.85 * w, 0, 0)));
+        this.spineTilted.copy(sp.quaternion);
+      }
       return;
     }
     const blend = (name: string, x: number, y: number, z: number) => {
@@ -989,11 +1014,15 @@ export class Player implements PlayerView {
   }
 
   private regen(dt: number, draining: boolean): void {
-    if (this.staminaDelay > 0) this.staminaDelay -= dt;
-    else if (!draining && this.attackT < 0 && this.rollT < 0) {
-      const rate = this.blocking ? REGEN.rate * 0.35 : REGEN.rate;
+    if (this.staminaDelay > 0) {
+      this.staminaDelay -= dt;
+      this.restT = 0;
+    } else if (!draining && this.attackT < 0 && this.rollT < 0) {
+      // Left alone, it fills faster and faster (up to 1.7× after a second).
+      this.restT += dt;
+      const rate = this.blocking ? REGEN.rate * 0.35 : REGEN.rate * (1 + 0.7 * Math.min(1, this.restT));
       this.stamina = Math.min(this.maxStamina, this.stamina + rate * dt);
-    }
+    } else this.restT = 0;
   }
 
   private updateAttack(dt: number, f: Frame): void {
@@ -1011,13 +1040,15 @@ export class Player implements PlayerView {
         this.startSwing(this.swings[this.attackIdx], kind);
       }
     }
-    // Still holding the button into a light blow: it becomes a heavy one.
+    // Still holding the very press that began this light blow: it becomes a heavy one.
+    // (Tapping again for a combo is a new press, so a quick double or triple tap never turns heavy.)
     if (
       this.attackKind === 'light' &&
       this.heavySwing &&
       !this.horse &&
       f.attackHeld &&
-      this.attackT >= HEAVY_HOLD &&
+      this.presses === this.swingPress &&
+      this.holdT >= HEAVY_HOLD &&
       this.attackT < this.cur.hit &&
       this.spend(this.wpn.stamina * (ATTACK.heavy.stamina - 1))
     ) {
@@ -1039,6 +1070,7 @@ export class Player implements PlayerView {
 
   /** Begin a blow: face the locked foe (or one just ahead), play the swing. */
   private startSwing(s: Swing, kind: AttackKind): void {
+    this.swingPress = this.presses;
     this.cur = s;
     this.attackKind = kind;
     this.attackT = 0;
@@ -1062,7 +1094,7 @@ export class Player implements PlayerView {
       r.rotation.set(this.horse.pitch, this.yaw, this.horse.roll, 'YXZ');
     } else {
       r.position.copy(this.mover.feet);
-      r.rotation.set(0, this.yaw, 0, 'YXZ');
+      r.rotation.set(this.lean, this.yaw, 0, 'YXZ');
     }
     this.updateNock();
   }
